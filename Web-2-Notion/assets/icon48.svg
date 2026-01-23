@@ -1,0 +1,19 @@
+<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="24" cy="24" r="22" fill="#ffffff" stroke="#256BE0" stroke-width="3"/>
+
+  <!-- Web globe -->
+  <circle cx="24" cy="24" r="9" fill="none" stroke="#256BE0" stroke-width="1"/>
+  <path d="M24 15 Q28 15 28 19" fill="none" stroke="#256BE0" stroke-width="1"/>
+  <path d="M24 33 Q28 33 28 29" fill="none" stroke="#256BE0" stroke-width="1"/>
+  <path d="M15 24 Q15 28 19 28" fill="none" stroke="#256BE0" stroke-width="1"/>
+  <path d="M33 24 Q33 28 29 28" fill="none" stroke="#256BE0" stroke-width="1"/>
+  <circle cx="24" cy="24" r="1" fill="#256BE0"/>
+
+  <!-- Arrow pointing to Notion -->
+  <path d="M28 17 L32 17 L30 21 Z" fill="#256BE0"/>
+  <line x1="24" y1="24" x2="29" y2="19" stroke="#256BE0" stroke-width="1" stroke-linecap="round"/>
+
+  <!-- "2" symbol -->
+  <text x="24" y="36" font-family="Arial, sans-serif" font-size="9" font-weight="bold" text-anchor="middle" fill="#256BE0">2</text>
+</svg>
