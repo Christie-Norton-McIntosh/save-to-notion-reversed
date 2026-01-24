@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [Unreleased]
+## [4.0.5] - 2026-01-24
 
 ### Added
 
@@ -23,7 +23,9 @@ All notable changes to this project are documented in this file.
 
 ---
 
-## [Earlier]
+## [4.0.0] - 2025-XX-XX
+
+### Added
 
 - Initial implementation of Web-2-Notion Chrome extension features.
 - Basic modal, selector, and screenshot functionality.
