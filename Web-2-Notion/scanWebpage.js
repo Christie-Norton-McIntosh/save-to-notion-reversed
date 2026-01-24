@@ -14636,34 +14636,159 @@ async function scanWebpage() {
               "[scanWebpage] Searching ALL shadow DOMs recursively for selector...",
             );
 
-            // Recursive function to search shadow DOMs
-            function searchShadowRootsRecursively(root, depth = 0) {
-              const allElements = root.querySelectorAll("*");
+            // Check if we have multiple selectors (comma-separated)
+            const isMultipleSelectors = readableZoneSelector.includes(",");
 
-              for (const el of allElements) {
-                if (el.shadowRoot) {
-                  // Check this shadow root
-                  const match =
-                    el.shadowRoot.querySelector(readableZoneSelector);
-                  if (match) {
+            if (isMultipleSelectors) {
+              console.log(
+                "[scanWebpage] Multiple selectors detected, will combine results",
+              );
+
+              // Recursive function to search shadow DOMs and collect all matches
+              function searchShadowRootsForAll(root, depth = 0) {
+                const matches = [];
+                const allElements = root.querySelectorAll("*");
+
+                for (const el of allElements) {
+                  if (el.shadowRoot) {
                     console.log(
-                      `[scanwebpage] ✓ FOUND element in shadow root of ${el.tagName} at depth ${depth}!`,
+                      `[scanwebpage] Checking shadow root of ${el.tagName} at depth ${depth}...`,
                     );
-                    return match;
+                    // Check this shadow root for all matching elements
+                    const shadowMatches =
+                      el.shadowRoot.querySelectorAll(readableZoneSelector);
+                    if (shadowMatches.length > 0) {
+                      console.log(
+                        `[scanwebpage] ✓ FOUND ${shadowMatches.length} elements in shadow root of ${el.tagName} at depth ${depth}!`,
+                      );
+                      // Log what was found
+                      Array.from(shadowMatches).forEach((match, idx) => {
+                        console.log(
+                          `[scanwebpage]   Element ${idx + 1}: ${match.tagName}.${match.className} (${match.textContent?.substring(0, 50)}...)`,
+                        );
+                      });
+                      matches.push(...Array.from(shadowMatches));
+                    }
+
+                    // Recurse into nested shadow roots
+                    const nestedMatches = searchShadowRootsForAll(
+                      el.shadowRoot,
+                      depth + 1,
+                    );
+                    if (nestedMatches.length > 0) {
+                      matches.push(...nestedMatches);
+                    }
                   }
-
-                  // Recurse into nested shadow roots
-                  const nestedMatch = searchShadowRootsRecursively(
-                    el.shadowRoot,
-                    depth + 1,
-                  );
-                  if (nestedMatch) return nestedMatch;
                 }
+                return matches;
               }
-              return null;
-            }
 
-            liveElement = searchShadowRootsRecursively(document);
+              // Try document first
+              let allMatches = document.querySelectorAll(readableZoneSelector);
+
+              // If no matches in document, search shadow DOMs
+              if (allMatches.length === 0) {
+                const shadowMatches = searchShadowRootsForAll(document);
+                allMatches = shadowMatches;
+              }
+
+              // DEBUG: Try searching for each selector separately
+              console.log(
+                `[scanWebpage] DEBUG: Searching for selectors individually...`,
+              );
+              const selectors = readableZoneSelector
+                .split(",")
+                .map((s) => s.trim());
+              for (const sel of selectors) {
+                console.log(`[scanWebpage] Searching for: "${sel}"`);
+
+                // Search in document
+                const docMatches = document.querySelectorAll(sel);
+                console.log(
+                  `[scanWebpage]   Document matches: ${docMatches.length}`,
+                );
+
+                // Search in shadow DOMs
+                function searchForSelector(root, selector, depth = 0) {
+                  const matches = [];
+                  const allElements = root.querySelectorAll("*");
+                  for (const el of allElements) {
+                    if (el.shadowRoot) {
+                      const shadowMatches =
+                        el.shadowRoot.querySelectorAll(selector);
+                      if (shadowMatches.length > 0) {
+                        console.log(
+                          `[scanWebpage]   Found ${shadowMatches.length} in ${el.tagName} shadow at depth ${depth}`,
+                        );
+                        matches.push(...Array.from(shadowMatches));
+                      }
+                      const nested = searchForSelector(
+                        el.shadowRoot,
+                        selector,
+                        depth + 1,
+                      );
+                      matches.push(...nested);
+                    }
+                  }
+                  return matches;
+                }
+
+                const shadowMatches = searchForSelector(document, sel);
+                console.log(
+                  `[scanWebpage]   Shadow DOM matches: ${shadowMatches.length}`,
+                );
+              }
+
+              if (allMatches.length > 0) {
+                console.log(
+                  `[scanWebpage] Found ${allMatches.length} total elements with multiple selectors`,
+                );
+
+                // Create a container to combine all elements
+                const container = document.createElement("div");
+                container.className = "combined-scan-results";
+                Array.from(allMatches).forEach((match, idx) => {
+                  console.log(
+                    `[scanWebpage] Adding element ${idx + 1} to container: ${match.tagName}.${match.className}`,
+                  );
+                  container.appendChild(match.cloneNode(true));
+                });
+                console.log(
+                  `[scanWebpage] Container final text length: ${container.textContent?.length}`,
+                );
+                liveElement = container;
+              }
+            } else {
+              // Single selector - use original recursive logic
+              // Recursive function to search shadow DOMs
+              function searchShadowRootsRecursively(root, depth = 0) {
+                const allElements = root.querySelectorAll("*");
+
+                for (const el of allElements) {
+                  if (el.shadowRoot) {
+                    // Check this shadow root
+                    const match =
+                      el.shadowRoot.querySelector(readableZoneSelector);
+                    if (match) {
+                      console.log(
+                        `[scanwebpage] ✓ FOUND element in shadow root of ${el.tagName} at depth ${depth}!`,
+                      );
+                      return match;
+                    }
+
+                    // Recurse into nested shadow roots
+                    const nestedMatch = searchShadowRootsRecursively(
+                      el.shadowRoot,
+                      depth + 1,
+                    );
+                    if (nestedMatch) return nestedMatch;
+                  }
+                }
+                return null;
+              }
+
+              liveElement = searchShadowRootsRecursively(document);
+            }
 
             if (liveElement) {
               console.log(
@@ -14882,3 +15007,88 @@ async function scanWebpage() {
   return r || {};
 }
 scanWebpage().then(done);
+
+// Monitor URL changes for same-site navigation to auto-update content
+(function setupNavigationMonitor() {
+  let lastUrl = window.location.href;
+  let lastHostname = getHostname();
+
+  console.log("[scanWebpage] Setting up navigation monitor for:", lastHostname);
+
+  // Monitor for URL changes (works for SPAs that use pushState/replaceState)
+  const observer = new MutationObserver(async () => {
+    const currentUrl = window.location.href;
+    const currentHostname = getHostname();
+
+    if (currentUrl !== lastUrl && currentHostname === lastHostname) {
+      console.log("[scanWebpage] Navigation detected on same site:", {
+        from: lastUrl,
+        to: currentUrl,
+      });
+
+      lastUrl = currentUrl;
+
+      // Check if this is a known site with custom selectors
+      if (await isAKnownSite(document)) {
+        console.log("[scanWebpage] Auto-rescanning page after navigation...");
+
+        // Small delay to let the new page content load
+        setTimeout(async () => {
+          try {
+            const result = await scanWebpage();
+            console.log("[scanWebpage] Auto-rescan complete:", result);
+
+            // Send the updated content to the service worker
+            chrome.runtime.sendMessage({
+              event: "contentUpdatedAfterNavigation",
+              props: {
+                url: currentUrl,
+                content: result,
+              },
+              destination: "background",
+              v2: true,
+            });
+          } catch (error) {
+            console.error("[scanWebpage] Auto-rescan failed:", error);
+          }
+        }, 1000); // Wait 1 second for content to load
+      }
+    }
+  });
+
+  // Observe the entire document for changes
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
+
+  // Also listen for popstate events (back/forward navigation)
+  window.addEventListener("popstate", async () => {
+    const currentUrl = window.location.href;
+    const currentHostname = getHostname();
+
+    if (currentHostname === lastHostname) {
+      console.log("[scanWebpage] Popstate navigation detected:", currentUrl);
+      lastUrl = currentUrl;
+
+      if (await isAKnownSite(document)) {
+        setTimeout(async () => {
+          try {
+            const result = await scanWebpage();
+            chrome.runtime.sendMessage({
+              event: "contentUpdatedAfterNavigation",
+              props: {
+                url: currentUrl,
+                content: result,
+              },
+              destination: "background",
+              v2: true,
+            });
+          } catch (error) {
+            console.error("[scanWebpage] Popstate rescan failed:", error);
+          }
+        }, 1000);
+      }
+    }
+  });
+})();

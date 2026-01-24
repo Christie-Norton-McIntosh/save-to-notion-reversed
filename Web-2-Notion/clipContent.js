@@ -3035,43 +3035,115 @@ z-index: 2;
             customSelector,
           );
           try {
-            // First try the element itself
-            article = rootElement.closest(customSelector);
-            console.log(
-              "[extractContentData] closest() result:",
-              article ? "Found" : "Not found",
-            );
+            // Check if this is a comma-separated list of selectors
+            const isMultipleSelectors = customSelector.includes(",");
 
-            // If not found, try searching from document root
-            if (!article) {
-              article = document.querySelector(customSelector);
+            if (isMultipleSelectors) {
               console.log(
-                "[extractContentData] document.querySelector() result:",
-                article ? "Found" : "Not found",
+                "[extractContentData] Multiple selectors detected, will combine results",
               );
-            }
 
-            // If still not found, try searching within the rootElement
-            if (!article) {
-              article = rootElement.querySelector(customSelector);
-              console.log(
-                "[extractContentData] rootElement.querySelector() result:",
-                article ? "Found" : "Not found",
-              );
-            }
+              // Create a container to hold all matched elements
+              const container = document.createElement("div");
+              container.className = "combined-content-selection";
 
-            // If still not found and rootElement is in Shadow DOM, try searching the shadow root
-            if (!article && rootElement.getRootNode) {
-              const root = rootElement.getRootNode();
-              if (root instanceof ShadowRoot) {
+              // Try each strategy to find all matching elements
+              let allMatches = [];
+
+              // Strategy 1: Search from document root (most reliable)
+              const docMatches = document.querySelectorAll(customSelector);
+              if (docMatches.length > 0) {
+                allMatches = Array.from(docMatches);
                 console.log(
-                  "[extractContentData] Searching in Shadow DOM root",
+                  `[extractContentData] Found ${docMatches.length} elements via document.querySelectorAll()`,
                 );
-                article = root.querySelector(customSelector);
+              }
+
+              // Strategy 2: Search within rootElement if no doc matches
+              if (allMatches.length === 0) {
+                const rootMatches =
+                  rootElement.querySelectorAll(customSelector);
+                if (rootMatches.length > 0) {
+                  allMatches = Array.from(rootMatches);
+                  console.log(
+                    `[extractContentData] Found ${rootMatches.length} elements via rootElement.querySelectorAll()`,
+                  );
+                }
+              }
+
+              // Strategy 3: Search in Shadow DOM if still no matches
+              if (allMatches.length === 0 && rootElement.getRootNode) {
+                const root = rootElement.getRootNode();
+                if (root instanceof ShadowRoot) {
+                  const shadowMatches = root.querySelectorAll(customSelector);
+                  if (shadowMatches.length > 0) {
+                    allMatches = Array.from(shadowMatches);
+                    console.log(
+                      `[extractContentData] Found ${shadowMatches.length} elements via shadowRoot.querySelectorAll()`,
+                    );
+                  }
+                }
+              }
+
+              // Combine all matched elements into the container
+              if (allMatches.length > 0) {
+                allMatches.forEach((match, index) => {
+                  console.log(
+                    `[extractContentData] Adding match ${index + 1}:`,
+                    match.className,
+                    match.tagName,
+                  );
+                  container.appendChild(match.cloneNode(true));
+                });
+                article = container;
                 console.log(
-                  "[extractContentData] shadowRoot.querySelector() result:",
+                  `[extractContentData] Combined ${allMatches.length} elements into container`,
+                );
+              } else {
+                console.log(
+                  "[extractContentData] No matches found for multiple selectors",
+                );
+              }
+            } else {
+              // Single selector - use original logic
+              // First try the element itself
+              article = rootElement.closest(customSelector);
+              console.log(
+                "[extractContentData] closest() result:",
+                article ? "Found" : "Not found",
+              );
+
+              // If not found, try searching from document root
+              if (!article) {
+                article = document.querySelector(customSelector);
+                console.log(
+                  "[extractContentData] document.querySelector() result:",
                   article ? "Found" : "Not found",
                 );
+              }
+
+              // If still not found, try searching within the rootElement
+              if (!article) {
+                article = rootElement.querySelector(customSelector);
+                console.log(
+                  "[extractContentData] rootElement.querySelector() result:",
+                  article ? "Found" : "Not found",
+                );
+              }
+
+              // If still not found and rootElement is in Shadow DOM, try searching the shadow root
+              if (!article && rootElement.getRootNode) {
+                const root = rootElement.getRootNode();
+                if (root instanceof ShadowRoot) {
+                  console.log(
+                    "[extractContentData] Searching in Shadow DOM root",
+                  );
+                  article = root.querySelector(customSelector);
+                  console.log(
+                    "[extractContentData] shadowRoot.querySelector() result:",
+                    article ? "Found" : "Not found",
+                  );
+                }
               }
             }
 

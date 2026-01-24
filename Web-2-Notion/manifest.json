@@ -3,7 +3,7 @@
 
   "manifest_version": 3,
   "name": "Web-2-Notion",
-  "version": "4.0.1",
+  "version": "4.0.5",
   "description": "Save the Web to Notion",
   "permissions": [
     "activeTab",
