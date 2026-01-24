@@ -8894,31 +8894,33 @@ async function Rl(e) {
 const Ce = Mo ? chrome.browserAction : chrome.action;
 let Se = {};
 function Ea() {
-  ((chrome.contextMenus.create({
-    title: "Save Page to Notion",
-    id: "stn_save_page",
-    contexts: ["page"],
-    documentUrlPatterns: ["*://*/*"],
-  }),
-  !(ge || it) &&
+  chrome.contextMenus.removeAll(() => {
     (chrome.contextMenus.create({
-      title: "Take Full Page Screenshot",
-      id: "stn_take_full_page_screenshot",
+      title: "Save Page to Notion",
+      id: "stn_save_page",
       contexts: ["page"],
       documentUrlPatterns: ["*://*/*"],
     }),
-    chrome.contextMenus.create({
-      title: "Select Zone to Screenshot",
-      id: "stn_select_zone_screenshot",
-      contexts: ["page"],
-      documentUrlPatterns: ["*://*/*"],
-    }))),
-    chrome.contextMenus.create({
-      title: "Configure Site Selectors",
-      id: "stn_configure_site_selectors",
-      contexts: ["page"],
-      documentUrlPatterns: ["*://*/*"],
-    }));
+      !(ge || it) &&
+        (chrome.contextMenus.create({
+          title: "Take Full Page Screenshot",
+          id: "stn_take_full_page_screenshot",
+          contexts: ["page"],
+          documentUrlPatterns: ["*://*/*"],
+        }),
+        chrome.contextMenus.create({
+          title: "Select Zone to Screenshot",
+          id: "stn_select_zone_screenshot",
+          contexts: ["page"],
+          documentUrlPatterns: ["*://*/*"],
+        })),
+      chrome.contextMenus.create({
+        title: "Configure Site Selectors",
+        id: "stn_configure_site_selectors",
+        contexts: ["page"],
+        documentUrlPatterns: ["*://*/*"],
+      }));
+  });
 }
 async function Ll() {
   (chrome.contextMenus.create({

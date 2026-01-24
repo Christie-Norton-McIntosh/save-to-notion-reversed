@@ -2734,9 +2734,9 @@ function Tn(e) {
           position: "relative",
           borderRadius: "6px",
           padding: "6px 12px 6px 12px",
-          backgroundColor: "#335cff",
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
           className:
-            "group-disabled/QuickNoteSaveButtonV2:!bg-stone-200 group-hover/QuickNoteSaveButtonV2:!bg-[#335cff] group-focus/QuickNoteSaveButtonV2:!bg-[rgba(24,100,171,1)]",
+            "group-disabled/QuickNoteSaveButtonV2:!bg-stone-200 group-hover/QuickNoteSaveButtonV2:!accent-bg group-focus/QuickNoteSaveButtonV2:!bg-[rgba(24,100,171,1)]",
           ...bn(t, "content"),
           children: an(fn, {
             fontFamily: "Helvetica Neue",
