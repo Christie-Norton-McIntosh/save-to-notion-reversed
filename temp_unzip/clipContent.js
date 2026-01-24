@@ -799,7 +799,10 @@
       const onMouseOver = (event) => {
         // Only highlight on hover for field selection and content selection modes
         // For basic clipContent, highlighting happens on click instead
-        if (manager.status === "field-selection" || manager.status === "content-selection") {
+        if (
+          manager.status === "field-selection" ||
+          manager.status === "content-selection"
+        ) {
           window.requestAnimationFrame(() => {
             event.stopPropagation();
             findAndDrawElement(
@@ -841,11 +844,18 @@
         return true;
       }
       function onContentClick(event) {
+        console.log("[onContentClick] Content click detected");
         if (hasForbiddenParents(event.target, FORBIDDEN_PARENT_IDS)) {
+          console.log("[onContentClick] Forbidden parent detected, ignoring");
           return;
         }
         event.stopPropagation();
         event.preventDefault();
+        console.log(
+          "[onContentClick] Calling startContentConfirmSelection",
+          event.clientX,
+          event.clientY,
+        );
         manager.startContentConfirmSelection({
           x: event.clientX,
           y: event.clientY,
@@ -1373,26 +1383,47 @@
           manager.status = "field-confirm-selection";
         },
         startContentConfirmSelection({ x, y }) {
-          manager._stopListenContentSelectionEvents();
-          const contentData = extractContentData(currentNode);
-          if (contentData) {
-            const confirmSelectionDialogEl = manager.confirmState.setup({
-              x,
-              y,
-              actions: [
-                {
-                  name: `Extract Content (${contentData.textContent.length} chars)`,
-                  callback: () => {
-                    confirmState._cancelConfirmSelectionDialog();
-                    manager.extractContent();
+          return __awaiter(this, void 0, void 0, function* () {
+            console.log(
+              "[startContentConfirmSelection] Starting content confirm selection",
+            );
+            manager._stopListenContentSelectionEvents();
+            console.log(
+              "[startContentConfirmSelection] About to load custom selector",
+            );
+            const customSelector = yield getCustomSelectorForCurrentDomain();
+            console.log(
+              "[startContentConfirmSelection] Custom selector loaded:",
+              customSelector,
+            );
+            console.log(
+              "[startContentConfirmSelection] Current node:",
+              currentNode,
+            );
+            const contentData = extractContentData(currentNode, customSelector);
+            console.log(
+              "[startContentConfirmSelection] Content data:",
+              contentData,
+            );
+            if (contentData) {
+              const confirmSelectionDialogEl = manager.confirmState.setup({
+                x,
+                y,
+                actions: [
+                  {
+                    name: `Extract Content (${contentData.textContent.length} chars)`,
+                    callback: () => {
+                      confirmState._cancelConfirmSelectionDialog();
+                      manager.extractContent();
+                    },
                   },
-                },
-              ],
-            });
-          } else {
-            manager.confirmState.setup({ x, y });
-          }
-          manager.status = "content-confirm-selection";
+                ],
+              });
+            } else {
+              manager.confirmState.setup({ x, y });
+            }
+            manager.status = "content-confirm-selection";
+          });
         },
         extractFields() {
           return __awaiter(this, void 0, void 0, function* () {
@@ -1441,7 +1472,8 @@
               return;
             }
 
-            const contentData = extractContentData(currentNode);
+            const customSelector = yield getCustomSelectorForCurrentDomain();
+            const contentData = extractContentData(currentNode, customSelector);
             if (!contentData) {
               console.error("[clipContent] No content found to extract");
               manager.stopClipZone(true, null);
@@ -2823,12 +2855,124 @@ z-index: 2;
           window.fieldOverlays.push({ overlay, label });
         });
       }
-      function extractContentData(rootElement) {
-        // Try to find structured content like documentation articles
-        const article =
-          rootElement.closest("article") ||
-          document.querySelector("article") ||
-          rootElement.querySelector("article");
+      // Helper function to normalize domain names (same as in site-selectors.js)
+      function normalizeDomain(domain) {
+        if (!domain) return "";
+        // Remove protocol if present
+        domain = domain.replace(/^https?:\/\//, "");
+        // Remove www. prefix
+        domain = domain.replace(/^www\./, "");
+        // Remove trailing slash and anything after it
+        domain = domain.split("/")[0];
+        // Remove port numbers
+        domain = domain.split(":")[0];
+        return domain.trim().toLowerCase();
+      }
+      // Helper function to get custom selector for current domain
+      function getCustomSelectorForCurrentDomain() {
+        return new Promise((resolve) => {
+          const currentDomain = normalizeDomain(window.location.hostname);
+          console.log(
+            "[getCustomSelectorForCurrentDomain] Current domain:",
+            currentDomain,
+          );
+
+          chrome.storage.local.get(["customSiteSelectors"], function (result) {
+            const selectors = result.customSiteSelectors || {};
+            console.log(
+              "[getCustomSelectorForCurrentDomain] All saved selectors:",
+              selectors,
+            );
+
+            const customSelector = selectors[currentDomain];
+            console.log(
+              "[getCustomSelectorForCurrentDomain] Found selector for",
+              currentDomain,
+              ":",
+              customSelector,
+            );
+
+            resolve(customSelector || null);
+          });
+        });
+      }
+      function extractContentData(rootElement, customSelector = null) {
+        console.log(
+          "[extractContentData] Starting extraction with custom selector:",
+          customSelector,
+        );
+        console.log("[extractContentData] Root element:", rootElement);
+
+        // Try to find structured content using custom selector first, then fall back to 'article'
+        let article = null;
+
+        if (customSelector) {
+          console.log(
+            "[extractContentData] Trying custom selector:",
+            customSelector,
+          );
+          try {
+            // First try the element itself
+            article = rootElement.closest(customSelector);
+            console.log(
+              "[extractContentData] closest() result:",
+              article ? "Found" : "Not found",
+            );
+
+            // If not found, try searching from document root
+            if (!article) {
+              article = document.querySelector(customSelector);
+              console.log(
+                "[extractContentData] document.querySelector() result:",
+                article ? "Found" : "Not found",
+              );
+            }
+
+            // If still not found, try searching within the rootElement
+            if (!article) {
+              article = rootElement.querySelector(customSelector);
+              console.log(
+                "[extractContentData] rootElement.querySelector() result:",
+                article ? "Found" : "Not found",
+              );
+            }
+
+            // If still not found and rootElement is in Shadow DOM, try searching the shadow root
+            if (!article && rootElement.getRootNode) {
+              const root = rootElement.getRootNode();
+              if (root instanceof ShadowRoot) {
+                console.log(
+                  "[extractContentData] Searching in Shadow DOM root",
+                );
+                article = root.querySelector(customSelector);
+                console.log(
+                  "[extractContentData] shadowRoot.querySelector() result:",
+                  article ? "Found" : "Not found",
+                );
+              }
+            }
+
+            console.log(
+              "[extractContentData] Final custom selector result:",
+              article ? "Found" : "Not found",
+            );
+          } catch (e) {
+            console.error(
+              "[extractContentData] Invalid custom selector:",
+              customSelector,
+              e,
+            );
+          }
+        }
+
+        // Fall back to 'article' if no custom selector or custom selector didn't work
+        if (!article) {
+          console.log("[extractContentData] Falling back to article selector");
+          article =
+            rootElement.closest("article") ||
+            document.querySelector("article") ||
+            rootElement.querySelector("article");
+        }
 
         if (article) {
           // Extract title

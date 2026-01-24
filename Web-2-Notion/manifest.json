@@ -3,7 +3,7 @@
 
   "manifest_version": 3,
   "name": "Web-2-Notion",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Save the Web to Notion",
   "permissions": [
     "activeTab",
@@ -32,11 +32,14 @@
       "description": "Take full page screenshot"
     },
     "take-custom-area-screenshot": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+A",
-        "mac": "Command+Shift+A"
-      },
       "description": "Take custom area screenshot"
+    },
+    "open-site-selectors": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+C",
+        "mac": "Command+Shift+C"
+      },
+      "description": "Configure custom site selectors for content extraction"
     },
     "_execute_action": {
       "suggested_key": {
@@ -47,6 +50,10 @@
   },
   "action": {
     "default_title": "Web-2-Notion"
+  },
+  "options_ui": {
+    "page": "site-selectors.html",
+    "open_in_tab": false
   },
   "icons": {
     "48": "assets/icon48.png",
@@ -67,12 +74,13 @@
         "onboarding_guide_popup/index.html",
         "onboarding_guide_popup/script.js",
         "welcome/welcome.html",
+        "site-selectors.html",
         "assets/*.js"
       ],
       "matches": ["<all_urls>"]
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self';"
+    "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline';"
   }
 }
