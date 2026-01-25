@@ -8980,24 +8980,30 @@ function Qd(e, t, n) {
 function Jd() {
   return Qd();
 }
-const eu = Ld(
-    async (e, { db: t, store: n }) => {
-      console.log("Cognito Google SSO removed - extension no longer uses this authentication");
-      throw new Error("Cognito authentication has been removed from this extension");
-    },
-  ),
-  tu = Ld(
-    async (e, t) => {
-      console.log("Cognito Google SSO removed - extension no longer uses this authentication");
-      throw new Error("Cognito authentication has been removed from this extension");
-    },
-  ),
-  nu = Ld(
-    async (e, t) => {
-      console.log("Cognito Google SSO removed - extension no longer uses this authentication");
-      throw new Error("Cognito authentication has been removed from this extension");
-    },
-  );
+const eu = Ld(async (e, { db: t, store: n }) => {
+    console.log(
+      "Cognito Google SSO removed - extension no longer uses this authentication",
+    );
+    throw new Error(
+      "Cognito authentication has been removed from this extension",
+    );
+  }),
+  tu = Ld(async (e, t) => {
+    console.log(
+      "Cognito Google SSO removed - extension no longer uses this authentication",
+    );
+    throw new Error(
+      "Cognito authentication has been removed from this extension",
+    );
+  }),
+  nu = Ld(async (e, t) => {
+    console.log(
+      "Cognito Google SSO removed - extension no longer uses this authentication",
+    );
+    throw new Error(
+      "Cognito authentication has been removed from this extension",
+    );
+  });
 async function ru(e, { db: t }) {
   const n = await t.user.load();
   await t.user.save({ ...n, auth: { ...n.auth, ...e } });
@@ -10345,8 +10351,14 @@ class bf {
         signUp: async (e) => await this.post("auth/signup", e),
         googleSsoCompleteLogin: async (e) =>
           await this.post("auth/google-sso-complete-login", e),
-        sendMagicLink: async (e) => ({ success: false, error: "Cognito authentication removed" }),
-        validateMagicLink: async (e) => ({ success: false, error: "Cognito authentication removed" }),
+        sendMagicLink: async (e) => ({
+          success: false,
+          error: "Cognito authentication removed",
+        }),
+        validateMagicLink: async (e) => ({
+          success: false,
+          error: "Cognito authentication removed",
+        }),
         getCognitoUrlWithSessionId: (e) => ({ sessionId: "", url: "" }),
         changePassword: async (e) => this.post("auth/change-password", e),
       }),
@@ -70797,14 +70809,12 @@ function D8(e) {
           var n = Array.from(t);
           return (
             n.reverse(),
-            n
-              .slice(0, 50)
-              .map((t) =>
-                e({}, t, {
-                  filename: t.filename || mn(n).filename,
-                  function: t.function || ln,
-                }),
-              )
+            n.slice(0, 50).map((t) =>
+              e({}, t, {
+                filename: t.filename || mn(n).filename,
+                function: t.function || ln,
+              }),
+            )
           );
         })(r);
       };
@@ -108673,33 +108683,31 @@ function the({ step: e, isLast: t, isPinned: n }) {
   );
 }
 function nhe(e) {
-  return e
-    .split(/(<<PUZZLE_ICON>>|<<PIN_ICON>>)/g)
-    .map((e, t) =>
-      "<<PUZZLE_ICON>>" === e
+  return e.split(/(<<PUZZLE_ICON>>|<<PIN_ICON>>)/g).map((e, t) =>
+    "<<PUZZLE_ICON>>" === e
+      ? Vt(
+          "span",
+          {
+            className:
+              "inline-flex items-center justify-center align-middle mx-1 p-1 rounded-[4px] border border-border bg-gray-100",
+            children: Vt(Ad, { className: "w-5 h-5 text-muted-foreground" }),
+          },
+          `pzl-${t}`,
+        )
+      : "<<PIN_ICON>>" === e
         ? Vt(
             "span",
             {
               className:
                 "inline-flex items-center justify-center align-middle mx-1 p-1 rounded-[4px] border border-border bg-gray-100",
-              children: Vt(Ad, { className: "w-5 h-5 text-muted-foreground" }),
+              children: Vt(Ed, {
+                className: "w-5 h-5 text-muted-foreground",
+              }),
             },
-            `pzl-${t}`,
+            `pin-${t}`,
           )
-        : "<<PIN_ICON>>" === e
-          ? Vt(
-              "span",
-              {
-                className:
-                  "inline-flex items-center justify-center align-middle mx-1 p-1 rounded-[4px] border border-border bg-gray-100",
-                children: Vt(Ed, {
-                  className: "w-5 h-5 text-muted-foreground",
-                }),
-              },
-              `pin-${t}`,
-            )
-          : Vt(Ft.Fragment, { children: e }, `txt-${t}`),
-    );
+        : Vt(Ft.Fragment, { children: e }, `txt-${t}`),
+  );
 }
 function rhe(e, t) {
   const { className: n, children: r } = e;
