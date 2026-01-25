@@ -844,14 +844,14 @@
         return true;
       }
       function onContentClick(event) {
-        console.log("[onContentClick] Content click detected");
+        console.debug("[onContentClick] Content click detected");
         if (hasForbiddenParents(event.target, FORBIDDEN_PARENT_IDS)) {
-          console.log("[onContentClick] Forbidden parent detected, ignoring");
+          console.debug("[onContentClick] Forbidden parent detected, ignoring");
           return;
         }
         event.stopPropagation();
         event.preventDefault();
-        console.log(
+        console.debug(
           "[onContentClick] Calling startContentConfirmSelection",
           event.clientX,
           event.clientY,
@@ -866,15 +866,29 @@
         _confirmCallback: null,
         onMouseClick(event) {
           var _a;
+          console.debug(
+            "[confirmState.onMouseClick] Click detected:",
+            event.target,
+          );
           // check if its outside the confirm selection box
           // if yes, cancel
+          const closest = event.target.closest(`#confirm-selection-${idName}`);
+          console.debug(
+            "[confirmState.onMouseClick] Closest confirm-selection element:",
+            closest,
+          );
           if (
-            ((_a = event.target.closest(`#confirm-selection-${idName}`)) ===
-              null || _a === void 0
-              ? void 0
-              : _a.id) != `confirm-selection-${idName}`
+            ((_a = closest) === null || _a === void 0 ? void 0 : _a.id) !=
+            `confirm-selection-${idName}`
           ) {
+            console.debug(
+              "[confirmState.onMouseClick] Click is outside, canceling",
+            );
             confirmState.cancel();
+          } else {
+            console.debug(
+              "[confirmState.onMouseClick] Click is inside, allowing event to proceed",
+            );
           }
         },
         onKeyDown(event) {
@@ -887,6 +901,9 @@
           }
         },
         clipContent() {
+          console.debug(
+            "[confirmState.clipContent] Button clicked! Canceling dialog and calling manager.clipContent()",
+          );
           confirmState._cancelConfirmSelectionDialog();
           manager.clipContent();
         },
@@ -914,9 +931,9 @@
             .removeAttribute("disabled");
         },
         _updatePlusMinusButton() {
-          console.log("update", currentNode.firstElementChild);
+          console.debug("update", currentNode.firstElementChild);
           if (!currentNode.firstElementChild) {
-            console.log("can't go plus");
+            console.debug("can't go plus");
             confirmState._disableButton("plus");
           } else {
             confirmState._enableButton("plus");
@@ -938,6 +955,9 @@
           cb === null || cb === void 0 ? void 0 : cb();
         },
         _onClickConfirmButton() {
+          console.debug(
+            "[confirmState._onClickConfirmButton] Called (currently empty)",
+          );
           // extract current content
         },
         _addConfirmSelectionDialog(p) {
@@ -1008,7 +1028,7 @@
             : confirmSelectionDialog.remove();
         },
         setup(p) {
-          console.log("open confirm selection dialog");
+          console.debug("open confirm selection dialog");
           confirmState._resetStack();
           confirmState._startListenEvents();
           return confirmState._addConfirmSelectionDialog(p);
@@ -1061,7 +1081,7 @@
         const message = Object.assign({ asyncId, type: "asyncExec" }, data);
         return new Promise((resolve) => {
           chrome.runtime.sendMessage(message, function (response) {
-            console.log(
+            console.debug(
               "[clipContent] returnResponseToBackground response:",
               response,
             );
@@ -1207,7 +1227,7 @@
               refreshCallbackOnPlusMinus: () => {
                 const similarItems = (0,
                 getMatchingElements_1.getMatchingElements)(currentNode);
-                console.log("refresh page", similarItems.length);
+                console.debug("refresh page", similarItems.length);
                 (0, listFeature_1.displayListAugmentation)(
                   similarItems.slice(0, 30),
                 );
@@ -1250,18 +1270,123 @@
         clipContent() {
           var _a;
           return __awaiter(this, void 0, void 0, function* () {
+            console.debug(
+              "[clipContent] clipContent() called, action:",
+              action,
+              "currentNode:",
+              currentNode,
+            );
             if (!currentNode) {
               console.error("[clipContent] currentNode is null/undefined");
               manager.stopClipZone(true, null);
               return;
             }
             if (action == "pickData") {
-              const css = (0, getNodeCss_1.getNodeCss)(currentNode);
+              console.debug(
+                "[clipContent] pickData action - preparing payload",
+              );
+              let css;
+              try {
+                css = (0, getNodeCss_1.getNodeCss)(currentNode);
+                console.debug(
+                  "[clipContent] Successfully generated CSS selector:",
+                  css,
+                );
+              } catch (error) {
+                console.warn(
+                  "[clipContent] Could not generate unique CSS selector, using fallback:",
+                  error,
+                );
+                // Enhanced fallback: combine tag, id, all classes, and nth-child if possible
+                let selectorParts = [currentNode.tagName.toLowerCase()];
+                if (currentNode.id) {
+                  selectorParts.push(`#${currentNode.id}`);
+                }
+                if (
+                  currentNode.className &&
+                  typeof currentNode.className === "string"
+                ) {
+                  const classes = currentNode.className
+                    .trim()
+                    .split(/\s+/)
+                    .filter((c) => c);
+                  if (classes.length > 0) {
+                    selectorParts.push(...classes.map((cls) => `.${cls}`));
+                  }
+                }
+                // Add nth-child if possible
+                if (currentNode.parentNode) {
+                  const parent = currentNode.parentNode;
+                  const children = Array.from(parent.children);
+                  const index = children.indexOf(currentNode);
+                  if (index !== -1) {
+                    selectorParts.push(`:nth-child(${index + 1})`);
+                  }
+                }
+                css = selectorParts.join("");
+                console.debug(
+                  "[clipContent] Using enhanced fallback CSS selector:",
+                  css,
+                );
+              }
+
+              // Helper: Drill down until a node with non-empty text is found
+              function findDeepTextNode(node) {
+                if (!node) return null;
+                // If node is a text node with non-empty content
+                if (
+                  node.nodeType === Node.TEXT_NODE &&
+                  node.textContent.trim()
+                ) {
+                  return node;
+                }
+                // If node is an element with non-empty text
+                if (
+                  node.nodeType === Node.ELEMENT_NODE &&
+                  node.textContent &&
+                  node.textContent.trim()
+                ) {
+                  // If it has only one child and that child is a text node, drill into it
+                  if (
+                    node.childNodes.length === 1 &&
+                    node.childNodes[0].nodeType === Node.TEXT_NODE
+                  ) {
+                    return findDeepTextNode(node.childNodes[0]);
+                  }
+                  // Otherwise, return this element
+                  return node;
+                }
+                // Recursively check children
+                for (let child of node.childNodes) {
+                  const found = findDeepTextNode(child);
+                  if (found) return found;
+                }
+                return null;
+              }
+
+              let textNode = findDeepTextNode(currentNode);
+              let textContent = "";
+              if (textNode) {
+                textContent = textNode.textContent.trim();
+              }
+              const previewText = textContent.substring(0, 100); // First 100 chars for preview
+
+              console.debug(
+                "[clipContent] Extracted text content:",
+                textContent.substring(0, 200),
+              );
+
               const payload = {
                 css,
+                // Also include a plain selector without :nth-child as a fallback
+                cssPlain: css.replace(/:nth-child\([^)]*\)/g, ""),
                 domain: window.location.hostname || "unknown",
                 faviconImageBase64: null,
+                textContent, // Include the actual text content
+                preview: previewText, // Include a preview
               };
+              console.debug("[clipContent] pickData payload:", payload);
+              console.debug("[clipContent] Sending pickDataAdded message...");
               // Legacy: send via chrome.runtime.sendMessage for old code paths
               chrome.runtime.sendMessage({
                 popup: {
@@ -1269,8 +1394,12 @@
                   args: payload,
                 },
               });
+              console.debug(
+                "[clipContent] Message sent, calling stopClipZone...",
+              );
               // New: return payload via bgAsk response
               manager.stopClipZone(true, payload);
+              console.debug("[clipContent] stopClipZone completed");
             } else if (action == "pickFields") {
               manager.extractFields();
             } else if (action == "pickContent") {
@@ -1291,14 +1420,14 @@
                     : _a.substring(0, 1024)) || "",
                 pageUrl: window.location.href,
               };
-              console.log("[clipContent] startClipContent payload:", payload);
+              console.debug("[clipContent] startClipContent payload:", payload);
 
               // Log detailed information about the selected element
               if (currentNode) {
-                console.log("====== SELECTED ELEMENT DETAILS ======");
-                console.log("Tag name:", currentNode.tagName);
-                console.log("ID:", currentNode.id || "(none)");
-                console.log("Classes:", currentNode.className || "(none)");
+                console.debug("====== SELECTED ELEMENT DETAILS ======");
+                console.debug("Tag name:", currentNode.tagName);
+                console.debug("ID:", currentNode.id || "(none)");
+                console.debug("Classes:", currentNode.className || "(none)");
 
                 // Generate CSS selector for this element
                 let cssSelector = "";
@@ -1312,17 +1441,20 @@
                   if (currentNode.className)
                     cssSelector += `.${currentNode.className.split(" ").join(".")}`;
                 }
-                console.log("CSS Selector:", cssSelector);
+                console.debug("CSS Selector:", cssSelector);
 
-                console.log(
+                console.debug(
                   "Text content length:",
                   currentNode.innerText?.length || 0,
                 );
-                console.log(
+                console.debug(
                   "Text content preview (first 200 chars):",
                   currentNode.innerText?.substring(0, 200),
                 );
-                console.log("HTML length:", currentNode.outerHTML?.length || 0);
+                console.debug(
+                  "HTML length:",
+                  currentNode.outerHTML?.length || 0,
+                );
 
                 // Check if it's in shadow DOM
                 let shadowInfo = "Not in Shadow DOM";
@@ -1340,8 +1472,8 @@
                   }
                   node = node.parentElement;
                 }
-                console.log("Shadow DOM:", shadowInfo);
-                console.log("======================================");
+                console.debug("Shadow DOM:", shadowInfo);
+                console.debug("======================================");
 
                 // Automatically save this selector to custom site selectors
                 // Simplify the selector - use just classes if available, otherwise use the full selector
@@ -1353,7 +1485,7 @@
                     .split(/\s+/)
                     .join(".");
                   selectorToSave = `.${classes}`;
-                  console.log(
+                  console.debug(
                     `[clipContent] Simplified selector: ${selectorToSave}`,
                   );
                 }
@@ -1366,7 +1498,7 @@
                     /^www\./,
                     "",
                   );
-                  console.log(
+                  console.debug(
                     `[clipContent] Auto-saving selector "${selectorToSave}" for domain "${hostname}"`,
                   );
 
@@ -1383,17 +1515,17 @@
                         chrome.storage.local.set(
                           { customSiteSelectors: selectors },
                           function () {
-                            console.log(
+                            console.debug(
                               `[clipContent] Successfully saved selector for ${hostname}`,
                             );
-                            console.log(
+                            console.debug(
                               `[clipContent] Current selectors:`,
                               selectors,
                             );
                           },
                         );
                       } else {
-                        console.log(
+                        console.debug(
                           `[clipContent] Selector already saved for ${hostname}`,
                         );
                       }
@@ -1507,24 +1639,24 @@
         },
         startContentConfirmSelection({ x, y }) {
           return __awaiter(this, void 0, void 0, function* () {
-            console.log(
+            console.debug(
               "[startContentConfirmSelection] Starting content confirm selection",
             );
             manager._stopListenContentSelectionEvents();
-            console.log(
+            console.debug(
               "[startContentConfirmSelection] About to load custom selector",
             );
             const customSelector = yield getCustomSelectorForCurrentDomain();
-            console.log(
+            console.debug(
               "[startContentConfirmSelection] Custom selector loaded:",
               customSelector,
             );
-            console.log(
+            console.debug(
               "[startContentConfirmSelection] Current node:",
               currentNode,
             );
             const contentData = extractContentData(currentNode, customSelector);
-            console.log(
+            console.debug(
               "[startContentConfirmSelection] Content data:",
               contentData,
             );
@@ -2124,7 +2256,7 @@
           };
         }
         function drawSelectedElement(element) {
-          console.log("drawSelectedElement", element);
+          console.debug("drawSelectedElement", element);
           (0, canvas_1.draw)(drawBoxModel(element));
         }
         exports.drawSelectedElement = drawSelectedElement;
@@ -2616,7 +2748,7 @@ z-index: 2;
       }
       function scanLists() {
         getListElementsOnPage().forEach((ul) => {
-          console.log("list", ul);
+          console.debug("list", ul);
           if (Items.lists.find((listObj) => listObj.ul == ul)) {
             return;
           }
@@ -2635,7 +2767,7 @@ z-index: 2;
       }
       function init() {
         if (!Items.initialized) {
-          console.log("initialize popper...", Items);
+          console.debug("initialize popper...", Items);
           Items.initialized = true;
           (0, clipperUtil_1.addCss2)(`
         .stn-list-item-popover {
@@ -2679,7 +2811,7 @@ z-index: 2;
       function detectAndAugmentLists() {
         Items.selectedItems = [];
         init();
-        console.log("start scanning...");
+        console.debug("start scanning...");
         scanLists();
         // think of an algorithm to detect all list on the pages
         // for now super simple one that just detects ul / li
@@ -2760,7 +2892,7 @@ z-index: 2;
       function getData(selectedItem) {
         // simple dummy algorithm that will do multiple things
         const data = [];
-        console.log("get data", selectedItem);
+        console.debug("get data", selectedItem);
         data.push(...extractTextBlocks(selectedItem));
         data.push(...extractImageBlocks(selectedItem));
         data.push(...extractUrlBlocks(selectedItem));
@@ -2995,20 +3127,20 @@ z-index: 2;
       function getCustomSelectorForCurrentDomain() {
         return new Promise((resolve) => {
           const currentDomain = normalizeDomain(window.location.hostname);
-          console.log(
+          console.debug(
             "[getCustomSelectorForCurrentDomain] Current domain:",
             currentDomain,
           );
 
           chrome.storage.local.get(["customSiteSelectors"], function (result) {
             const selectors = result.customSiteSelectors || {};
-            console.log(
+            console.debug(
               "[getCustomSelectorForCurrentDomain] All saved selectors:",
               selectors,
             );
 
             const customSelector = selectors[currentDomain];
-            console.log(
+            console.debug(
               "[getCustomSelectorForCurrentDomain] Found selector for",
               currentDomain,
               ":",
@@ -3020,17 +3152,17 @@ z-index: 2;
         });
       }
       function extractContentData(rootElement, customSelector = null) {
-        console.log(
+        console.debug(
           "[extractContentData] Starting extraction with custom selector:",
           customSelector,
         );
-        console.log("[extractContentData] Root element:", rootElement);
+        console.debug("[extractContentData] Root element:", rootElement);
 
         // Try to find structured content using custom selector first, then fall back to 'article'
         let article = null;
 
         if (customSelector) {
-          console.log(
+          console.debug(
             "[extractContentData] Trying custom selector:",
             customSelector,
           );
@@ -3039,7 +3171,7 @@ z-index: 2;
             const isMultipleSelectors = customSelector.includes(",");
 
             if (isMultipleSelectors) {
-              console.log(
+              console.debug(
                 "[extractContentData] Multiple selectors detected, will combine results",
               );
 
@@ -3054,7 +3186,7 @@ z-index: 2;
               const docMatches = document.querySelectorAll(customSelector);
               if (docMatches.length > 0) {
                 allMatches = Array.from(docMatches);
-                console.log(
+                console.debug(
                   `[extractContentData] Found ${docMatches.length} elements via document.querySelectorAll()`,
                 );
               }
@@ -3065,7 +3197,7 @@ z-index: 2;
                   rootElement.querySelectorAll(customSelector);
                 if (rootMatches.length > 0) {
                   allMatches = Array.from(rootMatches);
-                  console.log(
+                  console.debug(
                     `[extractContentData] Found ${rootMatches.length} elements via rootElement.querySelectorAll()`,
                   );
                 }
@@ -3078,7 +3210,7 @@ z-index: 2;
                   const shadowMatches = root.querySelectorAll(customSelector);
                   if (shadowMatches.length > 0) {
                     allMatches = Array.from(shadowMatches);
-                    console.log(
+                    console.debug(
                       `[extractContentData] Found ${shadowMatches.length} elements via shadowRoot.querySelectorAll()`,
                     );
                   }
@@ -3088,7 +3220,7 @@ z-index: 2;
               // Combine all matched elements into the container
               if (allMatches.length > 0) {
                 allMatches.forEach((match, index) => {
-                  console.log(
+                  console.debug(
                     `[extractContentData] Adding match ${index + 1}:`,
                     match.className,
                     match.tagName,
@@ -3096,11 +3228,11 @@ z-index: 2;
                   container.appendChild(match.cloneNode(true));
                 });
                 article = container;
-                console.log(
+                console.debug(
                   `[extractContentData] Combined ${allMatches.length} elements into container`,
                 );
               } else {
-                console.log(
+                console.debug(
                   "[extractContentData] No matches found for multiple selectors",
                 );
               }
@@ -3108,7 +3240,7 @@ z-index: 2;
               // Single selector - use original logic
               // First try the element itself
               article = rootElement.closest(customSelector);
-              console.log(
+              console.debug(
                 "[extractContentData] closest() result:",
                 article ? "Found" : "Not found",
               );
@@ -3116,7 +3248,7 @@ z-index: 2;
               // If not found, try searching from document root
               if (!article) {
                 article = document.querySelector(customSelector);
-                console.log(
+                console.debug(
                   "[extractContentData] document.querySelector() result:",
                   article ? "Found" : "Not found",
                 );
@@ -3125,7 +3257,7 @@ z-index: 2;
               // If still not found, try searching within the rootElement
               if (!article) {
                 article = rootElement.querySelector(customSelector);
-                console.log(
+                console.debug(
                   "[extractContentData] rootElement.querySelector() result:",
                   article ? "Found" : "Not found",
                 );
@@ -3135,11 +3267,11 @@ z-index: 2;
               if (!article && rootElement.getRootNode) {
                 const root = rootElement.getRootNode();
                 if (root instanceof ShadowRoot) {
-                  console.log(
+                  console.debug(
                     "[extractContentData] Searching in Shadow DOM root",
                   );
                   article = root.querySelector(customSelector);
-                  console.log(
+                  console.debug(
                     "[extractContentData] shadowRoot.querySelector() result:",
                     article ? "Found" : "Not found",
                   );
@@ -3147,7 +3279,7 @@ z-index: 2;
               }
             }
 
-            console.log(
+            console.debug(
               "[extractContentData] Final custom selector result:",
               article ? "Found" : "Not found",
             );
@@ -3162,7 +3294,9 @@ z-index: 2;
 
         // Fall back to 'article' if no custom selector or custom selector didn't work
         if (!article) {
-          console.log("[extractContentData] Falling back to article selector");
+          console.debug(
+            "[extractContentData] Falling back to article selector",
+          );
           article =
             rootElement.closest("article") ||
             document.querySelector("article") ||
