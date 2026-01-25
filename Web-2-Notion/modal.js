@@ -14724,8 +14724,14 @@ class Hg {
         signUp: async (e) => await this.post("auth/signup", e),
         googleSsoCompleteLogin: async (e) =>
           await this.post("auth/google-sso-complete-login", e),
-        sendMagicLink: async (e) => ({ success: false, error: "Cognito authentication removed" }),
-        validateMagicLink: async (e) => ({ success: false, error: "Cognito authentication removed" }),
+        sendMagicLink: async (e) => ({
+          success: false,
+          error: "Cognito authentication removed",
+        }),
+        validateMagicLink: async (e) => ({
+          success: false,
+          error: "Cognito authentication removed",
+        }),
         getCognitoUrlWithSessionId: (e) => ({ sessionId: "", url: "" }),
         changePassword: async (e) => this.post("auth/change-password", e),
       }),
@@ -27016,6 +27022,7 @@ function b_(e, t = !0) {
     if (!t) return;
     let r = "function" == typeof e ? e() : e.current;
     if (!r) return;
+    if (r.id === "root") return;
     let o = null != (n = x_.get(r)) ? n : 0;
     return (
       x_.set(r, o + 1),
