@@ -14670,8 +14670,8 @@ const Ag = {
     text700: "#44403C",
   },
   Dg = {
-    clientId: "6mm6i3ehl149cicimepgkplu8i",
-    cognitoUrl: "https://auth.savetonotion.so",
+    clientId: "",
+    cognitoUrl: "",
   },
   Bg = {
     url:
@@ -14724,29 +14724,9 @@ class Hg {
         signUp: async (e) => await this.post("auth/signup", e),
         googleSsoCompleteLogin: async (e) =>
           await this.post("auth/google-sso-complete-login", e),
-        sendMagicLink: async (e) => await this.post("auth/magic-link/send", e),
-        validateMagicLink: async (e) =>
-          await this.post("auth/magic-link/validate", e),
-        getCognitoUrlWithSessionId: (e) => {
-          const t = e || Mg(),
-            n = {
-              redirectionUri: `${Bg.url}/auth/google-sso-callback`,
-              clientId: Dg.clientId,
-              domain: Dg.cognitoUrl,
-            },
-            r = new URLSearchParams({
-              client_id: n.clientId,
-              response_type: "code",
-              scope: "email openid profile",
-              identity_provider: "Google",
-              state: t,
-              redirect_uri: n.redirectionUri,
-            });
-          return {
-            sessionId: t,
-            url: `${n.domain}/oauth2/authorize?${r.toString()}`,
-          };
-        },
+        sendMagicLink: async (e) => ({ success: false, error: "Cognito authentication removed" }),
+        validateMagicLink: async (e) => ({ success: false, error: "Cognito authentication removed" }),
+        getCognitoUrlWithSessionId: (e) => ({ sessionId: "", url: "" }),
         changePassword: async (e) => this.post("auth/change-password", e),
       }),
       (this.api = {

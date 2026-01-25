@@ -8909,8 +8909,8 @@ const Dd = {
   },
   Ud = { clipTwitterThread: 3, clipEmail: 6, showRemain: 3, freeForms: 4 },
   Hd = {
-    clientId: "6mm6i3ehl149cicimepgkplu8i",
-    cognitoUrl: "https://auth.savetonotion.so",
+    clientId: "",
+    cognitoUrl: "",
   },
   Wd = { url: "https://6kbxs6snzg.execute-api.us-east-1.amazonaws.com/v1" },
   Vd = { changelog: "https://savetonotion.so/changelog" };
@@ -8981,104 +8981,22 @@ function Jd() {
   return Qd();
 }
 const eu = Ld(
-    async (e, { db: t, store: n }) =>
-      await (async () => {
-        console.log("Logging in with Google");
-        const { sessionId: e, url: t } = (function n() {
-          const e = Jd(),
-            t = {
-              redirectionUri: `${Wd.url}/auth/google-sso-callback`,
-              clientId: Hd.clientId,
-              domain: Hd.cognitoUrl,
-            },
-            n = new URLSearchParams({
-              client_id: t.clientId,
-              response_type: "code",
-              scope: "email openid profile",
-              identity_provider: "Google",
-              state: e,
-              redirect_uri: t.redirectionUri,
-            });
-          return {
-            sessionId: e,
-            url: `${t.domain}/oauth2/authorize?${n.toString()}`,
-          };
-        })();
-        if (
-          (console.log("Google SSO URL:", t),
-          !window.open(
-            t,
-            "_blank",
-            "width=600,height=600,popup=yes,left=" +
-              (window.screen.width / 2 - 300) +
-              ",top=" +
-              (window.screen.height / 2 - 300),
-          ))
-        )
-          throw new Error(
-            "Popup was blocked. Please allow popups and try again.",
-          );
-        return (
-          console.log(
-            "Google SSO popup opened, returning sessionId for polling",
-          ),
-          e
-        );
-      })(),
+    async (e, { db: t, store: n }) => {
+      console.log("Cognito Google SSO removed - extension no longer uses this authentication");
+      throw new Error("Cognito authentication has been removed from this extension");
+    },
   ),
   tu = Ld(
-    async (e, t) =>
-      await (async () => {
-        var e;
-        console.log("Logging in with Google using new-tab strategy");
-        const t = Jd(),
-          n = `${Wd.url}/auth/google-sso-callback`,
-          r = new URLSearchParams({
-            client_id: Hd.clientId,
-            response_type: "code",
-            scope: "email openid profile",
-            identity_provider: "Google",
-            state: t,
-            redirect_uri: n,
-          }),
-          o = `${Hd.cognitoUrl}/oauth2/authorize?${r.toString()}`;
-        return (
-          console.log("Google SSO New Tab URL:", o),
-          "undefined" != typeof chrome &&
-          (null == (e = null == chrome ? void 0 : chrome.tabs)
-            ? void 0
-            : e.create)
-            ? await chrome.tabs.create({ url: o, active: !0 })
-            : window.open(o, "_blank"),
-          t
-        );
-      })(),
+    async (e, t) => {
+      console.log("Cognito Google SSO removed - extension no longer uses this authentication");
+      throw new Error("Cognito authentication has been removed from this extension");
+    },
   ),
   nu = Ld(
-    async (e, t) =>
-      await (async (e) => {
-        (console.log("Logging in with Google using redirect strategy"),
-          console.log("Callback URL will be:", e));
-        const t = Jd(),
-          n = `${t}|${encodeURIComponent(e)}`,
-          r = `${Wd.url}/auth/google-sso-callback`,
-          o = new URLSearchParams({
-            client_id: Hd.clientId,
-            response_type: "code",
-            scope: "email openid profile",
-            identity_provider: "Google",
-            state: n,
-            redirect_uri: r,
-          }),
-          i = `${Hd.cognitoUrl}/oauth2/authorize?${o.toString()}`;
-        return (
-          console.log("redirectUri", r),
-          console.log("Google SSO Redirect URL:", i),
-          console.log("Encoded state:", n),
-          (window.location.href = i),
-          t
-        );
-      })(e),
+    async (e, t) => {
+      console.log("Cognito Google SSO removed - extension no longer uses this authentication");
+      throw new Error("Cognito authentication has been removed from this extension");
+    },
   );
 async function ru(e, { db: t }) {
   const n = await t.user.load();
@@ -10427,29 +10345,9 @@ class bf {
         signUp: async (e) => await this.post("auth/signup", e),
         googleSsoCompleteLogin: async (e) =>
           await this.post("auth/google-sso-complete-login", e),
-        sendMagicLink: async (e) => await this.post("auth/magic-link/send", e),
-        validateMagicLink: async (e) =>
-          await this.post("auth/magic-link/validate", e),
-        getCognitoUrlWithSessionId: (e) => {
-          const t = e || Qd(),
-            n = {
-              redirectionUri: `${Wd.url}/auth/google-sso-callback`,
-              clientId: Hd.clientId,
-              domain: Hd.cognitoUrl,
-            },
-            r = new URLSearchParams({
-              client_id: n.clientId,
-              response_type: "code",
-              scope: "email openid profile",
-              identity_provider: "Google",
-              state: t,
-              redirect_uri: n.redirectionUri,
-            });
-          return {
-            sessionId: t,
-            url: `${n.domain}/oauth2/authorize?${r.toString()}`,
-          };
-        },
+        sendMagicLink: async (e) => ({ success: false, error: "Cognito authentication removed" }),
+        validateMagicLink: async (e) => ({ success: false, error: "Cognito authentication removed" }),
+        getCognitoUrlWithSessionId: (e) => ({ sessionId: "", url: "" }),
         changePassword: async (e) => this.post("auth/change-password", e),
       }),
       (this.api = {

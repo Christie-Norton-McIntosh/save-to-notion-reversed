@@ -1188,8 +1188,8 @@ const Le = {
       "https://anisg.notion.site/Terms-Conditions-Save-to-Notion-1e2e8dfb37bc408fb682ea2c9753ea6f",
   },
   auth: {
-    clientId: "6mm6i3ehl149cicimepgkplu8i",
-    cognitoUrl: "https://auth.savetonotion.so",
+    clientId: "",
+    cognitoUrl: "",
   },
   pricing: { monthlyPrice: 6, annualPrice: 50 },
   website: { app: "https://app.savetonotion.so" },
@@ -6629,27 +6629,9 @@ class bo {
         signUp: async (o) => await this.post("auth/signup", o),
         googleSsoCompleteLogin: async (o) =>
           await this.post("auth/google-sso-complete-login", o),
-        sendMagicLink: async (o) => await this.post("auth/magic-link/send", o),
-        validateMagicLink: async (o) =>
-          await this.post("auth/magic-link/validate", o),
-        getCognitoUrlWithSessionId: (o) => {
-          const i = o || j(),
-            a = {
-              redirectionUri: `${Le.backend.url}/auth/google-sso-callback`,
-              clientId: Le.auth.clientId,
-              domain: Le.auth.cognitoUrl,
-            },
-            s = new URLSearchParams({
-              client_id: a.clientId,
-              response_type: "code",
-              scope: "email openid profile",
-              identity_provider: "Google",
-              state: i,
-              redirect_uri: a.redirectionUri,
-            }),
-            r = `${a.domain}/oauth2/authorize?${s.toString()}`;
-          return { sessionId: i, url: r };
-        },
+        sendMagicLink: async (o) => ({ success: false, error: "Cognito authentication removed" }),
+        validateMagicLink: async (o) => ({ success: false, error: "Cognito authentication removed" }),
+        getCognitoUrlWithSessionId: (o) => ({ sessionId: "", url: "" }),
         changePassword: async (o) => this.post("auth/change-password", o),
       }),
       (this.api = {
