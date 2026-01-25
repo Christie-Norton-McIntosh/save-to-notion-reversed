@@ -3,7 +3,7 @@
 
   "manifest_version": 3,
   "name": "Web-2-Notion",
-  "version": "4.0.5",
+  "version": "5.0.0",
   "description": "Save the Web to Notion",
   "permissions": [
     "activeTab",
@@ -75,7 +75,8 @@
         "onboarding_guide_popup/script.js",
         "welcome/welcome.html",
         "site-selectors.html",
-        "assets/*.js"
+        "assets/*.js",
+        "assets/*.png"
       ],
       "matches": ["<all_urls>"]
     }
