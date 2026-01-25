@@ -1190,7 +1190,7 @@ const Le = {
     cognitoUrl: "",
   },
   pricing: { monthlyPrice: 6, annualPrice: 50 },
-  website: { app: "https://app.savetonotion.so" },
+  website: { app: "" },
   backend: { url: "https://6kbxs6snzg.execute-api.us-east-1.amazonaws.com/v1" },
   links: { changelog: "https://savetonotion.so/changelog" },
   marketing: {

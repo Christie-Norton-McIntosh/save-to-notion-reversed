@@ -98716,9 +98716,17 @@ function Zie(e) {
                 shrink: 0,
                 iconRight: nQ,
                 showIcon: !1,
-                text: "Log In",
+                text: "Configure Site Selectors",
                 Position: "topend",
-                overrides: { item: uH({ onClick: e.onClickProVersionCTA }) },
+                overrides: {
+                  item: uH({
+                    onClick: () =>
+                      window.open(
+                        chrome.runtime.getURL("site-selectors.html"),
+                        "_blank",
+                      ),
+                  }),
+                },
               }),
               Vt(Uie, {
                 show: !1,

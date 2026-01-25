@@ -20832,23 +20832,34 @@ function ib(e) {
                     position: "relative",
                     padding: "0px 0px 0px 0px",
                     ...bn(t, "titleWrapper"),
-                    children: an(fn, {
-                      fontFamily: "Helvetica Neue",
-                      fontSize: "14px",
-                      label: "Web-2-Notion",
-                      fontWeight: 500,
-                      color: "rgba(120,113,108,1)",
-                      lineHeight: "21px",
-                      textAlign: "left",
-                      display: "flex",
-                      direction: "column",
-                      justifyContent: "flex-start",
-                      shrink: 0,
-                      position: "relative",
-                      padding: "0px 0px 0px 0px",
-                      whiteSpace: "pre-wrap",
-                      ...bn(t, "title"),
-                    }),
+                    children: [
+                      an("img", {
+                        src: chrome.runtime.getURL("assets/icon48.png"),
+                        alt: "Web-2-Notion",
+                        style: {
+                          width: "20px",
+                          height: "20px",
+                          objectFit: "contain",
+                        },
+                      }),
+                      an(fn, {
+                        fontFamily: "Helvetica Neue",
+                        fontSize: "14px",
+                        label: "Web-2-Notion",
+                        fontWeight: 500,
+                        color: "rgba(120,113,108,1)",
+                        lineHeight: "21px",
+                        textAlign: "left",
+                        display: "flex",
+                        direction: "column",
+                        justifyContent: "flex-start",
+                        shrink: 0,
+                        position: "relative",
+                        padding: "0px 0px 0px 0px",
+                        whiteSpace: "pre-wrap",
+                        ...bn(t, "title"),
+                      }),
+                    ],
                   }),
                   an(cn, {
                     gap: "10px",
@@ -27022,7 +27033,11 @@ function b_(e, t = !0) {
     if (!t) return;
     let r = "function" == typeof e ? e() : e.current;
     if (!r) return;
-    if (r.id === "root") return;
+    if (
+      r.id === "root" ||
+      (r.classList && r.classList.contains("MuiDialog-root"))
+    )
+      return;
     let o = null != (n = x_.get(r)) ? n : 0;
     return (
       x_.set(r, o + 1),
