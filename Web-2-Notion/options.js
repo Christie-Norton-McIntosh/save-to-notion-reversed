@@ -108395,7 +108395,7 @@ function Qfe(e, t) {
       },
       {
         number: 2,
-        title: "Find Web-2-Notion and click the pin icon <<PIN_ICON>>."",
+        title: "Find Web-2-Notion and click the pin icon <<PIN_ICON>>.",
         description: "",
         images: [],
       },
