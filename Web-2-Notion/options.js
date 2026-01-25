@@ -8909,8 +8909,8 @@ const Dd = {
   },
   Ud = { clipTwitterThread: 3, clipEmail: 6, showRemain: 3, freeForms: 4 },
   Hd = {
-    clientId: "6mm6i3ehl149cicimepgkplu8i",
-    cognitoUrl: "https://auth.savetonotion.so",
+    clientId: "",
+    cognitoUrl: "",
   },
   Wd = { url: "https://6kbxs6snzg.execute-api.us-east-1.amazonaws.com/v1" },
   Vd = { changelog: "https://savetonotion.so/changelog" };
@@ -8980,106 +8980,30 @@ function Qd(e, t, n) {
 function Jd() {
   return Qd();
 }
-const eu = Ld(
-    async (e, { db: t, store: n }) =>
-      await (async () => {
-        console.log("Logging in with Google");
-        const { sessionId: e, url: t } = (function n() {
-          const e = Jd(),
-            t = {
-              redirectionUri: `${Wd.url}/auth/google-sso-callback`,
-              clientId: Hd.clientId,
-              domain: Hd.cognitoUrl,
-            },
-            n = new URLSearchParams({
-              client_id: t.clientId,
-              response_type: "code",
-              scope: "email openid profile",
-              identity_provider: "Google",
-              state: e,
-              redirect_uri: t.redirectionUri,
-            });
-          return {
-            sessionId: e,
-            url: `${t.domain}/oauth2/authorize?${n.toString()}`,
-          };
-        })();
-        if (
-          (console.log("Google SSO URL:", t),
-          !window.open(
-            t,
-            "_blank",
-            "width=600,height=600,popup=yes,left=" +
-              (window.screen.width / 2 - 300) +
-              ",top=" +
-              (window.screen.height / 2 - 300),
-          ))
-        )
-          throw new Error(
-            "Popup was blocked. Please allow popups and try again.",
-          );
-        return (
-          console.log(
-            "Google SSO popup opened, returning sessionId for polling",
-          ),
-          e
-        );
-      })(),
-  ),
-  tu = Ld(
-    async (e, t) =>
-      await (async () => {
-        var e;
-        console.log("Logging in with Google using new-tab strategy");
-        const t = Jd(),
-          n = `${Wd.url}/auth/google-sso-callback`,
-          r = new URLSearchParams({
-            client_id: Hd.clientId,
-            response_type: "code",
-            scope: "email openid profile",
-            identity_provider: "Google",
-            state: t,
-            redirect_uri: n,
-          }),
-          o = `${Hd.cognitoUrl}/oauth2/authorize?${r.toString()}`;
-        return (
-          console.log("Google SSO New Tab URL:", o),
-          "undefined" != typeof chrome &&
-          (null == (e = null == chrome ? void 0 : chrome.tabs)
-            ? void 0
-            : e.create)
-            ? await chrome.tabs.create({ url: o, active: !0 })
-            : window.open(o, "_blank"),
-          t
-        );
-      })(),
-  ),
-  nu = Ld(
-    async (e, t) =>
-      await (async (e) => {
-        (console.log("Logging in with Google using redirect strategy"),
-          console.log("Callback URL will be:", e));
-        const t = Jd(),
-          n = `${t}|${encodeURIComponent(e)}`,
-          r = `${Wd.url}/auth/google-sso-callback`,
-          o = new URLSearchParams({
-            client_id: Hd.clientId,
-            response_type: "code",
-            scope: "email openid profile",
-            identity_provider: "Google",
-            state: n,
-            redirect_uri: r,
-          }),
-          i = `${Hd.cognitoUrl}/oauth2/authorize?${o.toString()}`;
-        return (
-          console.log("redirectUri", r),
-          console.log("Google SSO Redirect URL:", i),
-          console.log("Encoded state:", n),
-          (window.location.href = i),
-          t
-        );
-      })(e),
-  );
+const eu = Ld(async (e, { db: t, store: n }) => {
+    console.log(
+      "Cognito Google SSO removed - extension no longer uses this authentication",
+    );
+    throw new Error(
+      "Cognito authentication has been removed from this extension",
+    );
+  }),
+  tu = Ld(async (e, t) => {
+    console.log(
+      "Cognito Google SSO removed - extension no longer uses this authentication",
+    );
+    throw new Error(
+      "Cognito authentication has been removed from this extension",
+    );
+  }),
+  nu = Ld(async (e, t) => {
+    console.log(
+      "Cognito Google SSO removed - extension no longer uses this authentication",
+    );
+    throw new Error(
+      "Cognito authentication has been removed from this extension",
+    );
+  });
 async function ru(e, { db: t }) {
   const n = await t.user.load();
   await t.user.save({ ...n, auth: { ...n.auth, ...e } });
@@ -10427,29 +10351,15 @@ class bf {
         signUp: async (e) => await this.post("auth/signup", e),
         googleSsoCompleteLogin: async (e) =>
           await this.post("auth/google-sso-complete-login", e),
-        sendMagicLink: async (e) => await this.post("auth/magic-link/send", e),
-        validateMagicLink: async (e) =>
-          await this.post("auth/magic-link/validate", e),
-        getCognitoUrlWithSessionId: (e) => {
-          const t = e || Qd(),
-            n = {
-              redirectionUri: `${Wd.url}/auth/google-sso-callback`,
-              clientId: Hd.clientId,
-              domain: Hd.cognitoUrl,
-            },
-            r = new URLSearchParams({
-              client_id: n.clientId,
-              response_type: "code",
-              scope: "email openid profile",
-              identity_provider: "Google",
-              state: t,
-              redirect_uri: n.redirectionUri,
-            });
-          return {
-            sessionId: t,
-            url: `${n.domain}/oauth2/authorize?${r.toString()}`,
-          };
-        },
+        sendMagicLink: async (e) => ({
+          success: false,
+          error: "Cognito authentication removed",
+        }),
+        validateMagicLink: async (e) => ({
+          success: false,
+          error: "Cognito authentication removed",
+        }),
+        getCognitoUrlWithSessionId: (e) => ({ sessionId: "", url: "" }),
         changePassword: async (e) => this.post("auth/change-password", e),
       }),
       (this.api = {
@@ -38650,7 +38560,7 @@ const RB = Me(function e(t, n) {
   return i
     ? P(
         "div",
-        XA({ "aria-hidden": !0, ref: n }, a, {
+        XA({ ref: n }, a, {
           style: XA({}, MB.root, o ? MB.invisible : {}, a.style),
         }),
       )
@@ -70899,14 +70809,12 @@ function D8(e) {
           var n = Array.from(t);
           return (
             n.reverse(),
-            n
-              .slice(0, 50)
-              .map((t) =>
-                e({}, t, {
-                  filename: t.filename || mn(n).filename,
-                  function: t.function || ln,
-                }),
-              )
+            n.slice(0, 50).map((t) =>
+              e({}, t, {
+                filename: t.filename || mn(n).filename,
+                function: t.function || ln,
+              }),
+            )
           );
         })(r);
       };
@@ -108497,7 +108405,7 @@ function Qfe(e, t) {
       },
       {
         number: 2,
-        title: "Find Web-2-Notion and click the pin icon <<PIN_ICON>>."",
+        title: "Find Web-2-Notion and click the pin icon <<PIN_ICON>>.",
         description: "",
         images: [],
       },
@@ -108775,33 +108683,31 @@ function the({ step: e, isLast: t, isPinned: n }) {
   );
 }
 function nhe(e) {
-  return e
-    .split(/(<<PUZZLE_ICON>>|<<PIN_ICON>>)/g)
-    .map((e, t) =>
-      "<<PUZZLE_ICON>>" === e
+  return e.split(/(<<PUZZLE_ICON>>|<<PIN_ICON>>)/g).map((e, t) =>
+    "<<PUZZLE_ICON>>" === e
+      ? Vt(
+          "span",
+          {
+            className:
+              "inline-flex items-center justify-center align-middle mx-1 p-1 rounded-[4px] border border-border bg-gray-100",
+            children: Vt(Ad, { className: "w-5 h-5 text-muted-foreground" }),
+          },
+          `pzl-${t}`,
+        )
+      : "<<PIN_ICON>>" === e
         ? Vt(
             "span",
             {
               className:
                 "inline-flex items-center justify-center align-middle mx-1 p-1 rounded-[4px] border border-border bg-gray-100",
-              children: Vt(Ad, { className: "w-5 h-5 text-muted-foreground" }),
+              children: Vt(Ed, {
+                className: "w-5 h-5 text-muted-foreground",
+              }),
             },
-            `pzl-${t}`,
+            `pin-${t}`,
           )
-        : "<<PIN_ICON>>" === e
-          ? Vt(
-              "span",
-              {
-                className:
-                  "inline-flex items-center justify-center align-middle mx-1 p-1 rounded-[4px] border border-border bg-gray-100",
-                children: Vt(Ed, {
-                  className: "w-5 h-5 text-muted-foreground",
-                }),
-              },
-              `pin-${t}`,
-            )
-          : Vt(Ft.Fragment, { children: e }, `txt-${t}`),
-    );
+        : Vt(Ft.Fragment, { children: e }, `txt-${t}`),
+  );
 }
 function rhe(e, t) {
   const { className: n, children: r } = e;
@@ -109818,52 +109724,7 @@ function khe(e) {
                         children: Vt("div", {
                           className:
                             "flex flex-col gap-0.5 justify-center items-center",
-                          children: [
-                            Vt(Qj, {
-                              color: "strong-950",
-                              children: "By continuing, I agree to the",
-                            }),
-                            Vt("div", {
-                              className: "flex gap-0.5 items-center",
-                              children: [
-                                Vt(cB, {
-                                  as: "a",
-                                  href: "https://anisg.notion.site/Terms-Conditions-Save-to-Notion-1e2e8dfb37bc408fb682ea2c9753ea6f",
-                                  target: "_blank",
-                                  rel: "noopener noreferrer",
-                                  variant: "neutral",
-                                  mode: "link",
-                                  size: "xxsmall",
-                                  className:
-                                    "!h-auto !p-0.5 hover:bg-bg-weak-50",
-                                  children: Vt(Qj, {
-                                    color: "strong-950",
-                                    className:
-                                      "border-b border-stroke-soft-200",
-                                    children: "Terms of Service",
-                                  }),
-                                }),
-                                Vt(Vj, { color: "strong-950", children: "&" }),
-                                Vt(cB, {
-                                  as: "a",
-                                  href: "https://anisg.notion.site/Privacy-Policy-Save-to-Notion-11e1ac17c54f42f1b7b6f95e5187ba32",
-                                  target: "_blank",
-                                  rel: "noopener noreferrer",
-                                  variant: "neutral",
-                                  mode: "link",
-                                  size: "xxsmall",
-                                  className:
-                                    "!h-auto !p-0.5 hover:bg-bg-weak-50",
-                                  children: Vt(Qj, {
-                                    color: "strong-950",
-                                    className:
-                                      "border-b border-stroke-soft-200",
-                                    children: "Privacy Policy",
-                                  }),
-                                }),
-                              ],
-                            }),
-                          ],
+                          children: [],
                         }),
                       }),
                       e.showSkipButton &&
