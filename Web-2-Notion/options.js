@@ -38560,7 +38560,7 @@ const RB = Me(function e(t, n) {
   return i
     ? P(
         "div",
-        XA({ "aria-hidden": !0, ref: n }, a, {
+        XA({ ref: n }, a, {
           style: XA({}, MB.root, o ? MB.invisible : {}, a.style),
         }),
       )
@@ -109724,52 +109724,7 @@ function khe(e) {
                         children: Vt("div", {
                           className:
                             "flex flex-col gap-0.5 justify-center items-center",
-                          children: [
-                            Vt(Qj, {
-                              color: "strong-950",
-                              children: "By continuing, I agree to the",
-                            }),
-                            Vt("div", {
-                              className: "flex gap-0.5 items-center",
-                              children: [
-                                Vt(cB, {
-                                  as: "a",
-                                  href: "https://anisg.notion.site/Terms-Conditions-Save-to-Notion-1e2e8dfb37bc408fb682ea2c9753ea6f",
-                                  target: "_blank",
-                                  rel: "noopener noreferrer",
-                                  variant: "neutral",
-                                  mode: "link",
-                                  size: "xxsmall",
-                                  className:
-                                    "!h-auto !p-0.5 hover:bg-bg-weak-50",
-                                  children: Vt(Qj, {
-                                    color: "strong-950",
-                                    className:
-                                      "border-b border-stroke-soft-200",
-                                    children: "Terms of Service",
-                                  }),
-                                }),
-                                Vt(Vj, { color: "strong-950", children: "&" }),
-                                Vt(cB, {
-                                  as: "a",
-                                  href: "https://anisg.notion.site/Privacy-Policy-Save-to-Notion-11e1ac17c54f42f1b7b6f95e5187ba32",
-                                  target: "_blank",
-                                  rel: "noopener noreferrer",
-                                  variant: "neutral",
-                                  mode: "link",
-                                  size: "xxsmall",
-                                  className:
-                                    "!h-auto !p-0.5 hover:bg-bg-weak-50",
-                                  children: Vt(Qj, {
-                                    color: "strong-950",
-                                    className:
-                                      "border-b border-stroke-soft-200",
-                                    children: "Privacy Policy",
-                                  }),
-                                }),
-                              ],
-                            }),
-                          ],
+                          children: [],
                         }),
                       }),
                       e.showSkipButton &&
