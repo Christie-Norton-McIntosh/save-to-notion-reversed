@@ -1,0 +1,4 @@
+# Ignore minified and bundled files for ESLint
+popup/static/js/main.js
+clipContent.js
+serviceWorker.js
