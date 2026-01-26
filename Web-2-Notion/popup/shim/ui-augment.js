@@ -67,7 +67,10 @@
     apply.style.fontSize = "12px";
 
     apply.addEventListener("click", () => {
-      // Reload so the existing bundle re-reads localStorage values.
+      // Reload to re-trigger the preload shim with new formatting mode.
+      // Note: A full reload is necessary because the preload script runs before
+      // the main bundle, so we need to restart the page initialization to apply
+      // the new formatting mode to localStorage reads.
       window.location.reload();
     });
 

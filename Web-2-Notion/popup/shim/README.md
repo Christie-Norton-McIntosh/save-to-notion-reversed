@@ -44,6 +44,15 @@ The shim scripts are loaded in `popup/index.html` in this order:
 <script defer="defer" src="./shim/ui-augment.js"></script>
 ```
 
+### Important: Storage API Usage
+
+Per repository conventions, this shim uses `localStorage` with the `__stn_` prefix pattern. If the extension's content scripts currently use `chrome.storage.local` instead, you have two options:
+
+1. **Update content scripts** to also write scraped content to `localStorage.__stn_scraped_content` (in addition to or instead of chrome.storage.local)
+2. **Create a chrome.storage interceptor** similar to the localStorage interceptor in `preload-format.js`
+
+The shim establishes the intended localStorage-based pattern for cross-context data transfer as specified in the repository conventions.
+
 ## Customization
 
 ### Updating localStorage Keys

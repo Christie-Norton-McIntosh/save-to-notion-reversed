@@ -72,6 +72,14 @@ All shim-related keys use the `__stn_` prefix per repository conventions:
 | `__stn_formatted_content` | Formatted copy (debug) | Preload shim | (optional) |
 | `__stn_format_mode` | Selected format mode | UI augment | Preload shim |
 
+### Important Note: Storage API Choice
+
+**Repository Convention:** The custom instructions specify using `localStorage` with `__stn_` prefix for cross-context data transfer.
+
+**Current Implementation:** The extension's minified bundle currently uses `chrome.storage.local` API for some data persistence.
+
+**Shim Approach:** This shim establishes the localStorage-based pattern. If content scripts currently use `chrome.storage.local`, they should be updated to also write to localStorage for the shim to intercept the data. Alternatively, a `chrome.storage` interceptor could be added.
+
 ### Discovering Actual Keys
 
 The extension may use different localStorage keys. To discover them:

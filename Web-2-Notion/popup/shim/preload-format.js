@@ -9,11 +9,14 @@
     formatMode: "__stn_format_mode"
   };
 
+  // Note: Per repository conventions, the extension should use localStorage with __stn_ prefix
+  // for cross-context data transfer. If the extension currently uses chrome.storage.local,
+  // this shim establishes the intended localStorage-based pattern for future content flow.
   const originalGetItem = Storage.prototype.getItem;
   const originalSetItem = Storage.prototype.setItem;
 
   function safeParse(value) {
-    try { return JSON.parse(value); } catch { return null; }
+    try { return JSON.parse(value); } catch (e) { return null; }
   }
 
   function cleanText(s) {
