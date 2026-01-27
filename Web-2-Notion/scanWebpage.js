@@ -41,15 +41,40 @@ async function isAKnownSite(doc) {
 async function getReadableZone() {
   const customSelectors = await loadCustomSelectors();
   const hostname = getHostname();
-  const selector =
-    customSelectors[hostname] || defaultSiteReadableZoneMap[hostname];
+  const selectorEntry = customSelectors[hostname];
+
+  let selectors = [];
+  let embeddedPostFormat = false;
+
+  if (Array.isArray(selectorEntry)) {
+    selectors = selectorEntry
+      .filter((item) => item && item.selector)
+      .map((item) => {
+        if (item.embeddedPostFormat) embeddedPostFormat = true;
+        return item.selector;
+      });
+  } else if (typeof selectorEntry === "string") {
+    selectors = [selectorEntry];
+  } else if (selectorEntry && typeof selectorEntry === "object") {
+    selectors = [selectorEntry.selector].filter(Boolean);
+    embeddedPostFormat = !!selectorEntry.embeddedPostFormat;
+  }
+
+  // Fall back to default map if nothing custom
+  if (selectors.length === 0 && defaultSiteReadableZoneMap[hostname]) {
+    selectors = [defaultSiteReadableZoneMap[hostname]];
+  }
+
+  const selector = selectors.join(",");
   console.log(
-    "[scanWebpage] Using selector:",
+    "[scanWebpage] Using selector(s):",
     selector,
+    "embedded:",
+    embeddedPostFormat,
     "for hostname:",
     hostname,
   );
-  return selector;
+  return { selector, embeddedPostFormat };
 }
 var ob2Str = (val) => {
   return {}.toString.call(val);
@@ -14145,7 +14170,7 @@ var extractWithReadability = async (html, url = "") => {
       });
     } else {
       const isKnown = await isAKnownSite(doc);
-      const readableZoneSelector = await getReadableZone();
+      const { selector: readableZoneSelector } = await getReadableZone();
       console.log(
         "[scanWebpage] Looking for selector in parsed HTML:",
         readableZoneSelector,
@@ -14389,6 +14414,12 @@ function done(data) {
     type: "asyncExec",
     ...data,
   };
+  console.log("[scanWebpage] Sending asyncExec to background:", {
+    embeddedPostFormat: props.embeddedPostFormat,
+    blockFormat: props.blockFormat,
+    calloutIcon: props.calloutIcon,
+    titlePreview: props.title?.substring(0, 60),
+  });
   return new Promise((resolve2) => {
     chrome.runtime.sendMessage(props, function (response) {
       console.log("async exec response:", response);
@@ -14417,10 +14448,16 @@ async function scanWebpage() {
   // Check for custom selector in live DOM first
   let htmlToProcess = document.documentElement.outerHTML;
   const isKnown = await isAKnownSite(null);
-  const readableZoneSelector = await getReadableZone();
+  const { selector: readableZoneSelector, embeddedPostFormat } =
+    await getReadableZone();
 
   console.log("[scanWebpage] Is known site?", isKnown);
-  console.log("[scanWebpage] Selector to use:", readableZoneSelector);
+  console.log(
+    "[scanWebpage] Selector to use:",
+    readableZoneSelector,
+    "embedded:",
+    embeddedPostFormat,
+  );
 
   if (isKnown && readableZoneSelector) {
     // Wait for dynamic content to load
@@ -15004,6 +15041,20 @@ async function scanWebpage() {
   }
 
   const r = await parseFromHtml(htmlToProcess, window.location.href);
+  if (r) {
+    r.embeddedPostFormat = !!embeddedPostFormat;
+    if (embeddedPostFormat) {
+      // Hint downstream to render as a callout
+      r.blockFormat = "callout";
+      r.calloutIcon = "📎";
+    }
+    console.log("[scanWebpage] Scan result with embedded flags:", {
+      embeddedPostFormat: r.embeddedPostFormat,
+      blockFormat: r.blockFormat,
+      calloutIcon: r.calloutIcon,
+      titlePreview: r.title?.substring(0, 60),
+    });
+  }
   return r || {};
 }
 scanWebpage().then(done);

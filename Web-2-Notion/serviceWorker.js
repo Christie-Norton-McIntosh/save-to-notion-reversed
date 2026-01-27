@@ -2170,6 +2170,11 @@ class ce {
           var g;
           const s = a.id || j();
           let r = Pt(a.notionParentId);
+          console.log("[addBlockGetOperations] Creating block:", {
+            blockFormat: a.blockFormat,
+            calloutIcon: a.calloutIcon,
+            text: a.text?.substring?.(0, 100),
+          });
           const c = {
               [$.bullet]: { type: "bulleted_list" },
               [$.code]: {
@@ -2778,13 +2783,24 @@ function fr(
   var g;
   let s = e;
   const r = ((g = s.caption) == null ? void 0 : g.length) > 0,
-    c = n.savingTo == "collection";
+    c = n.savingTo == "collection",
+    isEmbedded = s.embeddedPostFormat || s.highlightFormat === "callout";
   let u = c ? `"${s.text}"${r ? ` — ${s.caption}` : ""}` : s.text;
+  console.log("[fr] Building block config:", {
+    highlightFormat: s.highlightFormat,
+    embeddedPostFormat: s.embeddedPostFormat,
+    calloutIcon: s.calloutIcon,
+    savingToCollection: c,
+    isEmbedded,
+    computedBlockFormat:
+      c && !isEmbedded ? "page" : (s.highlightFormat ?? $.bullet),
+  });
   return {
     ...t,
     text: u,
-    blockFormat: c ? "page" : (s.highlightFormat ?? $.bullet),
+    blockFormat: c && !isEmbedded ? "page" : (s.highlightFormat ?? $.bullet),
     ...(s.highlightColor && !c ? { blockColor: pr(s.highlightColor) } : {}),
+    ...(s.calloutIcon ? { calloutIcon: s.calloutIcon } : {}),
     afterId: n.notionListAfterId,
     notionSpaceId: n.notionSpaceId,
     userId: i,
@@ -2823,10 +2839,20 @@ function wr(
     savingAs: a,
   },
 ) {
+  const isEmbedded = e.embeddedPostFormat || e.highlightFormat === "callout";
+  console.log("[wr] Building note block config:", {
+    highlightFormat: e.highlightFormat,
+    embeddedPostFormat: e.embeddedPostFormat,
+    calloutIcon: e.calloutIcon,
+    savingAs: a,
+    isEmbedded,
+    computedBlockFormat: isEmbedded ? "callout" : a,
+  });
   return {
     ...t,
     text: e.note,
-    blockFormat: a,
+    blockFormat: isEmbedded ? "callout" : a,
+    ...(e.calloutIcon ? { calloutIcon: e.calloutIcon } : {}),
     afterId: n.notionListAfterId,
     notionSpaceId: n.notionSpaceId,
     userId: o,
@@ -3455,6 +3481,13 @@ async function ta(
         },
       },
     });
+  console.log("[ta] Before calling br with highlight:", {
+    id: r.id,
+    type: r.type,
+    highlightFormat: r.highlightFormat,
+    embeddedPostFormat: r.embeddedPostFormat,
+    calloutIcon: r.calloutIcon,
+  });
   const w = br(r, h),
     I = J();
   if (
@@ -5391,8 +5424,43 @@ async function go(e, t, n) {
     ns("clipContent.js", i, { action: e, props: t }, n),
   );
 }
+// Temporary storage for scan results with embedded format metadata
+const scanResultCache = new Map();
 async function Nc(e) {
-  return await new Promise((n) => mn("scanWebpage.js", n, {}, e));
+  const result = await new Promise((n) => mn("scanWebpage.js", n, {}, e));
+  console.log(
+    "[Nc] Scan complete, result keys:",
+    result ? Object.keys(result).join(", ") : "null",
+  );
+  // Store embedded format metadata for later retrieval in submitCapture
+  if (
+    result &&
+    (result.embeddedPostFormat || result.blockFormat || result.calloutIcon)
+  ) {
+    console.log("[Nc] Caching scan result with embedded metadata:", {
+      embeddedPostFormat: result.embeddedPostFormat,
+      blockFormat: result.blockFormat,
+      calloutIcon: result.calloutIcon,
+      url: result.url,
+      cacheKey: result.url || "latest",
+    });
+    scanResultCache.set(result.url || "latest", {
+      embeddedPostFormat: result.embeddedPostFormat,
+      blockFormat: result.blockFormat,
+      calloutIcon: result.calloutIcon,
+      timestamp: Date.now(),
+    });
+    console.log("[Nc] Cache now has", scanResultCache.size, "entries");
+    // Clean up old entries (older than 5 minutes)
+    for (const [key, value] of scanResultCache.entries()) {
+      if (Date.now() - value.timestamp > 300000) {
+        scanResultCache.delete(key);
+      }
+    }
+  } else {
+    console.log("[Nc] NOT caching - no embedded metadata found");
+  }
+  return result;
 }
 function jc(e) {
   try {
@@ -6077,21 +6145,129 @@ const F = {
   submitCapture: async (e, t, n) => {
     var p, h, y, w, I, b, v, T, E;
     const o = e.session;
+
+    // Check cache for embedded format metadata from scanWebpage
+    // Extract page URL from payload.properties (it's stored in a property with key like "tDM^")
+    let pageUrl = null;
+    if (e.payload.highlightContextData?.url) {
+      pageUrl = e.payload.highlightContextData.url;
+    } else if (e.payload?.properties) {
+      // Find the URL property in the payload properties (key varies, but value has .url)
+      for (const [key, value] of Object.entries(e.payload.properties)) {
+        if (value && typeof value === "object" && value.url) {
+          pageUrl = value.url;
+          console.log(
+            "[submitCapture] Found URL in payload.properties:",
+            pageUrl,
+          );
+          break;
+        }
+      }
+    }
+
+    console.log(
+      "[submitCapture] Looking for cached metadata with pageUrl:",
+      pageUrl,
+    );
+    console.log("[submitCapture] Cache has", scanResultCache.size, "entries");
+    console.log(
+      "[submitCapture] Cache keys:",
+      Array.from(scanResultCache.keys()),
+    );
+    const cachedMetadata = pageUrl
+      ? scanResultCache.get(pageUrl) || scanResultCache.get("latest")
+      : null;
+    if (cachedMetadata) {
+      console.log("[submitCapture] Retrieved cached metadata:", cachedMetadata);
+      // Inject cached metadata into payload if not already present
+      if (!e.payload.embeddedPostFormat && cachedMetadata.embeddedPostFormat) {
+        e.payload.embeddedPostFormat = cachedMetadata.embeddedPostFormat;
+      }
+      if (!e.payload.blockFormat && cachedMetadata.blockFormat) {
+        e.payload.blockFormat = cachedMetadata.blockFormat;
+      }
+      if (!e.payload.calloutIcon && cachedMetadata.calloutIcon) {
+        e.payload.calloutIcon = cachedMetadata.calloutIcon;
+      }
+      // Also inject into highlightContextData if it exists
+      if (e.payload.highlightContextData) {
+        if (
+          !e.payload.highlightContextData.embeddedPostFormat &&
+          cachedMetadata.embeddedPostFormat
+        ) {
+          e.payload.highlightContextData.embeddedPostFormat =
+            cachedMetadata.embeddedPostFormat;
+        }
+        if (
+          !e.payload.highlightContextData.blockFormat &&
+          cachedMetadata.blockFormat
+        ) {
+          e.payload.highlightContextData.blockFormat =
+            cachedMetadata.blockFormat;
+        }
+        if (
+          !e.payload.highlightContextData.calloutIcon &&
+          cachedMetadata.calloutIcon
+        ) {
+          e.payload.highlightContextData.calloutIcon =
+            cachedMetadata.calloutIcon;
+        }
+      }
+      // Clean up after use
+      if (pageUrl) {
+        scanResultCache.delete(pageUrl);
+      }
+    } else {
+      console.log("[submitCapture] No cached metadata found for URL:", pageUrl);
+    }
+
     if (
       (e.payload.type == "highlight"
         ? an("save_highlight", { url: e.payload.highlightContextData.url })
         : e.payload.type == "note" && an(),
       e.payload.type == "highlight")
     ) {
-      const C =
+      const L = { ...(e.payload.highlightContextData || {}) },
+        H =
+          e.payload.embeddedPostFormat ||
+          L.embeddedPostFormat ||
+          L.blockFormat === "callout" ||
+          e.payload.blockFormat === "callout",
+        C =
+          L.highlightFormat ||
+          e.payload.highlightFormat ||
+          (H ? "callout" : void 0) ||
+          (L.calloutIcon || e.payload.calloutIcon ? "callout" : void 0) ||
           ((p = e.payload.highlightContextData) == null
             ? void 0
-            : p.highlightFormat) || $.bullet,
+            : p.highlightFormat) ||
+          $.bullet,
         D =
+          L.highlightColor ||
+          e.payload.highlightColor ||
           ((h = e.payload.highlightContextData) == null
             ? void 0
-            : h.highlightColor) || "default",
-        S = await m.user.load(),
+            : h.highlightColor) ||
+          "default",
+        Q =
+          L.calloutIcon ||
+          e.payload.calloutIcon ||
+          (C === "callout" ? "📎" : void 0);
+      e.payload.highlightContextData = {
+        ...L,
+        highlightFormat: C,
+        highlightColor: D,
+        ...(H ? { embeddedPostFormat: !0, blockFormat: "callout" } : {}),
+        ...(Q ? { calloutIcon: Q } : {}),
+      };
+      console.log("[submitCapture] Computed highlight format:", {
+        highlightFormat: C,
+        embeddedPostFormat: H,
+        calloutIcon: Q,
+        fullContext: e.payload.highlightContextData,
+      });
+
+      const S = await m.user.load(),
         q = (S == null ? void 0 : S.settings.highlightFormat) || $.bullet,
         X = (S == null ? void 0 : S.settings.highlightColor) || "default";
       (C != q || D != X) &&
@@ -6156,7 +6332,22 @@ const F = {
               showCaption: !1,
             }
           : e.payload.type == "note"
-            ? { ...c, note: e.payload.note, type: "note", showCaption: !1 }
+            ? {
+                ...c,
+                note: e.payload.note,
+                type: "note",
+                showCaption: !1,
+                // Include embedded format metadata from cache for notes
+                ...(e.payload.embeddedPostFormat
+                  ? { embeddedPostFormat: !0 }
+                  : {}),
+                ...(e.payload.calloutIcon
+                  ? { calloutIcon: e.payload.calloutIcon }
+                  : {}),
+                ...(e.payload.blockFormat
+                  ? { highlightFormat: e.payload.blockFormat }
+                  : {}),
+              }
             : {
                 ...c,
                 type: "highlight",
@@ -6167,10 +6358,23 @@ const F = {
                 selectionRange: e.payload.highlightContextData.selectionRange,
                 highlightFormat:
                   e.payload.highlightContextData.highlightFormat || $.bullet,
+                ...(e.payload.highlightContextData.calloutIcon
+                  ? { calloutIcon: e.payload.highlightContextData.calloutIcon }
+                  : {}),
+                ...(e.payload.highlightContextData.embeddedPostFormat
+                  ? { embeddedPostFormat: !0 }
+                  : {}),
                 highlightColor:
                   e.payload.highlightContextData.highlightColor || void 0,
               },
       );
+    console.log("[submitCapture] Created highlight record:", {
+      id: g.id,
+      type: g.type,
+      highlightFormat: g.highlightFormat,
+      calloutIcon: g.calloutIcon,
+      embeddedPostFormat: g.embeddedPostFormat,
+    });
     if (
       (e.payload.type == "highlight" && !u && (await at([g])),
       (I = e.context) != null && I.executeDirectly)

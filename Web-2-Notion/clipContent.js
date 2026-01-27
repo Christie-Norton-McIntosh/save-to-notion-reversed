@@ -1376,9 +1376,30 @@
                     function (result) {
                       const selectors = result.customSiteSelectors || {};
 
-                      // Only save if it's different from what's already saved
-                      if (selectors[hostname] !== selectorToSave) {
-                        selectors[hostname] = selectorToSave;
+                      const existingEntry = selectors[hostname];
+                      const existingList = Array.isArray(existingEntry)
+                        ? existingEntry
+                        : existingEntry
+                          ? [existingEntry]
+                          : [];
+
+                      const alreadySaved = existingList.some(
+                        (item) => item && item.selector === selectorToSave,
+                      );
+
+                      if (!alreadySaved) {
+                        const embeddedPostFormat = existingList.find(
+                          (item) => item && item.embeddedPostFormat,
+                        )
+                          ? true
+                          : false;
+
+                        const updatedList = [
+                          ...existingList,
+                          { selector: selectorToSave, embeddedPostFormat },
+                        ];
+
+                        selectors[hostname] = updatedList;
 
                         chrome.storage.local.set(
                           { customSiteSelectors: selectors },
@@ -1514,7 +1535,7 @@
             console.log(
               "[startContentConfirmSelection] About to load custom selector",
             );
-            const customSelector = yield getCustomSelectorForCurrentDomain();
+            const selectorEntries = yield getCustomSelectorsForCurrentDomain();
             console.log(
               "[startContentConfirmSelection] Custom selector loaded:",
               customSelector,
@@ -1523,7 +1544,10 @@
               "[startContentConfirmSelection] Current node:",
               currentNode,
             );
-            const contentData = extractContentData(currentNode, customSelector);
+            const contentData = buildContentFromSelectors(
+              currentNode,
+              selectorEntries,
+            );
             console.log(
               "[startContentConfirmSelection] Content data:",
               contentData,
@@ -1595,15 +1619,28 @@
               return;
             }
 
-            const customSelector = yield getCustomSelectorForCurrentDomain();
-            const contentData = extractContentData(currentNode, customSelector);
+            const selectorEntries = yield getCustomSelectorsForCurrentDomain();
+            const contentData = buildContentFromSelectors(
+              currentNode,
+              selectorEntries,
+            );
             if (!contentData) {
               console.error("[clipContent] No content found to extract");
               manager.stopClipZone(true, null);
               return;
             }
 
-            const payload = continueWithContentSelection(contentData);
+            const payload = continueWithContentSelection(
+              contentData,
+              contentData.embeddedPostFormat,
+            );
+
+            console.log("[clipContent] Sending pickContentAdded payload:", {
+              highlightFormat: payload.highlightFormat,
+              calloutIcon: payload.calloutIcon,
+              embeddedPostFormat: payload.embeddedPostFormat,
+              blockFormat: payload.blockFormat,
+            });
 
             chrome.runtime.sendMessage({
               popup: {
@@ -2991,33 +3028,112 @@ z-index: 2;
         domain = domain.split(":")[0];
         return domain.trim().toLowerCase();
       }
-      // Helper function to get custom selector for current domain
-      function getCustomSelectorForCurrentDomain() {
+      // Helper function to get custom selectors for current domain (supports multiple entries)
+      function getCustomSelectorsForCurrentDomain() {
         return new Promise((resolve) => {
           const currentDomain = normalizeDomain(window.location.hostname);
           console.log(
-            "[getCustomSelectorForCurrentDomain] Current domain:",
+            "[getCustomSelectorsForCurrentDomain] Current domain:",
             currentDomain,
           );
 
           chrome.storage.local.get(["customSiteSelectors"], function (result) {
             const selectors = result.customSiteSelectors || {};
             console.log(
-              "[getCustomSelectorForCurrentDomain] All saved selectors:",
+              "[getCustomSelectorsForCurrentDomain] All saved selectors:",
               selectors,
             );
 
-            const customSelector = selectors[currentDomain];
+            const selectorEntry = selectors[currentDomain];
+            let selectorArray = [];
+            if (Array.isArray(selectorEntry)) {
+              selectorArray = selectorEntry
+                .filter((item) => item && item.selector)
+                .map((item) => ({
+                  selector: item.selector,
+                  embeddedPostFormat: !!item.embeddedPostFormat,
+                }));
+            } else if (typeof selectorEntry === "string") {
+              selectorArray = [
+                { selector: selectorEntry, embeddedPostFormat: false },
+              ];
+            } else if (selectorEntry && typeof selectorEntry === "object") {
+              selectorArray = [
+                {
+                  selector: selectorEntry.selector || null,
+                  embeddedPostFormat: !!selectorEntry.embeddedPostFormat,
+                },
+              ].filter((item) => item.selector);
+            }
+
             console.log(
-              "[getCustomSelectorForCurrentDomain] Found selector for",
+              "[getCustomSelectorsForCurrentDomain] Resolved selectors for",
               currentDomain,
               ":",
-              customSelector,
+              selectorArray,
             );
 
-            resolve(customSelector || null);
+            resolve(selectorArray);
           });
         });
+      }
+
+      function buildContentFromSelectors(rootElement, selectorEntries = []) {
+        const results = [];
+
+        selectorEntries.forEach((entry) => {
+          if (!entry || !entry.selector) return;
+          const data = extractContentData(rootElement, entry.selector);
+          if (data) {
+            results.push({
+              ...data,
+              embeddedPostFormat: !!entry.embeddedPostFormat,
+            });
+          }
+        });
+
+        if (results.length === 0) {
+          const fallback = extractContentData(rootElement, null);
+          if (fallback) {
+            return {
+              title: fallback.title,
+              content: fallback.content,
+              textContent: fallback.textContent,
+              url: fallback.url,
+              elementCount: fallback.elementCount,
+              embeddedPostFormat: false,
+            };
+          }
+          return null;
+        }
+
+        const combinedContent = results
+          .map((item, idx) => {
+            const header =
+              results.length > 1
+                ? `<div data-stn-selector-block>Selector #${idx + 1}</div>`
+                : "";
+            return `${header}${item.content}`;
+          })
+          .join("\n\n");
+
+        const combinedText = results
+          .map((item) => item.textContent)
+          .filter(Boolean)
+          .join(" ")
+          .replace(/\s+/g, " ");
+
+        return {
+          title: results[0].title,
+          content: combinedContent,
+          textContent: combinedText,
+          url: results[0].url,
+          elementCount: results.reduce(
+            (sum, item) => sum + (item.elementCount || 0),
+            0,
+          ),
+          embeddedPostFormat: results.some((item) => item.embeddedPostFormat),
+        };
       }
       function extractContentData(rootElement, customSelector = null) {
         console.log(
@@ -3270,7 +3386,10 @@ z-index: 2;
           totalFields: fields.length,
         };
       }
-      function continueWithContentSelection(contentData) {
+      function continueWithContentSelection(
+        contentData,
+        embeddedPostFormat = false,
+      ) {
         return {
           title: contentData.title,
           content: contentData.content,
@@ -3279,6 +3398,11 @@ z-index: 2;
           domain: window.location.hostname || "unknown",
           pageUrl: window.location.href,
           elementCount: contentData.elementCount,
+          embeddedPostFormat,
+          // Hint downstream formatter to render as callout when embedded flag is set
+          ...(embeddedPostFormat
+            ? { highlightFormat: "callout", calloutIcon: "📎" }
+            : {}),
         };
       }
       function startManualFieldSelection(fieldElements, callback) {

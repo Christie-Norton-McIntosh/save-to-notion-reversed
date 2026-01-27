@@ -9,6 +9,7 @@ console.log(
   typeof chrome !== "undefined" && chrome.runtime,
 );
 
+// selectors schema per domain: array of { selector: string, embeddedPostFormat?: boolean }
 let selectors = {};
 
 // Helper function to normalize domain names
@@ -40,10 +41,49 @@ chrome.storage.local.get(["customSiteSelectors"], (result) => {
     );
     selectors = {};
   } else {
-    selectors = result.customSiteSelectors || {};
+    selectors = normalizeSelectorsSchema(result.customSiteSelectors || {});
+  }
+
+  // Ensure default embedded post format selector for servicenow.com
+  if (
+    !selectors["servicenow.com"] ||
+    selectors["servicenow.com"].length === 0
+  ) {
+    selectors["servicenow.com"] = [
+      { selector: ".related-links", embeddedPostFormat: true },
+    ];
   }
   renderSelectors();
 });
+
+// Normalize legacy shapes (string or object) into array of objects per domain
+function normalizeSelectorsSchema(rawSelectors) {
+  const normalized = {};
+  Object.entries(rawSelectors || {}).forEach(([domain, entry]) => {
+    if (Array.isArray(entry)) {
+      normalized[domain] = entry
+        .map((item) =>
+          typeof item === "string"
+            ? { selector: item, embeddedPostFormat: false }
+            : {
+                selector: item && item.selector ? item.selector : "",
+                embeddedPostFormat: !!(item && item.embeddedPostFormat),
+              },
+        )
+        .filter((item) => item.selector);
+    } else if (typeof entry === "string") {
+      normalized[domain] = [{ selector: entry, embeddedPostFormat: false }];
+    } else if (entry && typeof entry === "object") {
+      normalized[domain] = [
+        {
+          selector: entry.selector || "",
+          embeddedPostFormat: !!entry.embeddedPostFormat,
+        },
+      ].filter((item) => item.selector);
+    }
+  });
+  return normalized;
+}
 
 function renderSelectors() {
   const container = document.getElementById("selectors-container");
@@ -56,13 +96,30 @@ function renderSelectors() {
     // Add at least one empty item if no selectors exist
     addSelectorItem("", "");
   } else {
-    entries.forEach(([domain, selector]) => {
-      addSelectorItem(domain, selector);
+    entries.forEach(([domain, selectorList]) => {
+      const list = Array.isArray(selectorList)
+        ? selectorList
+        : normalizeSelectorsSchema({ tmp: selectorList }).tmp || [];
+      if (list.length === 0) {
+        addSelectorItem(domain, "", false);
+      } else {
+        list.forEach((item) => {
+          addSelectorItem(
+            domain,
+            item.selector || "",
+            !!item.embeddedPostFormat,
+          );
+        });
+      }
     });
   }
 }
 
-function addSelectorItem(domain = "", selector = "") {
+function addSelectorItem(
+  domain = "",
+  selector = "",
+  embeddedPostFormat = false,
+) {
   const container = document.getElementById("selectors-container");
   const item = document.createElement("div");
   item.className = "selector-item";
@@ -89,6 +146,22 @@ function addSelectorItem(domain = "", selector = "") {
     updateFromInputs();
   });
 
+  const embeddedCheckbox = document.createElement("input");
+  embeddedCheckbox.type = "checkbox";
+  embeddedCheckbox.title =
+    "Treat this selector as Embedded Post Format (callout)";
+  embeddedCheckbox.checked = embeddedPostFormat;
+  embeddedCheckbox.addEventListener("change", function () {
+    updateFromInputs();
+  });
+
+  const embeddedLabel = document.createElement("label");
+  embeddedLabel.textContent = "Embedded Post Format";
+  embeddedLabel.style.display = "flex";
+  embeddedLabel.style.alignItems = "center";
+  embeddedLabel.style.gap = "6px";
+  embeddedLabel.appendChild(embeddedCheckbox);
+
   const removeBtn = document.createElement("button");
   removeBtn.className = "remove-btn";
   removeBtn.textContent = "Remove";
@@ -99,6 +172,7 @@ function addSelectorItem(domain = "", selector = "") {
 
   item.appendChild(domainInput);
   item.appendChild(selectorInput);
+  item.appendChild(embeddedLabel);
   item.appendChild(removeBtn);
 
   container.appendChild(item);
@@ -120,7 +194,14 @@ function updateFromInputs() {
       const selector = selectorInput.value.trim();
 
       if (domain && selector) {
-        selectors[domain] = selector;
+        const embeddedCheckbox = item.querySelector('input[type="checkbox"]');
+        const embeddedPostFormat = !!(
+          embeddedCheckbox && embeddedCheckbox.checked
+        );
+
+        if (!selectors[domain]) selectors[domain] = [];
+        selectors[domain].push({ selector, embeddedPostFormat });
+
         // Update the input to show the normalized domain
         if (domainInput.value !== domain) {
           domainInput.value = domain;
@@ -145,10 +226,23 @@ function saveSelectors() {
 
   // Clean up empty entries and normalize domains
   const cleanedSelectors = {};
-  Object.entries(selectors).forEach(([domain, selector]) => {
+  Object.entries(selectors).forEach(([domain, selectorList]) => {
     const normalizedDomain = normalizeDomain(domain);
-    if (normalizedDomain && selector.trim()) {
-      cleanedSelectors[normalizedDomain] = selector.trim();
+    if (!normalizedDomain) return;
+
+    const list = Array.isArray(selectorList)
+      ? selectorList
+      : normalizeSelectorsSchema({ tmp: selectorList }).tmp || [];
+
+    const cleanedList = list
+      .map((entry) => ({
+        selector: (entry.selector || "").trim(),
+        embeddedPostFormat: !!entry.embeddedPostFormat,
+      }))
+      .filter((entry) => entry.selector);
+
+    if (cleanedList.length > 0) {
+      cleanedSelectors[normalizedDomain] = cleanedList;
     }
   });
 
@@ -176,17 +270,6 @@ function saveSelectors() {
   });
 }
 
-function showStatus(message, type) {
-  const status = document.getElementById("status");
-  status.textContent = message;
-  status.className = `status ${type}`;
-  status.style.display = "block";
-
-  setTimeout(() => {
-    status.style.display = "none";
-  }, 3000);
-}
-
 function showShortcutInfo() {
   const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
   const shortcut = isMac ? "⌘+Shift+C" : "Ctrl+Shift+C";
@@ -203,7 +286,7 @@ function testFunction() {
 
   // Show current state
   chrome.storage.local.get(["customSiteSelectors"], (result) => {
-    const stored = result.customSiteSelectors || {};
+    const stored = normalizeSelectorsSchema(result.customSiteSelectors || {});
     const count = Object.keys(stored).length;
 
     let message = `✅ Custom Site Selectors Test\n\n`;
@@ -213,9 +296,15 @@ function testFunction() {
 
     if (count > 0) {
       message += `📋 Your saved selectors:\n\n`;
-      Object.entries(stored).forEach(([domain, selector]) => {
+      Object.entries(stored).forEach(([domain, selectorList]) => {
         message += `🌐 ${domain}\n`;
-        message += `   Selector: ${selector}\n\n`;
+        selectorList.forEach((entry, idx) => {
+          message += `   #${idx + 1} Selector: ${entry.selector}\n`;
+          if (entry.embeddedPostFormat) {
+            message += `      Format: Embedded Post (callout)\n`;
+          }
+          message += "\n";
+        });
       });
       message += `─────────────────────────────\n`;
       message += `📌 How to use:\n`;
