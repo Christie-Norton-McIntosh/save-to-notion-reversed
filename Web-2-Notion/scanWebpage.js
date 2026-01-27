@@ -44,25 +44,64 @@ async function getReadableZone() {
   const selectorEntry = customSelectors[hostname];
 
   let selectors = [];
+  let selectorsWithMetadata = []; // Track metadata for each selector
   let embeddedPostFormat = false;
 
   if (Array.isArray(selectorEntry)) {
-    selectors = selectorEntry
+    selectorsWithMetadata = selectorEntry
       .filter((item) => item && item.selector)
       .map((item) => {
-        if (item.embeddedPostFormat) embeddedPostFormat = true;
-        return item.selector;
+        // Support both old (embeddedPostFormat) and new (customHeading) formats
+        const hasCustomHeading = !!(
+          item.customHeading || item.embeddedPostFormat
+        );
+        const headingText =
+          item.customHeading ||
+          (item.embeddedPostFormat ? "Related Links" : "");
+
+        if (hasCustomHeading) embeddedPostFormat = true;
+
+        return {
+          selector: item.selector,
+          customHeading: headingText,
+          embeddedPostFormat: hasCustomHeading, // For backward compatibility
+        };
       });
+    selectors = selectorsWithMetadata.map((item) => item.selector);
   } else if (typeof selectorEntry === "string") {
     selectors = [selectorEntry];
+    selectorsWithMetadata = [
+      { selector: selectorEntry, customHeading: "", embeddedPostFormat: false },
+    ];
   } else if (selectorEntry && typeof selectorEntry === "object") {
     selectors = [selectorEntry.selector].filter(Boolean);
-    embeddedPostFormat = !!selectorEntry.embeddedPostFormat;
+    const hasCustomHeading = !!(
+      selectorEntry.customHeading || selectorEntry.embeddedPostFormat
+    );
+    const headingText =
+      selectorEntry.customHeading ||
+      (selectorEntry.embeddedPostFormat ? "Related Links" : "");
+
+    embeddedPostFormat = hasCustomHeading;
+    selectorsWithMetadata = [
+      {
+        selector: selectorEntry.selector,
+        customHeading: headingText,
+        embeddedPostFormat: hasCustomHeading,
+      },
+    ];
   }
 
   // Fall back to default map if nothing custom
   if (selectors.length === 0 && defaultSiteReadableZoneMap[hostname]) {
     selectors = [defaultSiteReadableZoneMap[hostname]];
+    selectorsWithMetadata = [
+      {
+        selector: defaultSiteReadableZoneMap[hostname],
+        customHeading: "",
+        embeddedPostFormat: false,
+      },
+    ];
   }
 
   const selector = selectors.join(",");
@@ -74,7 +113,7 @@ async function getReadableZone() {
     "for hostname:",
     hostname,
   );
-  return { selector, embeddedPostFormat };
+  return { selector, embeddedPostFormat, selectorsWithMetadata };
 }
 var ob2Str = (val) => {
   return {}.toString.call(val);
@@ -14448,8 +14487,11 @@ async function scanWebpage() {
   // Check for custom selector in live DOM first
   let htmlToProcess = document.documentElement.outerHTML;
   const isKnown = await isAKnownSite(null);
-  const { selector: readableZoneSelector, embeddedPostFormat } =
-    await getReadableZone();
+  const {
+    selector: readableZoneSelector,
+    embeddedPostFormat,
+    selectorsWithMetadata,
+  } = await getReadableZone();
 
   console.log("[scanWebpage] Is known site?", isKnown);
   console.log(
@@ -14736,6 +14778,21 @@ async function scanWebpage() {
               const selectors = readableZoneSelector
                 .split(",")
                 .map((s) => s.trim());
+
+              // Build a map of selector -> metadata for quick lookup
+              const selectorMetadataMap = {};
+              if (
+                selectorsWithMetadata &&
+                Array.isArray(selectorsWithMetadata)
+              ) {
+                selectorsWithMetadata.forEach((item) => {
+                  selectorMetadataMap[item.selector] = item;
+                });
+              }
+
+              // Store matches per selector so we can add headings
+              const matchesBySelector = [];
+
               for (const sel of selectors) {
                 console.log(`[scanWebpage] Searching for: "${sel}"`);
 
@@ -14774,22 +14831,59 @@ async function scanWebpage() {
                 console.log(
                   `[scanWebpage]   Shadow DOM matches: ${shadowMatches.length}`,
                 );
+
+                // Combine all matches for this selector
+                const allSelectorMatches = [
+                  ...Array.from(docMatches),
+                  ...shadowMatches,
+                ];
+
+                if (allSelectorMatches.length > 0) {
+                  matchesBySelector.push({
+                    selector: sel,
+                    elements: allSelectorMatches,
+                    metadata: selectorMetadataMap[sel] || {
+                      embeddedPostFormat: false,
+                    },
+                  });
+                }
               }
 
-              if (allMatches.length > 0) {
+              // Now combine all matches with appropriate headings
+              if (matchesBySelector.length > 0) {
+                const totalMatches = matchesBySelector.reduce(
+                  (sum, item) => sum + item.elements.length,
+                  0,
+                );
                 console.log(
-                  `[scanWebpage] Found ${allMatches.length} total elements with multiple selectors`,
+                  `[scanWebpage] Found ${totalMatches} total elements with multiple selectors`,
                 );
 
                 // Create a container to combine all elements
                 const container = document.createElement("div");
                 container.className = "combined-scan-results";
-                Array.from(allMatches).forEach((match, idx) => {
-                  console.log(
-                    `[scanWebpage] Adding element ${idx + 1} to container: ${match.tagName}.${match.className}`,
-                  );
-                  container.appendChild(match.cloneNode(true));
+
+                matchesBySelector.forEach((selectorGroup, groupIdx) => {
+                  // Add heading for selectors with custom heading text
+                  if (selectorGroup.metadata.customHeading) {
+                    console.log(
+                      `[scanWebpage] Adding custom heading "${selectorGroup.metadata.customHeading}" for selector: ${selectorGroup.selector}`,
+                    );
+                    const heading = document.createElement("h2");
+                    heading.textContent = selectorGroup.metadata.customHeading;
+                    heading.className = "embedded-section-heading";
+                    container.appendChild(heading);
+                  }
+
+                  // Add all elements from this selector
+                  selectorGroup.elements.forEach((match, idx) => {
+                    console.log(
+                      `[scanWebpage] Adding element ${groupIdx + 1}.${idx + 1} to container: ${match.tagName}.${match.className}`,
+                    );
+                    container.appendChild(match.cloneNode(true));
+                  });
                 });
+
                 console.log(
                   `[scanWebpage] Container final text length: ${container.textContent?.length}`,
                 );

@@ -50,7 +50,7 @@ chrome.storage.local.get(["customSiteSelectors"], (result) => {
     selectors["servicenow.com"].length === 0
   ) {
     selectors["servicenow.com"] = [
-      { selector: ".related-links", embeddedPostFormat: true },
+      { selector: ".related-links", customHeading: "Related Links" },
     ];
   }
   renderSelectors();
@@ -62,22 +62,32 @@ function normalizeSelectorsSchema(rawSelectors) {
   Object.entries(rawSelectors || {}).forEach(([domain, entry]) => {
     if (Array.isArray(entry)) {
       normalized[domain] = entry
-        .map((item) =>
-          typeof item === "string"
-            ? { selector: item, embeddedPostFormat: false }
-            : {
-                selector: item && item.selector ? item.selector : "",
-                embeddedPostFormat: !!(item && item.embeddedPostFormat),
-              },
-        )
+        .map((item) => {
+          if (typeof item === "string") {
+            return { selector: item, customHeading: "" };
+          } else {
+            // Support both old (embeddedPostFormat) and new (customHeading) formats
+            const customHeading =
+              item.customHeading ||
+              (item.embeddedPostFormat ? "Related Links" : "");
+            return {
+              selector: item && item.selector ? item.selector : "",
+              customHeading: customHeading,
+            };
+          }
+        })
         .filter((item) => item.selector);
     } else if (typeof entry === "string") {
-      normalized[domain] = [{ selector: entry, embeddedPostFormat: false }];
+      normalized[domain] = [{ selector: entry, customHeading: "" }];
     } else if (entry && typeof entry === "object") {
+      // Support both old and new formats
+      const customHeading =
+        entry.customHeading ||
+        (entry.embeddedPostFormat ? "Related Links" : "");
       normalized[domain] = [
         {
           selector: entry.selector || "",
-          embeddedPostFormat: !!entry.embeddedPostFormat,
+          customHeading: customHeading,
         },
       ].filter((item) => item.selector);
     }
@@ -101,13 +111,13 @@ function renderSelectors() {
         ? selectorList
         : normalizeSelectorsSchema({ tmp: selectorList }).tmp || [];
       if (list.length === 0) {
-        addSelectorItem(domain, "", false);
+        addSelectorItem(domain, "", "");
       } else {
         list.forEach((item) => {
           addSelectorItem(
             domain,
             item.selector || "",
-            !!item.embeddedPostFormat,
+            item.customHeading || "",
           );
         });
       }
@@ -115,11 +125,7 @@ function renderSelectors() {
   }
 }
 
-function addSelectorItem(
-  domain = "",
-  selector = "",
-  embeddedPostFormat = false,
-) {
+function addSelectorItem(domain = "", selector = "", customHeading = "") {
   const container = document.getElementById("selectors-container");
   const item = document.createElement("div");
   item.className = "selector-item";
@@ -146,21 +152,25 @@ function addSelectorItem(
     updateFromInputs();
   });
 
-  const embeddedCheckbox = document.createElement("input");
-  embeddedCheckbox.type = "checkbox";
-  embeddedCheckbox.title =
-    "Treat this selector as Embedded Post Format (callout)";
-  embeddedCheckbox.checked = embeddedPostFormat;
-  embeddedCheckbox.addEventListener("change", function () {
+  const headingInput = document.createElement("input");
+  headingInput.type = "text";
+  headingInput.placeholder = "Custom Heading (optional)";
+  headingInput.value = customHeading || "";
+  headingInput.title =
+    "Add a custom heading (e.g., 'Related Links') to appear before this selector's content";
+  headingInput.style.maxWidth = "200px";
+  headingInput.addEventListener("input", function () {
     updateFromInputs();
   });
 
-  const embeddedLabel = document.createElement("label");
-  embeddedLabel.textContent = "Embedded Post Format";
-  embeddedLabel.style.display = "flex";
-  embeddedLabel.style.alignItems = "center";
-  embeddedLabel.style.gap = "6px";
-  embeddedLabel.appendChild(embeddedCheckbox);
+  const headingLabel = document.createElement("label");
+  headingLabel.textContent = "Custom Heading:";
+  headingLabel.style.display = "flex";
+  headingLabel.style.alignItems = "center";
+  headingLabel.style.gap = "6px";
+  headingLabel.style.fontSize = "12px";
+  headingLabel.style.color = "#666";
+  headingLabel.appendChild(headingInput);
 
   const removeBtn = document.createElement("button");
   removeBtn.className = "remove-btn";
@@ -172,7 +182,7 @@ function addSelectorItem(
 
   item.appendChild(domainInput);
   item.appendChild(selectorInput);
-  item.appendChild(embeddedLabel);
+  item.appendChild(headingLabel);
   item.appendChild(removeBtn);
 
   container.appendChild(item);
@@ -188,19 +198,16 @@ function updateFromInputs() {
     if (inputs.length >= 2) {
       const domainInput = inputs[0];
       const selectorInput = inputs[1];
+      const headingInput = inputs[2]; // Third input is the custom heading
 
       const rawDomain = domainInput.value.trim();
       const domain = normalizeDomain(rawDomain);
       const selector = selectorInput.value.trim();
+      const customHeading = headingInput ? headingInput.value.trim() : "";
 
       if (domain && selector) {
-        const embeddedCheckbox = item.querySelector('input[type="checkbox"]');
-        const embeddedPostFormat = !!(
-          embeddedCheckbox && embeddedCheckbox.checked
-        );
-
         if (!selectors[domain]) selectors[domain] = [];
-        selectors[domain].push({ selector, embeddedPostFormat });
+        selectors[domain].push({ selector, customHeading });
 
         // Update the input to show the normalized domain
         if (domainInput.value !== domain) {
@@ -237,7 +244,7 @@ function saveSelectors() {
     const cleanedList = list
       .map((entry) => ({
         selector: (entry.selector || "").trim(),
-        embeddedPostFormat: !!entry.embeddedPostFormat,
+        customHeading: (entry.customHeading || "").trim(),
       }))
       .filter((entry) => entry.selector);
 

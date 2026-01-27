@@ -426,17 +426,29 @@ class is {
           De
         );
     }
-    return Be;
   }
-  _makeHeader(t, n) {
-    const o = `${t}/${this.appName}(${ss()}):`;
-    return this.useColor && n ? n + o + se.reset : o;
+} // <-- Add missing class closing bracket
+function makeBlock(e) {
+  const block = {
+    object: "block",
+    type: e.blockType,
+    ...(e.blockType && { [e.blockType]: e.blockData }),
+    ...(e.blockId && { id: e.blockId }),
+    ...(e.parentId && { parent_id: e.parentId }),
+    ...(e.archived !== undefined && { archived: e.archived }),
+    ...(e.has_children !== undefined && { has_children: e.has_children }),
+  };
+  // Only include format for callout blocks, and only with valid keys
+  if (e.blockType === "callout" && (e.blockFormat || e.format)) {
+    block.format = {};
+    if (e.blockFormat) {
+      Object.assign(block.format, e.blockFormat);
+    }
+    if (e.format && e.format.page_icon) {
+      block.format.page_icon = e.format.page_icon;
+    }
   }
-}
-function ss() {
-  let t = new Date().getTimezoneOffset() * 6e4,
-    n = Date.now() - t;
-  return new Date(n).toISOString().replace(/Z|-|:/g, "");
+  return block;
 }
 var rs = { Logger: is, RET_FAIL: De, RET_SUCCESS: Be };
 const No = new rs.Logger("notionapi-agent");
@@ -2170,102 +2182,213 @@ class ce {
           var g;
           const s = a.id || j();
           let r = Pt(a.notionParentId);
+
+          // DISABLED: Callout wrapper for collection pages
+          // Now that we add a "Related Links" heading in scanWebpage.js before embedded
+          // selector content, we don't need a callout wrapper. The heading provides
+          // sufficient visual separation between regular content and embedded content.
+          const isCollectionPageWithCallout = false;
+
+          // Ensure format is always set for callout blocks, and never for others
+          if (a.blockFormat === "callout") {
+            a.format = { page_icon: a.calloutIcon ?? "📋" };
+          } else {
+            delete a.format;
+          }
           console.log("[addBlockGetOperations] Creating block:", {
             blockFormat: a.blockFormat,
+            notionParentTable: a.notionParentTable,
             calloutIcon: a.calloutIcon,
+            isCollectionPageWithCallout,
             text: a.text?.substring?.(0, 100),
+            format: a.format,
           });
           const c = {
-              [$.bullet]: { type: "bulleted_list" },
-              [$.code]: {
-                type: "code",
-                properties: { language: [["Plain Text"]] },
-              },
-              [$.toggle]: { type: "toggle" },
-              [$.quote]: { type: "quote" },
-              page: { type: "page" },
-              callout: {
-                type: "callout",
-                format: { page_icon: a.calloutIcon ?? "📋" },
-              },
+            [$.bullet]: { type: "bulleted_list" },
+            [$.code]: {
+              type: "code",
+              properties: { language: [["Plain Text"]] },
             },
-            u = [
+            [$.toggle]: { type: "toggle" },
+            [$.quote]: { type: "quote" },
+            page: { type: "page" },
+            callout: {
+              type: "callout",
+              format: { page_icon: a.calloutIcon ?? "📋" },
+            },
+          };
+
+          // If this is a collection page that should contain a callout, create a callout child
+          let calloutChildBlocks = [];
+          if (isCollectionPageWithCallout && a.withChildren?.contentBlocks) {
+            const calloutId = j();
+            // Create callout block as first child
+            calloutChildBlocks = [
               {
-                id: s,
                 table: "block",
+                id: calloutId,
                 path: [],
                 command: "update",
-                args: Do([
-                  {
-                    type: "bulleted_list",
-                    id: s,
-                    space_id: a.notionSpaceId,
-                    parent_id: r,
-                    parent_table: a.notionParentTable || "block",
-                    alive: !0,
-                    version: 1,
-                    created_time: Date.now(),
-                    last_edited_time: Date.now(),
-                    ...(a.userId && {
-                      created_by_table: "notion_user",
-                      created_by_id: a.userId,
-                      last_edited_by_table: "notion_user",
-                      last_edited_by_id: a.userId,
-                    }),
-                    properties: {
-                      ...(a.text && {
-                        title: Array.isArray(a.text) ? a.text : [[a.text]],
-                      }),
-                      ...(a.properties || {}),
-                    },
-                    ...(a.copiedFrom && { copied_from: a.copiedFrom }),
+                args: {
+                  type: "callout",
+                  id: calloutId,
+                  parent_id: s,
+                  parent_table: "block",
+                  space_id: a.notionSpaceId,
+                  alive: true,
+                  version: 1,
+                  created_time: Date.now(),
+                  last_edited_time: Date.now(),
+                  ...(a.userId && {
+                    created_by_table: "notion_user",
+                    created_by_id: a.userId,
+                    last_edited_by_table: "notion_user",
+                    last_edited_by_id: a.userId,
+                  }),
+                  properties: {
+                    title: [[" "]], // Empty callout
                   },
-                  c[a.blockFormat] || { type: a.blockFormat },
-                  (a.properties && { properties: a.properties }) || {},
-                  (a.format && { format: a.format }) || {},
-                  (a.withChildren && { content: a.withChildren.content }) || {},
-                ]),
+                  format: {
+                    page_icon: a.calloutIcon ?? "📋",
+                  },
+                },
               },
-              ...(a.blockFormat != "page" || a.isSubpage
-                ? [
-                    {
-                      table: "block",
-                      id: r,
-                      path: ["content"],
-                      command: (a.afterId, "listAfter"),
-                      args: {
-                        ...(a.afterId ? { after: a.afterId } : {}),
-                        id: s,
-                      },
-                    },
-                  ]
-                : []),
-              ...((a.blockColor && [
+              {
+                table: "block",
+                id: s,
+                path: ["content"],
+                command: "listAfter",
+                args: {
+                  id: calloutId,
+                },
+              },
+            ];
+
+            // Move all content blocks to be children of the callout instead of the page
+            const contentBlockOps = a.withChildren.contentBlocks.flatMap(
+              (p, index) => [
                 {
                   table: "block",
-                  id: s,
-                  path: ["format"],
+                  id: p.value.id,
+                  path: [],
                   command: "update",
-                  args: { block_color: a.blockColor },
+                  args: {
+                    parent_id: calloutId, // Changed from s (page) to calloutId
+                    parent_table: "block",
+                    space_id: a.notionSpaceId,
+                    ...p.value,
+                  },
+                },
+                {
+                  table: "block",
+                  id: calloutId, // Changed from s (page) to calloutId
+                  path: ["content"],
+                  command: "listAfter",
+                  args: {
+                    ...(index > 0
+                      ? {
+                          after:
+                            a.withChildren.contentBlocks[index - 1].value.id,
+                        }
+                      : {}),
+                    id: p.value.id,
+                  },
+                },
+              ],
+            );
+
+            calloutChildBlocks.push(...contentBlockOps);
+          }
+
+          let u = [
+            {
+              id: s,
+              table: "block",
+              path: [],
+              command: "update",
+              args: Do([
+                {
+                  type: "bulleted_list",
+                  id: s,
+                  space_id: a.notionSpaceId,
+                  parent_id: r,
+                  parent_table: a.notionParentTable || "block",
+                  alive: !0,
+                  version: 1,
+                  created_time: Date.now(),
+                  last_edited_time: Date.now(),
+                  ...(a.userId && {
+                    created_by_table: "notion_user",
+                    created_by_id: a.userId,
+                    last_edited_by_table: "notion_user",
+                    last_edited_by_id: a.userId,
+                  }),
+                  properties: {
+                    ...(a.text && {
+                      title: Array.isArray(a.text) ? a.text : [[a.text]],
+                    }),
+                    ...(a.properties || {}),
+                  },
+                  ...(a.copiedFrom && { copied_from: a.copiedFrom }),
+                },
+                c[a.blockFormat] || { type: a.blockFormat },
+                (a.properties && { properties: a.properties }) || {},
+                (a.format && { format: a.format }) || {},
+                // Only include content for page blocks, not callout or other non-page blocks
+                (a.blockFormat === "page" &&
+                  a.withChildren &&
+                  !isCollectionPageWithCallout && {
+                    // Don't include if we're creating callout child
+                    content: a.withChildren.content,
+                  }) ||
+                  {},
+              ]),
+            },
+            ...(a.blockFormat != "page" || a.isSubpage
+              ? [
+                  {
+                    table: "block",
+                    id: r,
+                    path: ["content"],
+                    command: (a.afterId, "listAfter"),
+                    args: {
+                      ...(a.afterId ? { after: a.afterId } : {}),
+                      id: s,
+                    },
+                  },
+                ]
+              : []),
+            ...((a.blockColor && [
+              {
+                table: "block",
+                id: s,
+                path: ["format"],
+                command: "update",
+                args: { block_color: a.blockColor },
+              },
+            ]) ||
+              []),
+            ...((a.fileIds &&
+              a.fileIds.length > 0 && [
+                {
+                  pointer: {
+                    table: "block",
+                    id: s,
+                    spaceId: a.notionSpaceId,
+                  },
+                  path: ["file_ids"],
+                  command: "listAfterMulti",
+                  args: { ids: a.fileIds },
                 },
               ]) ||
-                []),
-              ...((a.fileIds &&
-                a.fileIds.length > 0 && [
-                  {
-                    pointer: {
-                      table: "block",
-                      id: s,
-                      spaceId: a.notionSpaceId,
-                    },
-                    path: ["file_ids"],
-                    command: "listAfterMulti",
-                    args: { ids: a.fileIds },
-                  },
-                ]) ||
-                []),
-              ...((((g = a.withChildren) == null ? void 0 : g.contentBlocks) &&
-                a.withChildren.contentBlocks.map((p) => ({
+              []),
+            // Add callout child blocks if this is a collection page with callout
+            ...calloutChildBlocks,
+            // Add regular content blocks only if NOT creating a callout wrapper
+            ...((((g = a.withChildren) == null ? void 0 : g.contentBlocks) &&
+              !isCollectionPageWithCallout &&
+              a.withChildren.contentBlocks.flatMap((p, index) => [
+                {
                   table: "block",
                   id: p.value.id,
                   path: [],
@@ -2276,9 +2399,29 @@ class ce {
                     space_id: a.notionSpaceId,
                     ...p.value,
                   },
-                }))) ||
-                []),
-            ];
+                },
+                {
+                  table: "block",
+                  id: s,
+                  path: ["content"],
+                  command: "listAfter",
+                  args: {
+                    ...(index > 0
+                      ? {
+                          after:
+                            a.withChildren.contentBlocks[index - 1].value.id,
+                        }
+                      : {}),
+                    id: p.value.id,
+                  },
+                },
+              ])) ||
+              []),
+          ];
+          console.log(
+            "[addBlockGetOperations] Generated operations:",
+            JSON.stringify(u, null, 2),
+          );
           return { newBlockId: s, operations: u };
         },
         addBlock: async (a) => {
@@ -2291,8 +2434,44 @@ class ce {
                 ...a.extraOperationsFn({ newBlockId: c, operations: r }),
               ])
             : (s = r);
-          const u = io(s, 300);
-          for (let g of u) await this.submitOperations(g, a.notionSpaceId);
+
+          // For callout blocks with children, split operations to avoid incomplete_ancestor_path error
+          console.log("[addBlock] Checking split logic:", {
+            blockFormat: a.blockFormat,
+            hasChildren: !!a.withChildren?.contentBlocks?.length,
+            totalOps: s.length,
+          });
+
+          if (
+            a.blockFormat === "callout" &&
+            a.withChildren?.contentBlocks?.length > 0
+          ) {
+            console.log(
+              "[addBlock] Splitting callout operations into 3 transactions",
+            );
+            // Transaction 1: Create the parent callout block ONLY (no listAfter yet)
+            const createParentOp = s.slice(0, 1);
+            console.log(
+              "[addBlock] Transaction 1 - Create parent:",
+              JSON.stringify(createParentOp, null, 2),
+            );
+            await this.submitOperations(createParentOp, a.notionSpaceId);
+
+            // Transaction 2: Add parent to collection + create all child blocks
+            const addToCollectionAndChildrenOps = s.slice(1);
+            console.log(
+              "[addBlock] Transaction 2 - Add to collection + children ops count:",
+              addToCollectionAndChildrenOps.length,
+            );
+            const u = io(addToCollectionAndChildrenOps, 300);
+            for (let g of u) await this.submitOperations(g, a.notionSpaceId);
+          } else {
+            console.log("[addBlock] Using standard single transaction");
+            // Original logic for non-callout blocks
+            const u = io(s, 300);
+            for (let g of u) await this.submitOperations(g, a.notionSpaceId);
+          }
+
           return (a.withCallback && (await a.withCallback(c)), c);
         },
         patchBlocks: async (a) => {
@@ -2568,8 +2747,16 @@ class ce {
       )),
       console.log("Done call", a),
       !a.ok)
-    )
-      throw new Error(`Notion API returned ${a.status} for route ${t}`);
+    ) {
+      const errorBody = await a.text();
+      console.error(
+        `[_axios] Notion API Error ${a.status} for ${t}:`,
+        errorBody,
+      );
+      throw new Error(
+        `Notion API returned ${a.status} for route ${t}: ${errorBody}`,
+      );
+    }
     return a.json();
   }
   post(t, n = {}, o = {}) {
@@ -2786,19 +2973,27 @@ function fr(
     c = n.savingTo == "collection",
     isEmbedded = s.embeddedPostFormat || s.highlightFormat === "callout";
   let u = c ? `"${s.text}"${r ? ` — ${s.caption}` : ""}` : s.text;
+
+  // CRITICAL: Callout blocks cannot be direct children of collections
+  // When saving to collection with embedded/callout format, always create a page block
+  const blockFormat = c
+    ? "page"
+    : isEmbedded
+      ? "callout"
+      : (s.highlightFormat ?? $.bullet);
+
   console.log("[fr] Building block config:", {
     highlightFormat: s.highlightFormat,
     embeddedPostFormat: s.embeddedPostFormat,
     calloutIcon: s.calloutIcon,
     savingToCollection: c,
     isEmbedded,
-    computedBlockFormat:
-      c && !isEmbedded ? "page" : (s.highlightFormat ?? $.bullet),
+    computedBlockFormat: blockFormat,
   });
   return {
     ...t,
     text: u,
-    blockFormat: c && !isEmbedded ? "page" : (s.highlightFormat ?? $.bullet),
+    blockFormat: blockFormat,
     ...(s.highlightColor && !c ? { blockColor: pr(s.highlightColor) } : {}),
     ...(s.calloutIcon ? { calloutIcon: s.calloutIcon } : {}),
     afterId: n.notionListAfterId,
@@ -2839,19 +3034,30 @@ function wr(
     savingAs: a,
   },
 ) {
+  const c = n.savingTo == "collection";
   const isEmbedded = e.embeddedPostFormat || e.highlightFormat === "callout";
+  const format =
+    isEmbedded && e.calloutIcon ? { page_icon: e.calloutIcon } : undefined;
+
+  // CRITICAL: Callout blocks cannot be direct children of collections
+  // When saving to collection with embedded/callout format, always create a page block
+  const blockFormat = c ? "page" : isEmbedded ? "callout" : a;
+
   console.log("[wr] Building note block config:", {
     highlightFormat: e.highlightFormat,
     embeddedPostFormat: e.embeddedPostFormat,
     calloutIcon: e.calloutIcon,
     savingAs: a,
+    savingToCollection: c,
     isEmbedded,
-    computedBlockFormat: isEmbedded ? "callout" : a,
+    computedBlockFormat: blockFormat,
+    format,
   });
   return {
     ...t,
     text: e.note,
-    blockFormat: isEmbedded ? "callout" : a,
+    blockFormat: blockFormat,
+    ...(format ? { format } : {}),
     ...(e.calloutIcon ? { calloutIcon: e.calloutIcon } : {}),
     afterId: n.notionListAfterId,
     notionSpaceId: n.notionSpaceId,
