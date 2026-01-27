@@ -294,9 +294,41 @@
       function penalty(path) {
         return path.map((node) => node.penalty).reduce((acc, i) => acc + i, 0);
       }
+
+      // Helper function to count elements matching a selector, including in shadow DOMs
+      function countMatchingElements(selector, root = document, depth = 0) {
+        if (depth > 20) return 0; // Prevent infinite recursion
+
+        let count = 0;
+
+        // Count matches in current root
+        try {
+          count += root.querySelectorAll(selector).length;
+        } catch (e) {
+          // Invalid selector, return 0
+          return 0;
+        }
+
+        // Count matches in shadow DOMs
+        const allElements = root.querySelectorAll("*");
+        for (const element of allElements) {
+          if (element.shadowRoot) {
+            count += countMatchingElements(
+              selector,
+              element.shadowRoot,
+              depth + 1,
+            );
+          }
+        }
+
+        return count;
+      }
+
       function unique(path) {
         const css = selector(path);
-        switch (rootDocument.querySelectorAll(css).length) {
+        const matchCount = countMatchingElements(css, rootDocument);
+
+        switch (matchCount) {
           case 0:
             throw new Error(`Can't select any node with this selector: ${css}`);
           case 1:
@@ -1256,12 +1288,15 @@
               return;
             }
             if (action == "pickData") {
+              console.log("[clipContent] pickData action triggered");
               const css = (0, getNodeCss_1.getNodeCss)(currentNode);
+              console.log("[clipContent] Generated CSS selector:", css);
               const payload = {
                 css,
                 domain: window.location.hostname || "unknown",
                 faviconImageBase64: null,
               };
+              console.log("[clipContent] Sending payload:", payload);
               // Legacy: send via chrome.runtime.sendMessage for old code paths
               chrome.runtime.sendMessage({
                 popup: {
@@ -1269,8 +1304,10 @@
                   args: payload,
                 },
               });
+              console.log("[clipContent] Legacy message sent");
               // New: return payload via bgAsk response
               manager.stopClipZone(true, payload);
+              console.log("[clipContent] stopClipZone called with payload");
             } else if (action == "pickFields") {
               manager.extractFields();
             } else if (action == "pickContent") {
