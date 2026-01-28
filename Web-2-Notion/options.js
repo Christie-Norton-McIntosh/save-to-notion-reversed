@@ -16797,6 +16797,99 @@ function Wv(e) {
       })(t.innerHTML, { removeScriptTags: !0 });
     },
   });
+  // Improved GFM table conversion for tables with explicit headers (THEAD or first row with TH)
+  e.addRule("tableWithHeading", {
+    filter: function (node) {
+      return "TABLE" === node.nodeName && Uv(node.rows[0]);
+    },
+    replacement: function (content, table) {
+      try {
+        // Helper to sanitize cell content
+        function sanitizeCell(cell) {
+          let text = "";
+
+          // Clone the cell to avoid modifying the DOM
+          const cellClone = cell.cloneNode(true);
+
+          // Remove script and style tags
+          cellClone
+            .querySelectorAll("script, style")
+            .forEach((el) => el.remove());
+
+          // Handle nested lists - convert to inline comma-separated
+          const lists = cellClone.querySelectorAll("ul, ol");
+          lists.forEach((list) => {
+            const items = Array.from(list.querySelectorAll("li"))
+              .map((li) => li.textContent.trim())
+              .filter(Boolean);
+            if (items.length) {
+              const replacement = document.createTextNode(items.join(", "));
+              list.parentNode.replaceChild(replacement, list);
+            }
+          });
+
+          // Handle line breaks - preserve as single space unless adjacent
+          cellClone.querySelectorAll("br").forEach((br) => {
+            br.replaceWith(document.createTextNode(" "));
+          });
+
+          // Extract text content
+          text = cellClone.textContent || "";
+
+          // Normalize whitespace: collapse multiple consecutive spaces/newlines into single space
+          // but preserve single newlines
+          text = text.replace(/[ \t]+/g, " "); // collapse horizontal whitespace
+          text = text.replace(/\n{3,}/g, "\n\n"); // max 2 consecutive newlines
+          text = text.trim();
+
+          // Escape pipe characters
+          text = text.replace(/\|/g, "\\|");
+
+          // Escape backticks to prevent markdown code block issues
+          text = text.replace(/`/g, "\\`");
+
+          // Limit cell length to prevent extremely long cells (Notion has limits)
+          if (text.length > 500) {
+            text = text.substring(0, 497) + "...";
+          }
+
+          return text;
+        }
+
+        const rows = Array.from(table.rows).map((tr) =>
+          Array.from(tr.cells).map(sanitizeCell),
+        );
+
+        if (!rows.length) return "";
+
+        // Ensure all rows have same column count (pad with empty strings if needed)
+        const maxCols = Math.max(...rows.map((r) => r.length));
+        rows.forEach((row) => {
+          while (row.length < maxCols) {
+            row.push("");
+          }
+        });
+
+        const header = rows[0];
+        const body = rows.slice(1);
+
+        const headerLine = "| " + header.join(" | ") + " |";
+        const sepLine = "| " + header.map(() => "---").join(" | ") + " |";
+        const bodyLines = body.length
+          ? body.map((r) => "| " + r.join(" | ") + " |").join("\n")
+          : "";
+
+        return (
+          "\n\n" +
+          [headerLine, sepLine, bodyLines].filter(Boolean).join("\n") +
+          "\n\n"
+        );
+      } catch (err) {
+        console.warn("tableWithHeading rule failed", err);
+        return content;
+      }
+    },
+  });
 }
 function Vv(e) {
   e.addRule("taskListItems", {
@@ -99060,7 +99153,7 @@ function Zie(e) {
                   shrink: 0,
                   iconRight: nQ,
                   showIcon: !1,
-                  text: "Contact",
+                  text: "Auto-Extract Pages",
                   Position: "top",
                   show: !0,
                   overrides: { item: uH({ onClick: e.onOpenContactCTA }) },
@@ -100600,7 +100693,9 @@ function hae(e) {
           ),
         onOpenChangelogCTA: () => Qm(Vd.changelog),
         onOpenContactCTA: async () => {
-          await f.openFeedbackModalFlow({});
+          chrome.tabs.create({
+            url: chrome.runtime.getURL("autoPagination.html"),
+          });
         },
         onOpenTwitterCTA: () => Qm("https://www.x.com/SaveToNotionApp"),
         onOpenQuickNotePage: () =>

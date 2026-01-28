@@ -2008,15 +2008,73 @@ class ce {
           var y;
           let g = a.substr(5, a.indexOf(";") - 5);
           console.log("gonna upload 1/2...");
-          const p = await this.post("/getUploadFileUrl", {
-              bucket: "secure",
-              name: u ?? `stn-${fn(40)}.${cr(g) ?? "jpg"}`,
-              contentType: g,
-              record: r,
-              supportExtraHeaders: !1,
-              contentLength: a.length,
-            }),
-            h = rr(p.url, r.spaceId);
+          // Request an upload URL from Notion. The Notion backend can occasionally
+          // return transient 503 (PgPoolWaitConnectionTimeout) errors; treat these
+          // as retryable and perform exponential backoff with jitter.
+          const maxRetries = 4;
+          let p;
+          for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+              p = await this.post("/getUploadFileUrl", {
+                bucket: "secure",
+                name: u ?? `stn-${fn(40)}.${cr(g) ?? "jpg"}`,
+                contentType: g,
+                record: r,
+                supportExtraHeaders: !1,
+                contentLength: a.length,
+              });
+              break; // success
+            } catch (err) {
+              // If the error looks transient (503 or known retryable error), retry
+              const msg = String(err?.message || "").toLowerCase();
+              const isRetryable =
+                msg.includes("notion api returned 503") ||
+                msg.includes("pgpoolwaitconnectiontimeout") ||
+                msg.includes("please retry later") ||
+                (err && err.retryable);
+              console.warn(
+                `[uploadFile] getUploadFileUrl attempt ${attempt} failed:`,
+                err,
+              );
+              if (!isRetryable || attempt === maxRetries) {
+                console.error(
+                  "uploadFile: getUploadFileUrl failed after retries",
+                  err,
+                );
+                // Could not get an upload URL after retries — enqueue for later retry
+                try {
+                  const queueId = await enqueueUploadRetry({
+                    dataB64: a,
+                    name: u,
+                    record: r,
+                    userId:
+                      this?.context?.activeUserId ||
+                      this?.context?.user?.id ||
+                      null,
+                    reason: "getUploadFileUrlFailed",
+                  });
+                  console.warn(
+                    `uploadFile: enqueued upload (id=${queueId}) after getUploadFileUrl failures`,
+                  );
+                  return { success: !1, enqueued: !0, queueId };
+                } catch (enqueueErr) {
+                  console.error("uploadFile: enqueue failed", enqueueErr);
+                  throw err;
+                }
+              }
+
+              // Exponential backoff with jitter
+              const base = 1000; // ms
+              const delay = Math.floor(
+                base * Math.pow(2, attempt) + Math.random() * 500,
+              );
+              console.log(
+                `[uploadFile] Retrying getUploadFileUrl in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`,
+              );
+              await new Promise((res) => setTimeout(res, delay));
+            }
+          }
+          const h = rr(p.url, r.spaceId);
           console.log("gonna upload 2/2...");
           try {
             const w = await Ys(p.signedPutUrl, {
@@ -2038,7 +2096,27 @@ class ce {
               { success: !0, url: p.url, fileId: h }
             );
           } catch (w) {
-            return (console.error("error uploading", w), { success: !1 });
+            console.error("error uploading", w);
+            // Try to enqueue the upload for retry later
+            try {
+              const queueId = await enqueueUploadRetry({
+                dataB64: a,
+                name: u,
+                record: r,
+                userId:
+                  this?.context?.activeUserId ||
+                  this?.context?.user?.id ||
+                  null,
+                reason: "putFailed",
+              });
+              console.warn(
+                `uploadFile: enqueued upload (id=${queueId}) after PUT failure`,
+              );
+              return { success: !1, enqueued: !0, queueId };
+            } catch (enqueueErr) {
+              console.error("uploadFile: enqueue failed", enqueueErr);
+              return { success: !1 };
+            }
           }
         },
         createWebClippedPage: async (a, { title: s, url: r }) => {
@@ -3578,7 +3656,18 @@ async function Ar({ properties: e, record: t, parentRecord: n, context: o }) {
       },
       context: o,
     });
-    if (h == null || h.success == !1) throw new Error("failed to upload file");
+    if (h == null) throw new Error("failed to upload file");
+    if (h.success == !1) {
+      if (h.enqueued) {
+        // Upload will be retried in background. Keep needToUploadFile = true and continue.
+        o.updateProgressToast({
+          message: `Upload queued for retry (${r + 1}/${i.length})`,
+        });
+        r += 1;
+        continue;
+      }
+      throw new Error("failed to upload file");
+    }
     const y = e[c],
       w = Object.keys(y)[0];
     if (w == "content") {
@@ -4494,6 +4583,10 @@ async function lc(e, t) {
   if (e == "take-custom-area-screenshot")
     return Mt("capturePortion", t == null ? void 0 : t.id, n);
   if (e == "open-site-selectors") return chrome.runtime.openOptionsPage();
+  if (e == "open-auto-pagination")
+    return chrome.tabs.create({
+      url: chrome.runtime.getURL("autoPagination.html"),
+    });
   const o = await Y();
   la(o.id, void 0, void 0, !0);
 }
@@ -5731,6 +5824,249 @@ async function Vc(e) {
 }
 async function zc(e) {
   return e == null ? { success: !1 } : { success: !0, imageBase64: e };
+}
+
+// Upload retry queue helpers
+const UPLOAD_RETRY_QUEUE_KEY = "__stn_upload_retry_queue";
+const UPLOAD_RETRY_MAX_ATTEMPTS = 10;
+
+function getQueueFromStorage() {
+  return new Promise((resolve) => {
+    try {
+      chrome.storage.local.get([UPLOAD_RETRY_QUEUE_KEY], (res) => {
+        resolve(res[UPLOAD_RETRY_QUEUE_KEY] || []);
+      });
+    } catch (e) {
+      console.error("getQueueFromStorage error", e);
+      resolve([]);
+    }
+  });
+}
+
+function saveQueueToStorage(queue) {
+  return new Promise((resolve) => {
+    try {
+      chrome.storage.local.set({ [UPLOAD_RETRY_QUEUE_KEY]: queue }, () =>
+        resolve(),
+      );
+    } catch (e) {
+      console.error("saveQueueToStorage error", e);
+      resolve();
+    }
+  });
+}
+
+async function enqueueUploadRetry(entry) {
+  try {
+    // Avoid storing extremely large payloads in chrome.storage.local which is quota limited
+    if (entry.dataB64 && entry.dataB64.length > 3 * 1024 * 1024) {
+      console.error("enqueueUploadRetry: data too large to enqueue");
+      try {
+        await F.updateAndShowToastEvent({
+          id: J(),
+          type: "error",
+          message:
+            "Upload failed and cannot be queued (file too large). Please retry manually.",
+        });
+      } catch (e) {}
+      return null;
+    }
+    const queue = (await getQueueFromStorage()) || [];
+    const qEntry = {
+      id: J(),
+      attempts: 0,
+      createdAt: Date.now(),
+      lastAttemptAt: null,
+      ...entry,
+    };
+    queue.push(qEntry);
+    await saveQueueToStorage(queue);
+    console.log("Enqueued upload for retry", qEntry.id);
+    // Show a user toast indicating queueing
+    try {
+      await F.updateAndShowToastEvent({
+        id: J(),
+        type: "info",
+        message: `Upload queued for retry (id: ${qEntry.id})`,
+      });
+    } catch (e) {}
+    // Trigger processing sooner than the periodic schedule
+    try {
+      processUploadQueue();
+    } catch (e) {}
+    return qEntry.id;
+  } catch (e) {
+    console.error("enqueueUploadRetry failed", e);
+    return null;
+  }
+}
+
+// Process the upload retry queue. Runs periodically and also on demand.
+let _processingQueue = false;
+async function processUploadQueue() {
+  if (_processingQueue) return;
+  _processingQueue = true;
+  try {
+    let queue = (await getQueueFromStorage()) || [];
+    if (!queue || queue.length === 0) return;
+    console.log(`[uploadQueue] Processing ${queue.length} queued uploads`);
+
+    // Simple sequential processing with light concurrency to avoid spamming Notion
+    const concurrency = 2;
+    let active = 0;
+    const next = async () => {
+      if (queue.length === 0) return;
+      if (active >= concurrency) return;
+      const entry = queue.shift();
+      if (!entry) return;
+      const now = Date.now();
+      // Respect exponential backoff cooldown
+      const backoffMs = Math.min(
+        60 * 60 * 1000,
+        Math.floor(1000 * Math.pow(2, entry.attempts)),
+      ); // cap at 1h
+      if (entry.lastAttemptAt && now - entry.lastAttemptAt < backoffMs) {
+        // Not ready yet, push back to queue
+        queue.push(entry);
+        // schedule next
+        setTimeout(next, 50);
+        return;
+      }
+
+      active += 1;
+      try {
+        console.log(
+          `[uploadQueue] Attempting upload for ${entry.id} (attempts=${entry.attempts})`,
+        );
+        // get notion client for userId if provided
+        let client = null;
+        if (entry.userId) {
+          try {
+            client = await Q(entry.userId);
+          } catch (e) {
+            console.warn(
+              "processUploadQueue: could not load notion client for user",
+              entry.userId,
+              e,
+            );
+          }
+        }
+
+        // If we couldn't get a client, requeue with updated attempts and timestamp
+        if (!client) {
+          entry.attempts = (entry.attempts || 0) + 1;
+          entry.lastAttemptAt = Date.now();
+          queue.push(entry);
+          console.log(`[uploadQueue] No client for ${entry.id}, requeued`);
+          return;
+        }
+
+        const res = await client.custom.uploadFile({
+          dataB64: entry.dataB64,
+          name: entry.name,
+          record: entry.record,
+          onProgress: (p) => {
+            // emit small telemetry if needed
+          },
+        });
+
+        if (res && res.success) {
+          console.log(`[uploadQueue] Upload succeeded for ${entry.id}`, res);
+          // Update the block with source and file_ids via submitOperations
+          const ops = [];
+          // set source property
+          ops.push({
+            pointer: {
+              table: "block",
+              id: entry.record.id,
+              spaceId: entry.record.spaceId,
+            },
+            path: ["properties", "source"],
+            command: "set",
+            args: [[res.url]],
+            size: 3,
+          });
+          if (res.fileId) {
+            ops.push({
+              pointer: {
+                table: "block",
+                id: entry.record.id,
+                spaceId: entry.record.spaceId,
+              },
+              path: ["file_ids"],
+              command: "listAfterMulti",
+              args: { ids: [res.fileId] },
+              size: 3,
+            });
+          }
+          try {
+            await client.custom.submitOperations(ops, entry.record.spaceId);
+            // notify user
+            try {
+              await F.updateAndShowToastEvent({
+                id: J(),
+                type: "success",
+                message: `Upload succeeded (queued) for ${entry.id}`,
+              });
+            } catch (e) {}
+          } catch (e) {
+            console.error("processUploadQueue: submitOperations failed", e);
+          }
+          // success - don't requeue
+        } else {
+          // failure - increment attempts and requeue if under limit
+          entry.attempts = (entry.attempts || 0) + 1;
+          entry.lastAttemptAt = Date.now();
+          if (entry.attempts >= UPLOAD_RETRY_MAX_ATTEMPTS) {
+            console.error(
+              `[uploadQueue] Dropping ${entry.id} after ${entry.attempts} attempts`,
+            );
+            try {
+              await F.updateAndShowToastEvent({
+                id: J(),
+                type: "error",
+                message: `Upload failed after retries (id: ${entry.id})`,
+              });
+            } catch (e) {}
+          } else {
+            queue.push(entry);
+          }
+        }
+      } catch (err) {
+        console.error(`[uploadQueue] Error processing ${entry.id}`, err);
+        entry.attempts = (entry.attempts || 0) + 1;
+        entry.lastAttemptAt = Date.now();
+        if (entry.attempts < UPLOAD_RETRY_MAX_ATTEMPTS) queue.push(entry);
+      } finally {
+        active -= 1;
+        // Save queue after each processed item
+        await saveQueueToStorage(queue);
+        // kick off next
+        next();
+      }
+    };
+
+    // start initial workers
+    for (let i = 0; i < concurrency; i++) next();
+  } catch (e) {
+    console.error("processUploadQueue error", e);
+  } finally {
+    _processingQueue = false;
+  }
+}
+
+// Schedule periodic processing every 5 minutes and trigger once at startup
+try {
+  setInterval(
+    () => {
+      processUploadQueue();
+    },
+    5 * 60 * 1000,
+  );
+  // run once immediately
+  processUploadQueue();
+} catch (e) {
+  console.error("Failed to schedule upload queue processor", e);
 }
 function po(e, t) {
   return new Promise((n) => {
@@ -9348,4 +9684,37 @@ async function Ll() {
       e && xn();
     }));
 }
+
+// Auto-pagination helper - inject script when needed
+async function injectAutoPagination(tabId) {
+  try {
+    await ze("autoPagination.js", tabId);
+    console.log("Auto-pagination script injected into tab:", tabId);
+  } catch (e) {
+    console.error("Error injecting auto-pagination script:", e);
+  }
+}
+
+// Listen for messages related to auto-pagination
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "injectAutoPagination") {
+    injectAutoPagination(message.tabId || sender.tab?.id)
+      .then(() => sendResponse({ success: true }))
+      .catch((e) => sendResponse({ success: false, error: e.message }));
+    return true;
+  }
+
+  if (message.action === "notifySaveComplete") {
+    // Notify content script that save is complete
+    if (sender.tab?.id) {
+      chrome.tabs
+        .sendMessage(sender.tab.id, {
+          action: "saveComplete",
+        })
+        .catch((e) => console.error("Error notifying save complete:", e));
+    }
+    return false;
+  }
+});
+
 Ll();

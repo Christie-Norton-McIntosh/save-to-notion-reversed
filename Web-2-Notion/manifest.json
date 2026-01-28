@@ -41,6 +41,9 @@
       },
       "description": "Configure custom site selectors for content extraction"
     },
+    "open-auto-pagination": {
+      "description": "Configure auto-pagination settings"
+    },
     "_execute_action": {
       "suggested_key": {
         "default": "Alt+Shift+E",
@@ -75,6 +78,8 @@
         "onboarding_guide_popup/script.js",
         "welcome/welcome.html",
         "site-selectors.html",
+        "autoPagination.html",
+        "autoPaginationUI.js",
         "assets/*.js",
         "assets/*.png"
       ],

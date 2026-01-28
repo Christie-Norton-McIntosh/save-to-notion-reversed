@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Page 2 - Auto Pagination</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .content {
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+      .navigation {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      button {
+        padding: 12px 24px;
+        font-size: 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+      .prev-btn {
+        background: #6c757d;
+        color: white;
+      }
+      .prev-btn:hover {
+        background: #5a6268;
+      }
+      .next-btn {
+        background: #007bff;
+        color: white;
+      }
+      .next-btn:hover {
+        background: #0056b3;
+      }
+      .page-indicator {
+        font-weight: bold;
+        color: #333;
+      }
+      h1 {
+        color: #2c3e50;
+      }
+      .highlight {
+        background: #fff3cd;
+        padding: 2px 4px;
+        border-radius: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="content">
+      <h1>Test Page 2 of 5</h1>
+      <p>
+        This is the <span class="highlight">second page</span> in the test
+        sequence for the auto-pagination feature.
+      </p>
+
+      <h2>Testing Instructions</h2>
+      <p>The extension should have automatically:</p>
+      <ol>
+        <li>Saved page 1</li>
+        <li>Clicked the "Next Page" button</li>
+        <li>Loaded this page (page 2)</li>
+        <li>Started preparing to save this page</li>
+      </ol>
+
+      <h2>Sample Content</h2>
+      <p>
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod
+        tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
+        veniam, quis nostrud exercitation ullamco laboris.
+      </p>
+
+      <h3>Key Features Being Tested</h3>
+      <ul>
+        <li>Automatic page saving</li>
+        <li>CSS selector-based navigation</li>
+        <li>Page transition handling</li>
+        <li>Content extraction across multiple pages</li>
+      </ul>
+
+      <p>After this page is saved, the automation should continue to page 3.</p>
+    </div>
+
+    <div class="navigation">
+      <button
+        class="prev-btn"
+        onclick="window.location.href = 'auto-pagination-test-page-1.html'"
+      >
+        ← Previous Page
+      </button>
+      <span class="page-indicator">Page 2 of 5</span>
+      <button
+        class="next-btn"
+        onclick="window.location.href = 'auto-pagination-test-page-3.html'"
+      >
+        Next Page →
+      </button>
+    </div>
+  </body>
+</html>

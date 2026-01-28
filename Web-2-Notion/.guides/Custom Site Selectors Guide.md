@@ -1,31 +1,52 @@
-# Custom Site Selectors Guide
+# Custom Site Selectors Guide (2026 Update)
 
-## Overview
+## What’s New
 
-The Web-2-Notion extension supports custom CSS selectors for specific websites. This allows you to capture specific content from sites with complex DOM structures (especially those using Shadow DOM).
+- **Shadow DOM Support:** Now searches up to 20 levels deep for custom selectors, ensuring robust capture on sites with complex web components.
+- **Multiple Selectors:** Specify each selector on a separate line for clarity. All matches are combined in DOM order.
+- **Auto-Extract Integration:** Custom selectors work seamlessly with the new Auto-Extract feature. When auto-extract is started, the extension uses your custom selectors for content capture and navigation.
+- **Storage:** Custom selectors are now stored in `chrome.storage.local` for cross-context reliability.
+- **Navigation Monitoring:** Improved detection and auto-update of content when navigating within supported domains.
+- **UI Workflow:** After configuring selectors, return to the Settings panel and use “Start Auto-Extract” to begin automated capture.
 
 ## Quick Reference
 
-| Domain           | Selector(s)                                    | What It Captures                     | Shadow DOM    | Notes                           |
-| ---------------- | ---------------------------------------------- | ------------------------------------ | ------------- | ------------------------------- |
-| `servicenow.com` | `.body.conbody, .body.refbody, .related-links` | Main article content + related links | ✅ (6 levels) | Web Components, dynamic loading |
+| Domain           | Selector(s)                                            | What It Captures                     | Shadow DOM     | Notes                           |
+| ---------------- | ------------------------------------------------------ | ------------------------------------ | -------------- | ------------------------------- |
+| `servicenow.com` | `.body.conbody`<br>`.body.refbody`<br>`.related-links` | Main article content + related links | ✅ (20 levels) | Web Components, dynamic loading |
 
 ## How It Works
 
-### Multiple Selectors
+### Multiple Selectors (One Per Entry)
 
-You can specify **multiple CSS selectors separated by commas**. The extension will:
+You can specify **multiple CSS selectors, each as its own selector entry** in the UI (add more rows for the same domain). When editing raw storage or importing, you can also list selectors one-per-line. The extension will:
 
 1. Search for all elements matching each selector
 2. Combine them in the order they appear in the DOM
 3. Create a single content capture containing all matched elements
+
+**Example (UI rows):**
+
+```
+.body.conbody       <-- row 1 (same domain)
+.body.refbody       <-- row 2 (same domain)
+.related-links      <-- row 3 (same domain)
+```
+
+**Example (raw storage / multi-line):**
+
+```
+.body.conbody
+.body.refbody
+.related-links
+```
 
 ### Shadow DOM Support
 
 The extension automatically searches through:
 
 - Regular DOM elements (`document.querySelectorAll`)
-- Shadow DOM trees (recursively, up to 10+ levels deep)
+- Shadow DOM trees (recursively, up to 20 levels deep)
 - Multiple nested shadow roots
 
 ## Current Configured Sites
@@ -33,7 +54,13 @@ The extension automatically searches through:
 ### ServiceNow Documentation
 
 **Domain:** `servicenow.com`  
-**Selector:** `.body.conbody, .body.refbody, .related-links`
+**Selectors:**
+
+```
+.body.conbody
+.body.refbody
+.related-links
+```
 
 **Explanation:**
 
@@ -41,7 +68,7 @@ The extension automatically searches through:
 - `.body.refbody` - Reference documentation body content
 - `.related-links` - Related links navigation section
 
-**Shadow DOM Depth:** 6 levels deep in `FT-READER-TOPIC-CONTENT` component
+**Shadow DOM Depth:** 20 levels deep in `FT-READER-TOPIC-CONTENT` component
 
 **Example Pages:**
 
@@ -62,7 +89,12 @@ The extension automatically searches through:
 1. Click the Web-2-Notion extension icon
 2. Click "Custom Site Selectors"
 3. Enter the domain (e.g., `example.com`)
-4. Enter CSS selector(s) - use commas for multiple: `.class1, .class2, #id3`
+4. Enter each CSS selector on a separate line:
+   ```
+   .class1
+   .class2
+   #id3
+   ```
 5. Click "Save"
 
 ### Testing Your Selector
@@ -92,9 +124,14 @@ The extension automatically searches through:
 - Element: `div`, `article`, `section`
 - Combined: `.class1.class2` (element must have BOTH classes)
 
-### Multiple Selectors
+### Multiple Selectors (One Per Line)
 
-- Comma-separated: `.selector1, .selector2, .selector3`
+- Each selector should be on its own line:
+  ```
+  .selector1
+  .selector2
+  .selector3
+  ```
 - All matching elements will be combined
 
 ### Examples
@@ -106,11 +143,15 @@ The extension automatically searches through:
 /* Multiple classes on same element */
 .body.refbody
 
-/* Multiple different selectors */
-.main-content, .sidebar-content, .related-links
+/* Multiple different selectors (one per entry) */
+.main-content
+.sidebar-content
+.related-links
 
 /* Complex selector */
-article.documentation, .body.conbody, nav.related
+article.documentation
+.body.conbody
+nav.related
 ```
 
 ## Troubleshooting
@@ -129,7 +170,7 @@ article.documentation, .body.conbody, nav.related
 
 ### Only Some Elements Captured
 
-- Check that all desired selectors are included (comma-separated)
+- Check that all desired selectors are included (one per selector entry / separate row in the UI)
 - Verify each selector individually in DevTools
 - Check console logs to see which elements were found
 
@@ -143,19 +184,15 @@ article.documentation, .body.conbody, nav.related
 
 ### Code Locations
 
-- **Automatic Scanning:** `scanWebpage.js` (lines ~14640-14750)
-  - Pre-scans page when extension loads
-  - Monitors navigation and auto-updates
-- **Manual Selection:** `clipContent.js` (lines ~3030-3150)
-  - Used when user manually selects content
-  - Falls back to custom selector if defined
+- **Automatic Scanning:** `scanWebpage.js` (auto-scanning, navigation monitoring)
+- **Manual Selection:** `clipContent.js` (manual selection, fallback to custom selector)
 
 ### Search Strategy
 
 For multiple selectors, the extension:
 
-1. Tries `document.querySelectorAll(selector)` first
-2. If no matches, searches all shadow DOMs recursively
+1. Tries `document.querySelectorAll(selector)` for each selector
+2. If no matches, searches all shadow DOMs recursively (up to 20 levels)
 3. Collects ALL matching elements from ALL shadow roots
 4. Creates a container `<div class="combined-scan-results">` or `<div class="combined-content-selection">`
 5. Clones each matched element into the container
@@ -166,19 +203,27 @@ For multiple selectors, the extension:
 ```javascript
 {
   "customSelectors": {
-    "servicenow.com": ".body.conbody, .body.refbody, .related-links",
-    "example.com": ".article-body, .sidebar"
+    "servicenow.com": [
+      ".body.conbody",
+      ".body.refbody",
+      ".related-links"
+    ],
+    "example.com": [
+      ".article-body",
+      ".sidebar"
+    ]
   }
 }
 ```
 
 ## Version History
 
-- **v4.0.1** - Initial shadow DOM support (PR #1)
-- **v4.0.2** - Added navigation monitoring
-- **v4.0.3** - Added multiple selector support with querySelectorAll
-- **v4.0.4** - Enhanced logging for debugging
-- **v4.0.5** - Added individual selector search diagnostics
+- **v5.0.1** (2026):
+  - Shadow DOM search depth increased to 20
+  - Auto-Extract feature added
+  - Storage migrated to `chrome.storage.local`
+  - Improved navigation monitoring
+- **v4.0.1–v4.0.5**: See previous versions for details
 
 ## Future Enhancements
 

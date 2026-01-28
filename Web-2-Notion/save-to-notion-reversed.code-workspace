@@ -7,5 +7,7 @@
       "path": "../../ldmmifpegigmeammaeckplhnjbbpccmm",
     },
   ],
-  "settings": {},
+  "settings": {
+    "liveServer.settings.multiRootWorkspaceName": "save-to-notion-reversed",
+  },
 }
