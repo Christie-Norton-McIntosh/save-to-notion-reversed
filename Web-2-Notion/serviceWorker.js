@@ -2267,12 +2267,13 @@ class ce {
           // sufficient visual separation between regular content and embedded content.
           const isCollectionPageWithCallout = false;
 
-          // Ensure format is always set for callout blocks, and never for others
-          if (a.blockFormat === "callout") {
+          // Set default format for callout blocks if not already set
+          // But preserve format for page blocks (which may have icon/cover from templates)
+          if (a.blockFormat === "callout" && !a.format) {
             a.format = { page_icon: a.calloutIcon ?? "📋" };
-          } else {
-            delete a.format;
           }
+          // DON'T delete format for other block types - pages need it for icon/cover!
+
           console.log("[addBlockGetOperations] Creating block:", {
             blockFormat: a.blockFormat,
             notionParentTable: a.notionParentTable,
@@ -3448,10 +3449,27 @@ function xr(e) {
 const tn = {
   pageFrontImage: (e, t, n) => {
     const o = e.image;
-    o.items.length != 0 &&
-      o.items.forEach((i) => {
+    console.log("[tn.pageFrontImage] CALLED - Extension code is updated!");
+    // Only process images that haven't been uploaded yet (needToUploadFile = true)
+    // Images already uploaded by Ar will have needToUploadFile = false
+    if (o.items.length != 0) {
+      console.log(
+        "[tn.pageFrontImage] Image items:",
+        o.items.map((i) => ({
+          name: i.name,
+          needToUploadFile: i.needToUploadFile,
+          hasImgUrl: !!i.imgUrl,
+          hasFileId: !!i.fileId,
+        })),
+      );
+      const imagesToProcess = o.items.filter((i) => i.needToUploadFile);
+      console.log(
+        `[tn.pageFrontImage] Total images: ${o.items.length}, Need upload: ${imagesToProcess.length}`,
+      );
+      imagesToProcess.forEach((i) => {
         Pr(i, t, n);
       });
+    }
   },
   template: (e, t, n) => {
     if (!e.template) return;
@@ -3465,17 +3483,20 @@ const tn = {
     };
     let o = e.template.properties ?? {},
       i = e.template.format ?? {};
-    ((t.format = {
-      ...i,
-      ...t.format,
+
+    // IMPORTANT: Template format should take precedence
+    // Don't let existing t.format overwrite template icon/cover
+    t.format = {
+      ...t.format, // existing format (lower priority)
+      ...i, // template format (higher priority - includes icon/cover)
       copied_from_pointer: {
         table: "block",
         id: e.template.id,
         spaceId: n.spaceId,
       },
-    }),
-      (t.properties = { ...ee(o, "title"), ...t.properties }),
-      (t.copiedFrom = e.template.id));
+    };
+    t.properties = { ...ee(o, "title"), ...t.properties };
+    t.copiedFrom = e.template.id;
   },
   content: (e, t, n) => {
     if (!e.content) return;
@@ -3523,6 +3544,9 @@ const tn = {
   },
 };
 function Ur(e, t, n) {
+  console.log("[Ur] ===== CALLED =====");
+  console.log("[Ur] Input properties:", Object.keys(t ?? {}));
+
   const o = Object.entries(t ?? {}),
     i = o
       .filter(([g, p]) => g in en)
@@ -3540,16 +3564,87 @@ function Ur(e, t, n) {
       format: Object.fromEntries(i),
       ...(c.length > 0 ? { fileIds: c } : {}),
     };
+
+  console.log(
+    "[Ur] Properties in en (format):",
+    i.map(([k]) => k),
+  );
+  console.log(
+    "[Ur] Properties in tn (handlers):",
+    a.map(([k]) => k),
+  );
+  console.log(
+    "[Ur] Regular properties:",
+    r.map(([k]) => k),
+  );
+  console.log("[Ur] Initial format keys:", Object.keys(u.format));
+  console.log(
+    "[Ur] Has page_icon in format BEFORE tn handlers:",
+    !!u.format.page_icon,
+  );
+  console.log(
+    "[Ur] Has page_cover in format BEFORE tn handlers:",
+    !!u.format.page_cover,
+  );
+
   return (
     a.forEach(([g, p]) => {
+      console.log(`[Ur] Calling tn.${g} handler...`);
       tn[g](p, u, n);
+      console.log(`[Ur] After tn.${g} - format keys:`, Object.keys(u.format));
+      console.log(`[Ur] After tn.${g} - has page_icon:`, !!u.format.page_icon);
+      console.log(
+        `[Ur] After tn.${g} - has page_cover:`,
+        !!u.format.page_cover,
+      );
     }),
+    console.log("[Ur] ===== FINAL RESULT ====="),
+    console.log("[Ur] Final format:", JSON.stringify(u.format, null, 2)),
+    console.log("[Ur] Final format keys:", Object.keys(u.format)),
+    console.log("[Ur] Final has page_icon:", !!u.format.page_icon),
+    console.log("[Ur] Final has page_cover:", !!u.format.page_cover),
     u
   );
 }
 function Er(e, t, n) {
+  console.log("[Er] ===== CALLED =====");
+  console.log(
+    "[Er] Block BEFORE merge - format:",
+    JSON.stringify(e.format, null, 2),
+  );
+  console.log(
+    "[Er] Block BEFORE merge - has page_icon:",
+    !!e.format?.page_icon,
+  );
+  console.log(
+    "[Er] Block BEFORE merge - has page_cover:",
+    !!e.format?.page_cover,
+  );
+
   const o = Ur(e, t, n);
+
+  console.log(
+    "[Er] Result from Ur - format:",
+    JSON.stringify(o.format, null, 2),
+  );
+  console.log("[Er] Result from Ur - has page_icon:", !!o.format?.page_icon);
+  console.log("[Er] Result from Ur - has page_cover:", !!o.format?.page_cover);
+
   Et(e, o);
+
+  console.log(
+    "[Er] Block AFTER merge - format:",
+    JSON.stringify(e.format, null, 2),
+  );
+  console.log(
+    "[Er] Block AFTER merge - format keys:",
+    Object.keys(e.format || {}),
+  );
+  console.log("[Er] Block AFTER merge - has page_icon:", !!e.format?.page_icon);
+  console.log(
+    "[Er] Block AFTER merge - has page_cover:",
+    !!e.format?.page_cover,
+  );
 }
 async function Or(e) {
   return e.context.notionClient.custom.uploadFile({
@@ -3734,6 +3829,9 @@ async function ta(
     highlightContextData: s,
   },
 ) {
+  console.log("========================================");
+  console.log("[ta] ★ Extension code v2026-01-28-18:00 loaded ★");
+  console.log("========================================");
   var E;
   o("load user...");
   const r = e.highlight,
@@ -3758,6 +3856,11 @@ async function ta(
     updateHighlight: async (C) => {},
   };
   let y = r.properties;
+  console.log(
+    "[ta] Initial properties from highlight:",
+    JSON.stringify(y, null, 2),
+  );
+
   r.type == "screenshot" &&
     (y = {
       ...y,
@@ -3785,24 +3888,113 @@ async function ta(
   });
   const w = br(r, h),
     I = J();
-  if (
-    (await Ar({
-      properties: y,
-      parentRecord: {
-        id: w.notionParentId,
-        table: w.notionParentTable,
-        spaceId: w.notionSpaceId,
+
+  console.log("[ta] Page info:", {
+    hasPage: !!n,
+    pageId: n?.id,
+    pageType: n?.type,
+    capturedWebpageFormId: u?.formId,
+    hasTemplateInProperties: !!y.template,
+  });
+
+  // Load form template and apply it to properties BEFORE uploading files
+  // NOTE: Forms are an extension feature (not Notion templates).
+  // If template is already in properties, form lookup may be null (expected).
+  // Try to get form from: 1) page.id, 2) capturedWebpage.formId
+  const formId = n?.id || u?.formId;
+  const form = formId ? await i.form.get(formId) : null;
+
+  if (y.template && !form) {
+    console.log(
+      "[ta] Using Notion template from properties (no extension form needed):",
+      {
+        templateId: y.template?.template?.id,
+        templateName: y.template?.template?.name,
       },
-      record: { id: I, table: "block", spaceId: w.notionSpaceId },
-      context: h,
-    }),
-    o("save highlight... in database"),
-    Er(w, y, h),
-    await a({ id: r.id, type: "progress", message: "Saving to Notion..." }),
-    (g = await t.custom.addBlock({ ...w, id: I })),
-    g == null)
-  )
-    throw new Error("Failed to save to Web-2-Notion");
+    );
+  } else {
+    console.log(
+      "[ta] Loaded extension form:",
+      form
+        ? {
+            id: form.id,
+            name: form.name,
+            hasTemplate: !!form.template,
+            fieldCount: form.fields?.length || 0,
+          }
+        : `null (tried formId: ${formId})`,
+    );
+  }
+
+  // Apply ALL form field defaults (including template, pageIcon, pageCover, etc.)
+  if (form && form.fields) {
+    form.fields.forEach((field) => {
+      const propKey = field.property?.id || field.key;
+      if (propKey && field.options?.defaultValue) {
+        console.log(
+          `[ta] Applying default value for property ${propKey}:`,
+          typeof field.options.defaultValue === "object"
+            ? JSON.stringify(field.options.defaultValue)
+            : field.options.defaultValue,
+        );
+        y[propKey] = field.options.defaultValue;
+      }
+    });
+  }
+
+  console.log("[ta] Final properties before Ar:", JSON.stringify(y, null, 2));
+
+  // Upload any file attachments
+  await Ar({
+    properties: y,
+    parentRecord: {
+      id: w.notionParentId,
+      table: w.notionParentTable,
+      spaceId: w.notionSpaceId,
+    },
+    record: { id: I, table: "block", spaceId: w.notionSpaceId },
+    context: h,
+  });
+
+  o("save highlight... in database");
+
+  // Apply properties (including pageIcon, pageCover, template) to the block
+  Er(w, y, h);
+
+  console.log("[ta] ===== AFTER Er (property application) =====");
+  console.log("[ta] Block type:", w.type);
+  console.log("[ta] Block format:", JSON.stringify(w.format, null, 2));
+  console.log("[ta] Block format keys:", Object.keys(w.format || {}));
+  console.log("[ta] Has page_icon in format:", !!w.format?.page_icon);
+  console.log("[ta] Has page_cover in format:", !!w.format?.page_cover);
+  console.log("[ta] Has copied_from_pointer:", !!w.format?.copied_from_pointer);
+  console.log("[ta] Block properties keys:", Object.keys(w.properties || {}));
+  console.log("[ta] Block properties sample:", {
+    hasTitle: !!w.properties?.title,
+    titlePreview: w.properties?.title?.[0]?.[0]?.substring(0, 50),
+  });
+  console.log("[ta] Has withCallback:", !!w.withCallback);
+  console.log("[ta] copiedFrom:", w.copiedFrom);
+
+  await a({ id: r.id, type: "progress", message: "Saving to Notion..." });
+
+  const blockToSend = { ...w, id: I };
+  console.log("[ta] ===== SENDING TO NOTION =====");
+  console.log("[ta] Block ID:", I);
+  console.log("[ta] Block type:", blockToSend.type);
+  console.log(
+    "[ta] Block format being sent:",
+    JSON.stringify(blockToSend.format, null, 2),
+  );
+  console.log("[ta] Block format keys:", Object.keys(blockToSend.format || {}));
+  console.log("[ta] Has page_icon:", !!blockToSend.format?.page_icon);
+  console.log("[ta] Has page_cover:", !!blockToSend.format?.page_cover);
+  console.log("[ta] page_icon value:", blockToSend.format?.page_icon);
+  console.log("[ta] page_cover value:", blockToSend.format?.page_cover);
+
+  g = await t.custom.addBlock(blockToSend);
+
+  if (g == null) throw new Error("Failed to save to Web-2-Notion");
   o("‣ save highlight in database");
   const v = {
     ...(await i.highlight.get(r.id)),
@@ -5783,14 +5975,14 @@ function Rc(e, t) {
 async function ho(e) {
   if (ge) return !0;
   const t = await Rc("<all_urls>", ["tabs"]);
-  let n;
-  if (t) n = !0;
-  else
-    return (
-      await Fe(e),
-      await z("showDownloadRemoteImagePermissionsAlert", {}, e)
-    );
-  return n;
+  if (t) return !0;
+
+  // Permission not granted - request it
+  await Fe(e);
+  await z("showDownloadRemoteImagePermissionsAlert", {}, e);
+
+  // Request the permission using po (which handles both contains + request)
+  return await po("<all_urls>", ["tabs"]);
 }
 function Lc(e) {
   const t = new FileReader();

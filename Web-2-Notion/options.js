@@ -16828,19 +16828,25 @@ function Wv(e) {
             }
           });
 
-          // Handle line breaks - preserve as single space unless adjacent
+          // Handle line breaks - convert to newline character to preserve structure
           cellClone.querySelectorAll("br").forEach((br) => {
-            br.replaceWith(document.createTextNode(" "));
+            br.replaceWith(document.createTextNode("\n"));
           });
 
           // Extract text content
           text = cellClone.textContent || "";
 
-          // Normalize whitespace: collapse multiple consecutive spaces/newlines into single space
-          // but preserve single newlines
-          text = text.replace(/[ \t]+/g, " "); // collapse horizontal whitespace
-          text = text.replace(/\n{3,}/g, "\n\n"); // max 2 consecutive newlines
+          // Normalize whitespace but preserve intentional line breaks
+          text = text.replace(/[ \t]+/g, " "); // collapse horizontal whitespace (spaces/tabs) to single space
+          text = text.replace(/\n[ \t]+/g, "\n"); // remove spaces after newlines
+          text = text.replace(/[ \t]+\n/g, "\n"); // remove spaces before newlines
+          text = text.replace(/\n{3,}/g, "\n\n"); // max 2 consecutive newlines (one blank line)
           text = text.trim();
+
+          // Convert newlines to markdown line breaks (two spaces + newline)
+          // This is the standard markdown way to create line breaks within paragraphs
+          // Note: Some markdown parsers also support <br>, but this is more portable
+          text = text.replace(/\n/g, "  \n");
 
           // Escape pipe characters
           text = text.replace(/\|/g, "\\|");
