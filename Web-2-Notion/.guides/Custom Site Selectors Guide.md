@@ -1,13 +1,17 @@
 # Custom Site Selectors Guide (2026 Update)
 
-## What’s New
+## What's New
 
 - **Shadow DOM Support:** Now searches up to 20 levels deep for custom selectors, ensuring robust capture on sites with complex web components.
 - **Multiple Selectors:** Specify each selector on a separate line for clarity. All matches are combined in DOM order.
+- **Enhanced Duplicate Detection:** Improved detection of duplicate images and tables:
+  - Images are matched by normalized URL (without query params), alt text, and dimensions
+  - Tables are matched by structure (rows × columns), text length, and content
+  - Increased content signature from 200 to 500 characters for better accuracy
 - **Auto-Extract Integration:** Custom selectors work seamlessly with the new Auto-Extract feature. When auto-extract is started, the extension uses your custom selectors for content capture and navigation.
 - **Storage:** Custom selectors are now stored in `chrome.storage.local` for cross-context reliability.
 - **Navigation Monitoring:** Improved detection and auto-update of content when navigating within supported domains.
-- **UI Workflow:** After configuring selectors, return to the Settings panel and use “Start Auto-Extract” to begin automated capture.
+- **UI Workflow:** After configuring selectors, return to the Settings panel and use "Start Auto-Extract" to begin automated capture.
 
 ## Quick Reference
 

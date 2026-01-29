@@ -1,4 +1,247 @@
 var _a, _b;
+
+// Global debug flag - set to true in console for verbose logging: window.__STN_DEBUG = true
+var DEBUG_SCANWEBPAGE = false;
+if (typeof window !== "undefined") {
+  DEBUG_SCANWEBPAGE = window.__STN_DEBUG || false;
+}
+
+// Centralized, capped logger to prevent runaway console output in production.
+// - Honor DEBUG_SCANWEBPAGE to allow full logs when debugging interactively.
+// - Cap non-debug logs to a small threshold to avoid crashing the browser console.
+// - Expose the original native logger at console.__stn_originalLog for callers
+//   that need to temporarily silence/restore logging.
+(function setupCappedLogger() {
+  try {
+    if (typeof console === "undefined") return;
+    // preserve native log (if not already preserved)
+    if (!console.__stn_originalLog)
+      console.__stn_originalLog = console.log.bind(console);
+
+    const MAX_SCANNING_LOG_LINES = 300; // safe default when not debugging
+    let _stn_count = 0;
+
+    // wrapper that'll be used by the rest of this file; keeps behaviour when
+    // DEBUG_SCANWEBPAGE is true and caps otherwise.
+    console.log = function stnScopedLog(...args) {
+      try {
+        if (DEBUG_SCANWEBPAGE) {
+          return console.__stn_originalLog(...args);
+        }
+        if (_stn_count < MAX_SCANNING_LOG_LINES) {
+          _stn_count++;
+          return console.__stn_originalLog(...args);
+        }
+        if (_stn_count === MAX_SCANNING_LOG_LINES) {
+          _stn_count++;
+          return console.__stn_originalLog(
+            "[scanWebpage] Further logs suppressed — set window.__STN_DEBUG = true to enable verbose output.",
+          );
+        }
+        // drop any further logs silently
+      } catch (e) {
+        try {
+          // last-resort: call native logger
+          console.__stn_originalLog("[scanWebpage] logging error", e);
+        } catch (__) {}
+      }
+    };
+
+    // Route debug/info through the same cap so other heavy callers don't bypass it.
+    if (!console.__stn_originalDebug)
+      console.__stn_originalDebug =
+        console.debug?.bind(console) || console.__stn_originalLog;
+    if (!console.__stn_originalInfo)
+      console.__stn_originalInfo =
+        console.info?.bind(console) || console.__stn_originalLog;
+    console.debug = function stnDebug(...args) {
+      return console.log(...args);
+    };
+    console.info = function stnInfo(...args) {
+      return console.log(...args);
+    };
+
+    // allow tests / developers to reset the counter for a fresh run
+    Object.defineProperty(console, "__stn_resetScanLog", {
+      configurable: true,
+      value: () => {
+        _stn_count = 0;
+      },
+    });
+  } catch (e) {}
+})();
+
+// Diagnostic helper: produce a compact, bracketed dedup report suitable for
+// copy-paste into issues or chat. Call from the page console:
+//   await window.__stn_collectDedupReport()
+// It returns a string and also logs it via console.__stn_originalLog so it
+// won't be truncated by the capped logger.
+if (typeof window !== "undefined") {
+  window.__stn_collectDedupReport = async function stnCollectDedupReport(
+    options = {},
+  ) {
+    try {
+      const id = `STN-DEDUP-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      const out = {
+        id,
+        url: window.location.href,
+        hostname: window.location.hostname.replace(/^www\./, ""),
+        timestamp: new Date().toISOString(),
+        selectors: null,
+        matched: {},
+        duplicates: [],
+        notes: [],
+      };
+
+      // try to get selectors used by extension (best-effort)
+      try {
+        if (typeof getReadableZone === "function") {
+          const rz = await getReadableZone();
+          out.selectors = rz?.selector || null;
+        }
+      } catch (e) {}
+
+      const normalizeSrc = (s) => (s || "").split("?")[0].split("#")[0];
+      const sig = (el) => {
+        if (!el || !el.tagName) return null;
+        const t = el.tagName.toUpperCase();
+        if (t === "IMG") {
+          return `img:${normalizeSrc(el.getAttribute("src") || el.src || "")}:${(el.getAttribute("alt") || el.alt || "").trim()}:${el.width || el.getAttribute("width") || 0}x${el.height || el.getAttribute("height") || 0}`;
+        }
+        if (t === "TABLE") {
+          const rows = el.querySelectorAll("tr").length;
+          const cells = el.querySelectorAll("td,th").length;
+          const txt = (el.textContent || "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 200);
+          return `table:${rows}x${cells}:${txt}`;
+        }
+        const txt = (el.textContent || "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 120);
+        return `${t.toLowerCase()}:${txt}`;
+      };
+
+      // collect by selectors if provided, otherwise fallback to imgs/tables
+      const selStr = out.selectors || options.selectors || null;
+      const selectors = selStr
+        ? selStr
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [];
+
+      if (selectors.length) {
+        for (const s of selectors) {
+          try {
+            const docMatches = Array.from(document.querySelectorAll(s)).slice(
+              0,
+              200,
+            );
+            out.matched[s] = {
+              document: docMatches.length,
+              sample: docMatches.slice(0, 5).map((el) => ({
+                tag: el.tagName,
+                class: el.className,
+                textLen: (el.textContent || "").trim().length,
+                sig: sig(el),
+              })),
+            };
+          } catch (e) {
+            out.matched[s] = { error: "invalid selector" };
+          }
+        }
+      } else {
+        const imgs = Array.from(document.querySelectorAll("img")).slice(0, 500);
+        const tables = Array.from(document.querySelectorAll("table")).slice(
+          0,
+          200,
+        );
+        out.matched["img"] = {
+          count: imgs.length,
+          sample: imgs.slice(0, 5).map((i) => ({
+            sig: sig(i),
+            src: normalizeSrc(i.getAttribute("src") || i.src || ""),
+          })),
+        };
+        out.matched["table"] = {
+          count: tables.length,
+          sample: tables.slice(0, 5).map((t) => ({
+            sig: sig(t),
+            textLen: (t.textContent || "").trim().length,
+          })),
+        };
+      }
+
+      // quick duplicate scan (images + tables) within the live DOM
+      (function quickDupScan(root = document, limit = 200) {
+        const map = new Map();
+        const els = Array.from(root.querySelectorAll("img,table")).slice(
+          0,
+          limit,
+        );
+        for (const el of els) {
+          const s = sig(el) || "(unknown)";
+          if (!map.has(s)) map.set(s, []);
+          map.get(s).push({
+            tag: el.tagName,
+            class: el.className,
+            textLen: (el.textContent || "").trim().length,
+            outer: (el.outerHTML || "").replace(/\s+/g, " ").slice(0, 200),
+          });
+        }
+        for (const [k, v] of map.entries()) {
+          if (v.length > 1)
+            out.duplicates.push({
+              signature: k,
+              count: v.length,
+              examples: v.slice(0, 5),
+            });
+        }
+      })();
+
+      // Also capture the html fragment the extension would use (best-effort)
+      try {
+        const live = (function findLiveElement() {
+          if (!out.selectors) return null;
+          try {
+            return document.querySelector(out.selectors.split(",")[0].trim());
+          } catch (e) {
+            return null;
+          }
+        })();
+        if (live)
+          out.sampleFragment = (live.outerHTML || "")
+            .replace(/\s+/g, " ")
+            .slice(0, 1000);
+      } catch (e) {}
+
+      const payload = JSON.stringify(out, null, 2);
+      const header = `<<<${id}:BEGIN>>>`;
+      const footer = `<<<${id}:END>>>`;
+      // use original logger so the capped logger doesn't truncate the block
+      try {
+        console.__stn_originalLog && console.__stn_originalLog(header);
+      } catch (e) {}
+      try {
+        console.__stn_originalLog && console.__stn_originalLog(payload);
+      } catch (e) {}
+      try {
+        console.__stn_originalLog && console.__stn_originalLog(footer);
+      } catch (e) {}
+      return `${header}\n${payload}\n${footer}`;
+    } catch (err) {
+      try {
+        console.__stn_originalLog &&
+          console.__stn_originalLog("<<STN-DEDUP-ERR>>", String(err));
+      } catch (e) {}
+      return null;
+    }
+  };
+}
+
 var defaultSiteReadableZoneMap = {
   ["chatgpt.com"]: "main",
 };
@@ -14479,6 +14722,10 @@ async function parseFromPdf() {
   };
 }
 async function scanWebpage() {
+  // reset capped logger counter for this invocation (no-op in debug)
+  try {
+    console.__stn_resetScanLog?.();
+  } catch (e) {}
   if (window.location.href.endsWith(".pdf")) {
     const r2 = await parseFromPdf();
     return r2;
@@ -14520,6 +14767,12 @@ async function scanWebpage() {
       `[scanWebpage] Using ${maxAttempts} attempts with ${delayMs}ms delay (total ${maxAttempts * delayMs}ms)`,
     );
 
+    // Temporarily disable console.log in retry loop to prevent console crash (60 iterations × many logs = 1000+ lines)
+    const originalLog = console.log;
+    if (!DEBUG_SCANWEBPAGE) {
+      console.log = () => {}; // Silence logging
+    }
+
     while (!liveElement && attempts < maxAttempts) {
       // First try regular DOM
       liveElement = document.querySelector(readableZoneSelector);
@@ -14529,14 +14782,16 @@ async function scanWebpage() {
         // Try ft-reader-topic-content first (ServiceNow actual content location)
         const topicContent = document.querySelector("ft-reader-topic-content");
         if (topicContent && topicContent.shadowRoot) {
-          console.log(
-            "[scanWebpage] Checking inside ft-reader-topic-content shadow DOM...",
-          );
+          if (DEBUG_SCANWEBPAGE) {
+            console.log(
+              "[scanWebpage:DEBUG] Checking inside ft-reader-topic-content shadow DOM...",
+            );
+          }
           liveElement =
             topicContent.shadowRoot.querySelector(readableZoneSelector);
-          if (liveElement) {
+          if (liveElement && DEBUG_SCANWEBPAGE) {
             console.log(
-              "[scanWebpage] FOUND element in ft-reader-topic-content shadow DOM!",
+              "[scanWebpage:DEBUG] FOUND element in ft-reader-topic-content shadow DOM!",
             );
           }
         }
@@ -14548,430 +14803,525 @@ async function scanWebpage() {
           "ft-internal-reader-context",
         );
         if (readerContext && readerContext.shadowRoot) {
-          console.log(
-            "[scanWebpage] Checking inside ft-internal-reader-context shadow DOM...",
-          );
-
-          // Debug: Show what's in the shadow DOM
           const shadowRoot = readerContext.shadowRoot;
-          console.log(
-            "[scanWebpage] Shadow DOM children:",
-            shadowRoot.children.length,
-          );
-          if (shadowRoot.children.length > 0) {
+
+          if (DEBUG_SCANWEBPAGE) {
             console.log(
-              "[scanWebpage] First child tag:",
-              shadowRoot.children[0].tagName,
-            );
-            console.log(
-              "[scanWebpage] First child id:",
-              shadowRoot.children[0].id,
-            );
-            console.log(
-              "[scanWebpage] First child classes:",
-              shadowRoot.children[0].className,
+              "[scanWebpage:DEBUG] Checking inside ft-internal-reader-context shadow DOM...",
             );
 
-            // If it's a SLOT, check what content is being slotted from light DOM
-            if (shadowRoot.children[0].tagName === "SLOT") {
-              console.log(
-                "[scanWebpage] Found SLOT element - checking slotted content from light DOM...",
-              );
-
-              // Get the light DOM children of readerContext (these are what get slotted)
-              console.log(
-                "[scanWebpage] Light DOM children of ft-internal-reader-context:",
-                readerContext.children.length,
-              );
-
-              // Try to find our selector in the light DOM children
-              for (let i = 0; i < readerContext.children.length; i++) {
-                const child = readerContext.children[i];
-                console.log(
-                  `[scanWebpage] Light DOM child ${i}: ${child.tagName}, classes: ${child.className}, id: ${child.id}`,
-                );
-                console.log(
-                  `[scanWebpage] Light DOM child ${i} inner text length: ${child.innerText?.length || 0}`,
-                );
-                console.log(
-                  `[scanWebpage] Light DOM child ${i} children count: ${child.children.length}`,
-                );
-
-                // Show first few descendants
-                if (child.children.length > 0) {
-                  for (let j = 0; j < Math.min(5, child.children.length); j++) {
-                    const grandchild = child.children[j];
-                    console.log(
-                      `[scanWebpage]   Grandchild ${j}: ${grandchild.tagName}, classes: ${grandchild.className}, id: ${grandchild.id}`,
-                    );
-                  }
-                }
-
-                // IMPORTANT: Check if content has actually loaded
-                // ServiceNow creates the div immediately but populates it later
-                const hasContent =
-                  child.innerText && child.innerText.trim().length > 100;
-                console.log(
-                  `[scanWebpage] Light DOM child ${i} has meaningful content: ${hasContent}`,
-                );
-
-                if (!hasContent) {
-                  console.log(
-                    `[scanWebpage] Skipping child ${i} - no content loaded yet`,
-                  );
-                  continue; // Skip this iteration if content hasn't loaded
-                }
-
-                // Try multiple search strategies, just like manual selection does
-                console.log(
-                  `[scanWebpage] Searching for selector in child ${i}...`,
-                );
-
-                // Strategy 1: Check if the child itself matches
-                if (child.matches && child.matches(readableZoneSelector)) {
-                  console.log(
-                    `[scanWebpage] Light DOM child ${i} itself matches selector!`,
-                  );
-                  liveElement = child;
-                  break;
-                }
-
-                // Strategy 2: Search descendants of this child
-                const matchInChild = child.querySelector(readableZoneSelector);
-                if (matchInChild) {
-                  console.log(
-                    `[scanWebpage] FOUND selector in light DOM child ${i} descendants!`,
-                  );
-                  liveElement = matchInChild;
-                  break;
-                }
-
-                // Strategy 3: Search from document root (like manual selection does)
-                const matchInDocument =
-                  document.querySelector(readableZoneSelector);
-                if (matchInDocument) {
-                  console.log(
-                    `[scanWebpage] FOUND selector via document.querySelector()!`,
-                  );
-                  liveElement = matchInDocument;
-                  break;
-                }
-
-                // Strategy 4: If child is in shadow DOM, search shadow root
-                if (child.getRootNode) {
-                  const childRoot = child.getRootNode();
-                  if (childRoot instanceof ShadowRoot) {
-                    console.log(
-                      `[scanWebpage] Searching shadow root of child ${i}...`,
-                    );
-                    const matchInShadow =
-                      childRoot.querySelector(readableZoneSelector);
-                    if (matchInShadow) {
-                      console.log(
-                        `[scanWebpage] FOUND selector in shadow root of child ${i}!`,
-                      );
-                      liveElement = matchInShadow;
-                      break;
-                    }
-                  }
-                }
-
-                console.log(
-                  `[scanWebpage] Selector not found in child ${i} with any strategy`,
-                );
-              }
-
-              if (!liveElement) {
-                console.log(
-                  "[scanWebpage] Selector not found in light DOM children either",
-                );
-              }
-            }
-          }
-
-          // CRITICAL: Try searching the entire document first, before shadow DOM
-          // Manual selection uses document.querySelector() which works!
-          if (!liveElement) {
+            // Debug: Show what's in the shadow DOM
             console.log(
-              "[scanWebpage] Trying document.querySelector() for selector:",
-              readableZoneSelector,
+              "[scanWebpage:DEBUG] Shadow DOM children:",
+              shadowRoot.children.length,
             );
-            liveElement = document.querySelector(readableZoneSelector);
-            if (liveElement) {
+            if (shadowRoot.children.length > 0) {
               console.log(
-                "[scanWebpage] FOUND element via document.querySelector()!",
-              );
-            } else {
-              console.log(
-                "[scanWebpage] Not found via document.querySelector() either",
+                "[scanWebpage:DEBUG] First child tag:",
+                shadowRoot.children[0].tagName,
               );
             }
           }
 
-          // CRITICAL: Search ALL shadow DOMs RECURSIVELY in the entire document
-          // The element might be deeply nested (6+ levels) in shadow DOMs
-          if (!liveElement) {
+          // If it's a SLOT, check what content is being slotted from light DOM
+          if (shadowRoot.children[0].tagName === "SLOT") {
             console.log(
-              "[scanWebpage] Searching ALL shadow DOMs recursively for selector...",
+              "[scanWebpage] Found SLOT element - checking slotted content from light DOM...",
             );
 
-            // Check if we have multiple selectors (comma-separated)
-            const isMultipleSelectors = readableZoneSelector.includes(",");
-
-            if (isMultipleSelectors) {
-              console.log(
-                "[scanWebpage] Multiple selectors detected, will combine results",
-              );
-
-              // Recursive function to search shadow DOMs and collect all matches
-              function searchShadowRootsForAll(root, depth = 0) {
-                const matches = [];
-                const allElements = root.querySelectorAll("*");
-
-                for (const el of allElements) {
-                  if (el.shadowRoot) {
-                    console.log(
-                      `[scanwebpage] Checking shadow root of ${el.tagName} at depth ${depth}...`,
-                    );
-                    // Check this shadow root for all matching elements
-                    const shadowMatches =
-                      el.shadowRoot.querySelectorAll(readableZoneSelector);
-                    if (shadowMatches.length > 0) {
-                      console.log(
-                        `[scanwebpage] ✓ FOUND ${shadowMatches.length} elements in shadow root of ${el.tagName} at depth ${depth}!`,
-                      );
-                      // Log what was found
-                      Array.from(shadowMatches).forEach((match, idx) => {
-                        console.log(
-                          `[scanwebpage]   Element ${idx + 1}: ${match.tagName}.${match.className} (${match.textContent?.substring(0, 50)}...)`,
-                        );
-                      });
-                      matches.push(...Array.from(shadowMatches));
-                    }
-
-                    // Recurse into nested shadow roots
-                    const nestedMatches = searchShadowRootsForAll(
-                      el.shadowRoot,
-                      depth + 1,
-                    );
-                    if (nestedMatches.length > 0) {
-                      matches.push(...nestedMatches);
-                    }
-                  }
-                }
-                return matches;
-              }
-
-              // Try document first
-              let allMatches = document.querySelectorAll(readableZoneSelector);
-
-              // If no matches in document, search shadow DOMs
-              if (allMatches.length === 0) {
-                const shadowMatches = searchShadowRootsForAll(document);
-                allMatches = shadowMatches;
-              }
-
-              // DEBUG: Try searching for each selector separately
-              console.log(
-                `[scanWebpage] DEBUG: Searching for selectors individually...`,
-              );
-              const selectors = readableZoneSelector
-                .split(",")
-                .map((s) => s.trim());
-
-              // Build a map of selector -> metadata for quick lookup
-              const selectorMetadataMap = {};
-              if (
-                selectorsWithMetadata &&
-                Array.isArray(selectorsWithMetadata)
-              ) {
-                selectorsWithMetadata.forEach((item) => {
-                  selectorMetadataMap[item.selector] = item;
-                });
-              }
-
-              // Store matches per selector so we can add headings
-              const matchesBySelector = [];
-
-              for (const sel of selectors) {
-                console.log(`[scanWebpage] Searching for: "${sel}"`);
-
-                // Search in document
-                const docMatches = document.querySelectorAll(sel);
-                console.log(
-                  `[scanWebpage]   Document matches: ${docMatches.length}`,
-                );
-
-                // Search in shadow DOMs
-                function searchForSelector(root, selector, depth = 0) {
-                  const matches = [];
-                  const allElements = root.querySelectorAll("*");
-                  for (const el of allElements) {
-                    if (el.shadowRoot) {
-                      const shadowMatches =
-                        el.shadowRoot.querySelectorAll(selector);
-                      if (shadowMatches.length > 0) {
-                        console.log(
-                          `[scanWebpage]   Found ${shadowMatches.length} in ${el.tagName} shadow at depth ${depth}`,
-                        );
-                        matches.push(...Array.from(shadowMatches));
-                      }
-                      const nested = searchForSelector(
-                        el.shadowRoot,
-                        selector,
-                        depth + 1,
-                      );
-                      matches.push(...nested);
-                    }
-                  }
-                  return matches;
-                }
-
-                const shadowMatches = searchForSelector(document, sel);
-                console.log(
-                  `[scanWebpage]   Shadow DOM matches: ${shadowMatches.length}`,
-                );
-
-                // Combine all matches for this selector
-                const allSelectorMatches = [
-                  ...Array.from(docMatches),
-                  ...shadowMatches,
-                ];
-
-                if (allSelectorMatches.length > 0) {
-                  matchesBySelector.push({
-                    selector: sel,
-                    elements: allSelectorMatches,
-                    metadata: selectorMetadataMap[sel] || {
-                      embeddedPostFormat: false,
-                    },
-                  });
-                }
-              }
-
-              // Now combine all matches with appropriate headings
-              if (matchesBySelector.length > 0) {
-                const totalMatches = matchesBySelector.reduce(
-                  (sum, item) => sum + item.elements.length,
-                  0,
-                );
-                console.log(
-                  `[scanWebpage] Found ${totalMatches} total elements with multiple selectors`,
-                );
-
-                // Create a container to combine all elements
-                const container = document.createElement("div");
-                container.className = "combined-scan-results";
-
-                matchesBySelector.forEach((selectorGroup, groupIdx) => {
-                  // Add heading for selectors with custom heading text
-                  if (selectorGroup.metadata.customHeading) {
-                    console.log(
-                      `[scanWebpage] Adding custom heading "${selectorGroup.metadata.customHeading}" for selector: ${selectorGroup.selector}`,
-                    );
-                    const heading = document.createElement("h2");
-                    heading.textContent = selectorGroup.metadata.customHeading;
-                    heading.className = "embedded-section-heading";
-                    container.appendChild(heading);
-                  }
-
-                  // Add all elements from this selector
-                  selectorGroup.elements.forEach((match, idx) => {
-                    console.log(
-                      `[scanWebpage] Adding element ${groupIdx + 1}.${idx + 1} to container: ${match.tagName}.${match.className}`,
-                    );
-                    container.appendChild(match.cloneNode(true));
-                  });
-                });
-
-                console.log(
-                  `[scanWebpage] Container final text length: ${container.textContent?.length}`,
-                );
-                liveElement = container;
-              }
-            } else {
-              // Single selector - use original recursive logic
-              // Recursive function to search shadow DOMs
-              function searchShadowRootsRecursively(root, depth = 0) {
-                const allElements = root.querySelectorAll("*");
-
-                for (const el of allElements) {
-                  if (el.shadowRoot) {
-                    // Check this shadow root
-                    const match =
-                      el.shadowRoot.querySelector(readableZoneSelector);
-                    if (match) {
-                      console.log(
-                        `[scanwebpage] ✓ FOUND element in shadow root of ${el.tagName} at depth ${depth}!`,
-                      );
-                      return match;
-                    }
-
-                    // Recurse into nested shadow roots
-                    const nestedMatch = searchShadowRootsRecursively(
-                      el.shadowRoot,
-                      depth + 1,
-                    );
-                    if (nestedMatch) return nestedMatch;
-                  }
-                }
-                return null;
-              }
-
-              liveElement = searchShadowRootsRecursively(document);
-            }
-
-            if (liveElement) {
-              console.log(
-                "[scanWebpage] FOUND element via recursive shadow DOM search!",
-              );
-            } else {
-              console.log("[scanWebpage] Not found even with recursive search");
-            }
-          }
-
-          console.log(
-            "[scanWebpage] Shadow DOM has .body:",
-            shadowRoot.querySelectorAll(".body").length,
-          );
-          console.log(
-            "[scanWebpage] Shadow DOM has .conbody:",
-            shadowRoot.querySelectorAll(".conbody").length,
-          );
-          console.log(
-            "[scanWebpage] Shadow DOM has article:",
-            shadowRoot.querySelectorAll("article").length,
-          );
-          console.log(
-            "[scanWebpage] Shadow DOM first 500 chars:",
-            shadowRoot.textContent?.substring(0, 500),
-          );
-
-          if (!liveElement) {
-            liveElement = shadowRoot.querySelector(readableZoneSelector);
-          }
-          if (liveElement) {
+            // Get the light DOM children of readerContext (these are what get slotted)
             console.log(
-              "[scanWebpage] Found element in ft-internal-reader-context shadow DOM!",
+              "[scanWebpage] Light DOM children of ft-internal-reader-context:",
+              readerContext.children.length,
             );
-          } else {
-            // Try recursively searching nested shadow DOMs
-            const nestedComponents = shadowRoot.querySelectorAll("*");
-            for (const el of nestedComponents) {
+
+            // Try to find our selector in the light DOM children
+            for (let i = 0; i < readerContext.children.length; i++) {
+              const child = readerContext.children[i];
+              console.log(
+                `[scanWebpage] Light DOM child ${i}: ${child.tagName}, classes: ${child.className}, id: ${child.id}`,
+              );
+              console.log(
+                `[scanWebpage] Light DOM child ${i} inner text length: ${child.innerText?.length || 0}`,
+              );
+              console.log(
+                `[scanWebpage] Light DOM child ${i} children count: ${child.children.length}`,
+              );
+
+              // Show first few descendants
+              if (child.children.length > 0) {
+                for (let j = 0; j < Math.min(5, child.children.length); j++) {
+                  const grandchild = child.children[j];
+                  console.log(
+                    `[scanWebpage]   Grandchild ${j}: ${grandchild.tagName}, classes: ${grandchild.className}, id: ${grandchild.id}`,
+                  );
+                }
+              }
+
+              // IMPORTANT: Check if content has actually loaded
+              // ServiceNow creates the div immediately but populates it later
+              const hasContent =
+                child.innerText && child.innerText.trim().length > 100;
+              console.log(
+                `[scanWebpage] Light DOM child ${i} has meaningful content: ${hasContent}`,
+              );
+
+              if (!hasContent) {
+                console.log(
+                  `[scanWebpage] Skipping child ${i} - no content loaded yet`,
+                );
+                continue; // Skip this iteration if content hasn't loaded
+              }
+
+              // Try multiple search strategies, just like manual selection does
+              console.log(
+                `[scanWebpage] Searching for selector in child ${i}...`,
+              );
+
+              // Strategy 1: Check if the child itself matches
+              if (child.matches && child.matches(readableZoneSelector)) {
+                console.log(
+                  `[scanWebpage] Light DOM child ${i} itself matches selector!`,
+                );
+                liveElement = child;
+                break;
+              }
+
+              // Strategy 2: Search descendants of this child
+              const matchInChild = child.querySelector(readableZoneSelector);
+              if (matchInChild) {
+                console.log(
+                  `[scanWebpage] FOUND selector in light DOM child ${i} descendants!`,
+                );
+                liveElement = matchInChild;
+                break;
+              }
+
+              // Strategy 3: Search from document root (like manual selection does)
+              const matchInDocument =
+                document.querySelector(readableZoneSelector);
+              if (matchInDocument) {
+                console.log(
+                  `[scanWebpage] FOUND selector via document.querySelector()!`,
+                );
+                liveElement = matchInDocument;
+                break;
+              }
+
+              // Strategy 4: If child is in shadow DOM, search shadow root
+              if (child.getRootNode) {
+                const childRoot = child.getRootNode();
+                if (childRoot instanceof ShadowRoot) {
+                  console.log(
+                    `[scanWebpage] Searching shadow root of child ${i}...`,
+                  );
+                  const matchInShadow =
+                    childRoot.querySelector(readableZoneSelector);
+                  if (matchInShadow) {
+                    console.log(
+                      `[scanWebpage] FOUND selector in shadow root of child ${i}!`,
+                    );
+                    liveElement = matchInShadow;
+                    break;
+                  }
+                }
+              }
+
+              console.log(
+                `[scanWebpage] Selector not found in child ${i} with any strategy`,
+              );
+            }
+
+            if (!liveElement) {
+              console.log(
+                "[scanWebpage] Selector not found in light DOM children either",
+              );
+            }
+          }
+        }
+      }
+
+      // CRITICAL: Try searching the entire document first, before shadow DOM
+      // Manual selection uses document.querySelector() which works!
+      // BUT: If we have multiple selectors, we need to use the deduplication logic
+      const isMultipleSelectors = readableZoneSelector.includes(",");
+
+      if (!liveElement && !isMultipleSelectors) {
+        console.log(
+          "[scanWebpage] Trying document.querySelector() for selector:",
+          readableZoneSelector,
+        );
+        liveElement = document.querySelector(readableZoneSelector);
+        if (liveElement) {
+          console.log(
+            "[scanWebpage] FOUND element via document.querySelector()!",
+          );
+        } else {
+          console.log(
+            "[scanWebpage] Not found via document.querySelector() either",
+          );
+        }
+      }
+
+      // CRITICAL: Search ALL shadow DOMs RECURSIVELY in the entire document
+      // The element might be deeply nested (6+ levels) in shadow DOMs
+      // OR we have multiple selectors that need deduplication
+      if (!liveElement || isMultipleSelectors) {
+        if (isMultipleSelectors) {
+          console.log(
+            "[scanWebpage:DEDUP] Multiple selectors detected - using deduplication logic",
+          );
+        } else {
+          console.log(
+            "[scanWebpage] Searching ALL shadow DOMs recursively for selector...",
+          );
+        }
+
+        // Check if we have multiple selectors (comma-separated)
+        // (moved up earlier)
+
+        // Enable detailed logging: window.__STN_DEBUG_DEDUP = true
+        const DEBUG_DEDUP = window.__STN_DEBUG_DEDUP || false;
+
+        console.log(
+          `[scanWebpage:DEDUP] 🔍 Selector: "${readableZoneSelector.substring(0, 100)}..." | Multiple: ${isMultipleSelectors}`,
+        );
+
+        if (isMultipleSelectors) {
+          // Recursive function to search shadow DOMs and collect all matches
+          function searchShadowRootsForAll(root, depth = 0) {
+            const matches = [];
+            const allElements = root.querySelectorAll("*");
+
+            for (const el of allElements) {
               if (el.shadowRoot) {
-                console.log(
-                  `[scanWebpage] Found nested shadow DOM in: ${el.tagName}`,
-                );
-                liveElement = el.shadowRoot.querySelector(readableZoneSelector);
-                if (liveElement) {
+                if (DEBUG_DEDUP) {
                   console.log(
-                    `[scanWebpage] Found element in nested shadow DOM of ${el.tagName}!`,
+                    `[scanWebpage:DEDUP] Checking shadow root of ${el.tagName} at depth ${depth}...`,
                   );
-                  break;
+                }
+                // Check this shadow root for all matching elements
+                const shadowMatches =
+                  el.shadowRoot.querySelectorAll(readableZoneSelector);
+                if (shadowMatches.length > 0) {
+                  if (DEBUG_DEDUP) {
+                    console.log(
+                      `[scanWebpage:DEDUP] ✓ FOUND ${shadowMatches.length} elements in shadow at depth ${depth}!`,
+                    );
+                  }
+                  matches.push(...Array.from(shadowMatches));
+                }
+
+                // Recurse into nested shadow roots
+                const nestedMatches = searchShadowRootsForAll(
+                  el.shadowRoot,
+                  depth + 1,
+                );
+                if (nestedMatches.length > 0) {
+                  matches.push(...nestedMatches);
                 }
               }
             }
+            return matches;
           }
+
+          // Try document first
+          let allMatches = document.querySelectorAll(readableZoneSelector);
+
+          // If no matches in document, search shadow DOMs
+          if (allMatches.length === 0) {
+            const shadowMatches = searchShadowRootsForAll(document);
+            allMatches = shadowMatches;
+          }
+
+          // DEBUG: Try searching for each selector separately
+          console.log(
+            `[scanWebpage] DEBUG: Searching for selectors individually...`,
+          );
+          const selectors = readableZoneSelector
+            .split(",")
+            .map((s) => s.trim());
+
+          // Build a map of selector -> metadata for quick lookup
+          const selectorMetadataMap = {};
+          if (selectorsWithMetadata && Array.isArray(selectorsWithMetadata)) {
+            selectorsWithMetadata.forEach((item) => {
+              selectorMetadataMap[item.selector] = item;
+            });
+          }
+
+          // Store matches per selector so we can add headings
+          const matchesBySelector = [];
+
+          for (const sel of selectors) {
+            if (DEBUG_DEDUP) {
+              console.log(`[scanWebpage:DEDUP] Searching for: "${sel}"`);
+            }
+
+            // Search in document
+            const docMatches = document.querySelectorAll(sel);
+            if (DEBUG_DEDUP) {
+              console.log(
+                `[scanWebpage:DEDUP]   Document matches: ${docMatches.length}`,
+              );
+            }
+
+            // Search in shadow DOMs
+            function searchForSelector(root, selector, depth = 0) {
+              const matches = [];
+              const allElements = root.querySelectorAll("*");
+              for (const el of allElements) {
+                if (el.shadowRoot) {
+                  const shadowMatches =
+                    el.shadowRoot.querySelectorAll(selector);
+                  if (shadowMatches.length > 0) {
+                    if (DEBUG_DEDUP) {
+                      console.log(
+                        `[scanWebpage:DEDUP]   Found ${shadowMatches.length} in ${el.tagName} shadow at depth ${depth}`,
+                      );
+                    }
+                    matches.push(...Array.from(shadowMatches));
+                  }
+                  const nested = searchForSelector(
+                    el.shadowRoot,
+                    selector,
+                    depth + 1,
+                  );
+                  matches.push(...nested);
+                }
+              }
+              return matches;
+            }
+
+            const shadowMatches = searchForSelector(document, sel);
+            if (DEBUG_DEDUP) {
+              console.log(
+                `[scanWebpage:DEDUP]   Shadow DOM matches: ${shadowMatches.length}`,
+              );
+            }
+
+            // Combine all matches for this selector
+            const allSelectorMatches = [
+              ...Array.from(docMatches),
+              ...shadowMatches,
+            ];
+
+            if (allSelectorMatches.length > 0) {
+              matchesBySelector.push({
+                selector: sel,
+                elements: allSelectorMatches,
+                metadata: selectorMetadataMap[sel] || {
+                  embeddedPostFormat: false,
+                },
+              });
+            }
+          }
+
+          // Now combine all matches with appropriate headings
+          if (matchesBySelector.length > 0) {
+            const totalMatches = matchesBySelector.reduce(
+              (sum, item) => sum + item.elements.length,
+              0,
+            );
+            console.log(
+              `[scanWebpage:DEDUP] 🚀 Starting deduplication for ${totalMatches} elements from ${matchesBySelector.length} selectors`,
+            );
+
+            // Create a container to combine all elements
+            const container = document.createElement("div");
+            container.className = "combined-scan-results";
+
+            // Track seen elements to avoid duplicates (by image src, innerHTML hash, etc.)
+            const seenElements = new Set();
+            const addedElements = []; // Track actual elements to check containment
+            let duplicateCount = 0;
+
+            // Enable detailed logging: set to true in console via: window.__STN_DEBUG_DEDUP = true
+            const DEBUG_DEDUP = window.__STN_DEBUG_DEDUP || false;
+
+            function getElementSignature(el) {
+              // For images: normalize src (remove query params and hash) and include alt text
+              if (el.tagName === "IMG" && el.src) {
+                const normalizedSrc = el.src.split("?")[0].split("#")[0];
+                const altText = el.alt || "";
+                const dimensions = `${el.width || 0}x${el.height || 0}`;
+                return `img:${normalizedSrc}:${altText}:${dimensions}`;
+              }
+              // For elements with src (like iframes, videos): normalize src
+              if (el.src) {
+                const normalizedSrc = el.src.split("?")[0].split("#")[0];
+                return `${el.tagName.toLowerCase()}:${normalizedSrc}`;
+              }
+              // For tables: use full innerHTML for better comparison + text content length
+              if (el.tagName === "TABLE") {
+                const textContent = el.textContent?.trim() || "";
+                const cellCount = el.querySelectorAll("td, th").length;
+                const rowCount = el.querySelectorAll("tr").length;
+                // Use first 500 chars of innerHTML + structure info
+                const content = el.innerHTML?.substring(0, 500) || "";
+                return `table:${rowCount}x${cellCount}:${textContent.length}:${content}`;
+              }
+              // For other elements: use more innerHTML (500 chars) + text length
+              const textLength = el.textContent?.trim().length || 0;
+              const content = el.innerHTML?.substring(0, 500) || "";
+              return `${el.tagName.toLowerCase()}:${textLength}:${content}`;
+            }
+
+            function isContainedInAny(element, otherElements) {
+              // Check if this element is contained within any already-added element
+              for (const other of otherElements) {
+                if (other.contains(element) && other !== element) {
+                  return other;
+                }
+              }
+              return null;
+            }
+
+            function containsAnyAdded(element, otherElements) {
+              // Check if this element contains any already-added element
+              for (const other of otherElements) {
+                if (element.contains(other) && element !== other) {
+                  return other;
+                }
+              }
+              return null;
+            }
+
+            matchesBySelector.forEach((selectorGroup, groupIdx) => {
+              // Add heading for selectors with custom heading text
+              if (selectorGroup.metadata.customHeading) {
+                console.log(
+                  `[scanWebpage] Adding custom heading "${selectorGroup.metadata.customHeading}" for selector: ${selectorGroup.selector}`,
+                );
+                const heading = document.createElement("h2");
+                heading.textContent = selectorGroup.metadata.customHeading;
+                heading.className = "embedded-section-heading";
+                container.appendChild(heading);
+              }
+
+              // Add all elements from this selector (deduplicated)
+              selectorGroup.elements.forEach((match, idx) => {
+                const signature = getElementSignature(match);
+
+                if (DEBUG_DEDUP) {
+                  console.log(
+                    `[scanWebpage:DEDUP] 🔍 Checking ${groupIdx + 1}.${idx + 1}: ${match.tagName}.${match.className}`,
+                  );
+                }
+
+                // Check 1: Exact duplicate by signature
+                if (seenElements.has(signature)) {
+                  duplicateCount++;
+                  if (DEBUG_DEDUP) {
+                    console.log(
+                      `[scanWebpage:DEDUP] ⚠️ SKIP (signature) ${groupIdx + 1}.${idx + 1}: ${match.tagName}`,
+                    );
+                  }
+                  return;
+                }
+
+                // Check 2: Is this element contained within an already-added element?
+                const containingElement = isContainedInAny(
+                  match,
+                  addedElements,
+                );
+                if (containingElement) {
+                  duplicateCount++;
+                  if (DEBUG_DEDUP) {
+                    console.log(
+                      `[scanWebpage:DEDUP] ⚠️ SKIP (nested) ${groupIdx + 1}.${idx + 1}: ${match.tagName}`,
+                    );
+                  }
+                  return;
+                }
+
+                // Check 3: Does this element contain any already-added elements?
+                // If so, remove the child elements and keep this parent
+                const containedElement = containsAnyAdded(match, addedElements);
+                if (containedElement) {
+                  if (DEBUG_DEDUP) {
+                    console.log(
+                      `[scanWebpage:DEDUP] ⚠️ REPLACE child with parent ${groupIdx + 1}.${idx + 1}`,
+                    );
+                  }
+                  // Remove the child element from container and tracking
+                  const childClone = Array.from(container.children).find(
+                    (child) => {
+                      return (
+                        child.tagName === containedElement.tagName &&
+                        child.className === containedElement.className
+                      );
+                    },
+                  );
+                  if (childClone) {
+                    container.removeChild(childClone);
+                    const childIndex = addedElements.indexOf(containedElement);
+                    if (childIndex > -1) {
+                      addedElements.splice(childIndex, 1);
+                    }
+                  }
+                }
+
+                seenElements.add(signature);
+                addedElements.push(match);
+                if (DEBUG_DEDUP) {
+                  console.log(
+                    `[scanWebpage:DEDUP] ✅ ADD ${groupIdx + 1}.${idx + 1}: ${match.tagName} (total: ${addedElements.length})`,
+                  );
+                }
+                container.appendChild(match.cloneNode(true));
+              });
+            });
+
+            console.log(
+              `[scanWebpage:DEDUP] Found: ${matchesBySelector.reduce((sum, item) => sum + item.elements.length, 0)} | Added: ${addedElements.length} | Skipped: ${duplicateCount}`,
+            );
+
+            if (duplicateCount > 0) {
+              console.log(
+                `[scanWebpage:DEDUP] ✓ Removed ${duplicateCount} duplicates`,
+              );
+            }
+
+            liveElement = container;
+          }
+        } else {
+          // Single selector - use original recursive logic
+          // Recursive function to search shadow DOMs
+          function searchShadowRootsRecursively(root, depth = 0) {
+            const allElements = root.querySelectorAll("*");
+
+            for (const el of allElements) {
+              if (el.shadowRoot) {
+                // Check this shadow root
+                const match = el.shadowRoot.querySelector(readableZoneSelector);
+                if (match) {
+                  console.log(
+                    `[scanwebpage] ✓ FOUND element in shadow root of ${el.tagName} at depth ${depth}!`,
+                  );
+                  return match;
+                }
+
+                // Recurse into nested shadow roots
+                const nestedMatch = searchShadowRootsRecursively(
+                  el.shadowRoot,
+                  depth + 1,
+                );
+                if (nestedMatch) return nestedMatch;
+              }
+            }
+            return null;
+          }
+
+          liveElement = searchShadowRootsRecursively(document);
+        }
+
+        if (liveElement) {
+          console.log(
+            "[scanWebpage] FOUND element via recursive shadow DOM search!",
+          );
+        } else {
+          console.log("[scanWebpage] Not found even with recursive search");
         }
       }
 
@@ -14982,6 +15332,11 @@ async function scanWebpage() {
         await new Promise((resolve) => setTimeout(resolve, delayMs));
         attempts++;
       }
+    }
+
+    // Restore console.log after retry loop
+    if (!DEBUG_SCANWEBPAGE) {
+      console.log = originalLog;
     }
 
     console.log(
@@ -15028,31 +15383,36 @@ async function scanWebpage() {
     );
 
     // Try each part separately
-    const bodyElements = document.querySelectorAll(".body");
-    if (bodyElements.length > 0) {
-      console.log("[scanWebpage] Found .body elements:", bodyElements.length);
-      bodyElements.forEach((el, i) => {
-        console.log(`[scanWebpage]   .body[${i}] classes:`, el.className);
-        console.log(
-          `[scanWebpage]   .body[${i}] text length:`,
-          el.textContent?.length,
-        );
-        console.log(
-          `[scanWebpage]   .body[${i}] first 200 chars:`,
-          el.textContent?.substring(0, 200),
-        );
-      });
+    // Detailed body-element inspection is expensive — only log when debugging
+    if (DEBUG_SCANWEBPAGE) {
+      const bodyElements = document.querySelectorAll(".body");
+      if (bodyElements.length > 0) {
+        console.log("[scanWebpage] Found .body elements:", bodyElements.length);
+        bodyElements.forEach((el, i) => {
+          console.log(`[scanWebpage]   .body[${i}] classes:`, el.className);
+          console.log(
+            `[scanWebpage]   .body[${i}] text length:`,
+            el.textContent?.length,
+          );
+          console.log(
+            `[scanWebpage]   .body[${i}] first 200 chars:`,
+            el.textContent?.substring(0, 200),
+          );
+        });
+      }
     }
 
-    // Show more context from the actual body
-    console.log(
-      "[scanWebpage] Live DOM body text length:",
-      document.body?.textContent?.length,
-    );
-    console.log(
-      "[scanWebpage] Live DOM body first 2000 chars:",
-      document.body?.textContent?.substring(0, 2000),
-    );
+    // Show more context from the actual body (guarded)
+    if (DEBUG_SCANWEBPAGE) {
+      console.log(
+        "[scanWebpage] Live DOM body text length:",
+        document.body?.textContent?.length,
+      );
+      console.log(
+        "[scanWebpage] Live DOM body first 2000 chars:",
+        document.body?.textContent?.substring(0, 2000),
+      );
+    }
 
     // Check if content might be in an iframe
     const iframes = document.querySelectorAll("iframe");
@@ -15097,8 +15457,136 @@ async function scanWebpage() {
                 `[scanWebpage] Iframe ${i} element text length:`,
                 iframeElement.textContent?.length,
               );
-              // Use the iframe content instead!
-              htmlToProcess = `<!DOCTYPE html><html><head></head><body>${iframeElement.outerHTML}</body></html>`;
+              // If we have multiple selectors, try to deduplicate within the
+              // iframe fragment before passing to the parser (fixes cases where
+              // the page provides a pre-extracted blob that already contains
+              // repeated sections).
+              const _isMultipleSelectors =
+                typeof readableZoneSelector === "string" &&
+                readableZoneSelector.includes(",");
+              if (_isMultipleSelectors) {
+                const deduped = (function dedupeHtmlFragment(
+                  fragmentHtml,
+                  selectorsStr,
+                ) {
+                  try {
+                    const doc = new DOMParser().parseFromString(
+                      `<!doctype html><html><body>${fragmentHtml}</body></html>`,
+                      "text/html",
+                    );
+                    const selectors = selectorsStr
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean);
+                    const matchesBySelector = [];
+                    let totalMatches = 0;
+                    for (const sel of selectors) {
+                      const els = Array.from(doc.querySelectorAll(sel)).slice(
+                        0,
+                        200,
+                      );
+                      if (els.length > 0) {
+                        matchesBySelector.push({
+                          selector: sel,
+                          elements: els,
+                        });
+                        totalMatches += els.length;
+                      }
+                    }
+                    if (matchesBySelector.length === 0) return null;
+
+                    const container = doc.createElement("div");
+                    container.className = "stn-dedup-container";
+                    const seen = new Set();
+                    const added = [];
+                    let skipped = 0;
+
+                    function sig(el) {
+                      if (!el) return "";
+                      const t = el.tagName;
+                      if (t === "IMG" && el.src) {
+                        return (
+                          "img:" +
+                          el.src.split("?")[0].split("#")[0] +
+                          ":" +
+                          (el.alt || "") +
+                          ":" +
+                          ((el.width || 0) + "x" + (el.height || 0))
+                        );
+                      }
+                      if (el.src)
+                        return (
+                          t.toLowerCase() +
+                          ":" +
+                          el.src.split("?")[0].split("#")[0]
+                        );
+                      if (t === "TABLE") {
+                        const rows = el.querySelectorAll("tr").length;
+                        const cells = el.querySelectorAll("td,th").length;
+                        const txt = (el.textContent || "").trim().length;
+                        const html = (el.innerHTML || "").substring(0, 300);
+                        return `table:${rows}x${cells}:${txt}:${html}`;
+                      }
+                      const txtLen = (el.textContent || "").trim().length;
+                      const html = (el.innerHTML || "").substring(0, 200);
+                      return `${t.toLowerCase()}:${txtLen}:${html}`;
+                    }
+
+                    function containedInAny(e, arr) {
+                      for (const o of arr)
+                        if (o !== e && o.contains(e)) return true;
+                      return false;
+                    }
+
+                    for (const group of matchesBySelector) {
+                      for (const el of group.elements) {
+                        const s = sig(el);
+                        if (seen.has(s) || containedInAny(el, added)) {
+                          skipped++;
+                          continue;
+                        }
+                        // remove any added children that are contained by this element
+                        for (let j = added.length - 1; j >= 0; j--) {
+                          if (el.contains(added[j])) {
+                            const node = added[j];
+                            const idx = Array.from(
+                              container.children,
+                            ).findIndex((c) => c.isEqualNode(node));
+                            if (idx > -1)
+                              container.removeChild(container.children[idx]);
+                            added.splice(j, 1);
+                          }
+                        }
+                        seen.add(s);
+                        added.push(el.cloneNode(true));
+                        container.appendChild(el.cloneNode(true));
+                      }
+                    }
+
+                    return {
+                      html: `<!doctype html><html><body>${container.innerHTML}</body></html>`,
+                      stats: {
+                        found: totalMatches,
+                        added: added.length,
+                        skipped,
+                      },
+                    };
+                  } catch (e) {
+                    return null;
+                  }
+                })(iframeElement.outerHTML, readableZoneSelector);
+
+                if (deduped) {
+                  console.warn(
+                    `[scanWebpage:DEDUP] Applied deduplication inside iframe ${i}: found=${deduped.stats.found} added=${deduped.stats.added} skipped=${deduped.stats.skipped}`,
+                  );
+                  htmlToProcess = deduped.html;
+                } else {
+                  htmlToProcess = `<!DOCTYPE html><html><head></head><body>${iframeElement.outerHTML}</body></html>`;
+                }
+              } else {
+                htmlToProcess = `<!DOCTYPE html><html><head></head><body>${iframeElement.outerHTML}</body></html>`;
+              }
               break; // Found it, stop searching
             } else {
               console.log(
@@ -15133,6 +15621,304 @@ async function scanWebpage() {
       );
     }
   }
+
+  // Final deduplication pass on the HTML we're about to parse.
+  // This is a fallback that operates on the produced HTML string and
+  // removes duplicate images/tables when multiple selectors were used but
+  // the element-collection dedupe path didn't catch them (real-world
+  // sites sometimes return pre-extracted blobs where selectors don't
+  // map 1:1 inside the fragment).
+  try {
+    if (
+      new DOMParser()
+        .parseFromString(htmlToProcess, "text/html")
+        .body.querySelectorAll("img,table").length > 1 ||
+      (typeof readableZoneSelector === "string" &&
+        readableZoneSelector.includes(","))
+    ) {
+      (function dedupeHtmlStringInPlace() {
+        try {
+          const doc = new DOMParser().parseFromString(
+            htmlToProcess,
+            "text/html",
+          );
+          const DEBUG_DEDUP = window.__STN_DEBUG_DEDUP || false;
+
+          // Collect candidate elements by selectors; if none match, fall
+          // back to scanning imgs and tables in the body.
+          const selectors = readableZoneSelector
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+
+          let candidates = [];
+          for (const sel of selectors) {
+            try {
+              candidates.push(...Array.from(doc.querySelectorAll(sel)));
+            } catch (e) {
+              // ignore invalid selector
+            }
+          }
+
+          if (candidates.length === 0) {
+            candidates = Array.from(doc.body.querySelectorAll("img, table"));
+          }
+
+          const seen = new Set();
+          const added = [];
+          let skipped = 0;
+          // Instrumentation: record per-element signature + action for one-shot debugging
+          const __stn_decisions = [];
+
+          const sigFor = (el) => {
+            if (!el) return "";
+            const t = el.tagName;
+            if (t === "IMG" && el.getAttribute("src")) {
+              let src = (el.getAttribute("src") || "").trim();
+              // Normalize data: URIs (common for inline SVG icons) so
+              // identical embedded icons compare equal even if long.
+              if (src.indexOf("data:") === 0) {
+                const parts = src.split(",");
+                const meta = parts[0];
+                let payload = parts.slice(1).join(",") || "";
+                try {
+                  payload = decodeURIComponent(payload);
+                } catch (e) {
+                  /* ignore */
+                }
+                payload = payload.replace(/\s+/g, " ").substring(0, 200);
+                src = `${meta},${payload}`;
+              } else {
+                src = src.split("?")[0].split("#")[0];
+              }
+              const alt = (el.getAttribute("alt") || "").trim();
+              const dim = `${el.getAttribute("width") || el.width || 0}x${el.getAttribute("height") || el.height || 0}`;
+              return `img:${src}:${alt}:${dim}`;
+            }
+            if (t === "TABLE") {
+              const rows = el.querySelectorAll("tr").length;
+              const cells = el.querySelectorAll("td,th").length;
+              const txt = (el.textContent || "").trim().length;
+              const html = (el.innerHTML || "").substring(0, 500);
+              return `table:${rows}x${cells}:${txt}:${html}`;
+            }
+            const txtLen = (el.textContent || "").trim().length;
+            const html = (el.innerHTML || "").substring(0, 300);
+            return `${t.toLowerCase()}:${txtLen}:${html}`;
+          };
+
+          const isContained = (el, arr) =>
+            arr.some((o) => o !== el && o.contains(el));
+
+          for (const el of candidates) {
+            const s = sigFor(el);
+            if (!s) continue;
+            if (seen.has(s) || isContained(el, added)) {
+              skipped++;
+              __stn_decisions.push({
+                sig: s,
+                action: "removed",
+                reason: seen.has(s) ? "signature" : "contained",
+                outer: (el.outerHTML || "").slice(0, 200),
+              });
+              // remove the duplicate from the DOM
+              if (el.parentNode) el.parentNode.removeChild(el);
+              continue;
+            }
+            // remove previously-added children contained by this el
+            for (let i = added.length - 1; i >= 0; i--) {
+              const a = added[i];
+              if (el.contains(a)) {
+                if (a.parentNode) a.parentNode.removeChild(a);
+                added.splice(i, 1);
+              }
+            }
+            seen.add(s);
+            added.push(el);
+            __stn_decisions.push({
+              sig: s,
+              action: "kept",
+              outer: (el.outerHTML || "").slice(0, 200),
+            });
+          }
+
+          if (skipped > 0) {
+            console.log(
+              `[scanWebpage:DEDUP] Final HTML dedup applied — removed ${skipped} duplicates`,
+            );
+            if (DEBUG_DEDUP) {
+              console.log(
+                "[scanWebpage:DEDUP] Remaining candidates:",
+                added.length,
+              );
+            }
+            htmlToProcess = `<!doctype html>${doc.documentElement.outerHTML}`;
+          }
+
+          // Aggressive fallback for repeated inline SVG icons: if the same
+          // data:image/svg+xml appears many times (common UI icons), remove
+          // all but one occurrence. This is conservative: only applies when
+          // the same exact normalized data:svg signature appears >= 3 times.
+          try {
+            const dataImgs = Array.from(
+              doc.querySelectorAll('img[src^="data:image/svg+xml"]'),
+            );
+            if (dataImgs.length > 1) {
+              const map = new Map();
+              const normalizeData = (src) => {
+                const parts = src.split(",");
+                const meta = parts[0];
+                let payload = parts.slice(1).join(",") || "";
+                try {
+                  payload = decodeURIComponent(payload);
+                } catch (e) {}
+                payload = payload.replace(/\s+/g, " ").trim();
+                // remove trivial attribute ordering differences
+                payload = payload.replace(/\s(id|class)\s*=\s*"[^"]+"/g, "");
+                return `${meta},${payload}`.substring(0, 600);
+              };
+
+              for (const el of dataImgs) {
+                const key = normalizeData(el.getAttribute("src") || "");
+                if (!map.has(key)) map.set(key, []);
+                map.get(key).push(el);
+              }
+
+              let aggressiveRemoved = 0;
+              for (const [k, group] of map.entries()) {
+                if (group.length >= 3) {
+                  // keep the first, remove the rest
+                  for (let i = 1; i < group.length; i++) {
+                    const el = group[i];
+                    aggressiveRemoved++;
+                    __stn_decisions.push({
+                      sig: sigFor(el),
+                      action: "aggressive-removed",
+                      reason: "repeated-inline-svg",
+                      outer: (el.outerHTML || "").slice(0, 200),
+                    });
+                    if (el.parentNode) el.parentNode.removeChild(el);
+                  }
+                }
+              }
+              if (aggressiveRemoved > 0) {
+                skipped += aggressiveRemoved;
+                console.log(
+                  `[scanWebpage:DEDUP] Relaxed dedup removed ${aggressiveRemoved} inline-svg duplicates`,
+                );
+                htmlToProcess = `<!doctype html>${doc.documentElement.outerHTML}`;
+              }
+            }
+          } catch (e) {
+            // best-effort
+          }
+
+          // If instrumentation was requested, emit the per-element decisions
+          if (window.__STN_DEDUP_INSTRUMENT) {
+            try {
+              const hdr = `<<<STN-DEDUP-INSTRUMENT:${Date.now().toString(36)}:BEGIN>>>`;
+              const ftr = hdr.replace(":BEGIN", ":END>>>");
+              const report = {
+                id: hdr.slice(3, 16),
+                url: window.location.href,
+                decisions: __stn_decisions.slice(0, 200),
+              };
+              console.__stn_originalLog && console.__stn_originalLog(hdr);
+              console.__stn_originalLog &&
+                console.__stn_originalLog(JSON.stringify(report, null, 2));
+              console.__stn_originalLog && console.__stn_originalLog(ftr);
+            } catch (e) {}
+          }
+
+          // If nothing was removed by strict matching, try a more relaxed
+          // pass (matches that differ only by querystring, minor filename
+          // variations, or trivial HTML wrappers). This catches real-world
+          // duplicates that escape exact matching.
+          if (skipped === 0) {
+            try {
+              let relaxedRemoved = 0;
+
+              const normalizeImgSrc = (src) => {
+                if (!src) return "";
+                try {
+                  const url = src.split("?")[0].split("#")[0];
+                  const parts = url.split("/");
+                  let base = parts[parts.length - 1] || url;
+                  // strip common dimension tokens like -200x300 or _200x300
+                  base = base.replace(/[_-]\d+x\d+(?=\.)/g, "");
+                  return base.toLowerCase();
+                } catch (e) {
+                  return src;
+                }
+              };
+
+              const imgMap = new Set();
+              const imgs = Array.from(doc.body.querySelectorAll("img"));
+              for (const im of imgs) {
+                const key =
+                  normalizeImgSrc(im.getAttribute("src") || "") ||
+                  im.getAttribute("alt") ||
+                  "";
+                if (!key) continue;
+                if (imgMap.has(key)) {
+                  relaxedRemoved++;
+                  if (im.parentNode) im.parentNode.removeChild(im);
+                  continue;
+                }
+                imgMap.add(key);
+              }
+
+              const tableMap = new Set();
+              const tables = Array.from(doc.body.querySelectorAll("table"));
+              for (const tb of tables) {
+                const cells = tb.querySelectorAll("td,th").length;
+                const txt = (tb.textContent || "")
+                  .replace(/\s+/g, " ")
+                  .trim()
+                  .substring(0, 300);
+                const key = `t:${cells}:${txt}`;
+                if (tableMap.has(key)) {
+                  relaxedRemoved++;
+                  if (tb.parentNode) tb.parentNode.removeChild(tb);
+                  continue;
+                }
+                tableMap.add(key);
+              }
+
+              // background-image duplicates
+              const bgMap = new Set();
+              const els = Array.from(doc.body.querySelectorAll("*[style]"));
+              for (const el of els) {
+                const m = (el.getAttribute("style") || "").match(
+                  /background-image:\s*url\(['"]?([^'"\)]+)['"]?\)/i,
+                );
+                if (!m) continue;
+                const k = normalizeImgSrc(m[1]);
+                if (!k) continue;
+                if (imgMap.has(k) || bgMap.has(k)) {
+                  relaxedRemoved++;
+                  if (el.parentNode) el.parentNode.removeChild(el);
+                  continue;
+                }
+                bgMap.add(k);
+              }
+
+              if (relaxedRemoved > 0) {
+                console.log(
+                  `[scanWebpage:DEDUP] Relaxed dedup removed ${relaxedRemoved} elements`,
+                );
+                htmlToProcess = `<!doctype html>${doc.documentElement.outerHTML}`;
+              }
+            } catch (e) {
+              // ignore relaxed-pass failures
+            }
+          }
+        } catch (e) {
+          /* best-effort only */
+        }
+      })();
+    }
+  } catch (e) {}
 
   const r = await parseFromHtml(htmlToProcess, window.location.href);
   if (r) {

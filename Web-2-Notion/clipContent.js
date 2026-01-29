@@ -3240,17 +3240,149 @@ z-index: 2;
 
               // Combine all matched elements into the container
               if (allMatches.length > 0) {
+                // Track seen elements to avoid duplicates
+                const seenElements = new Set();
+                const addedElements = []; // Track actual elements to check containment
+                let duplicateCount = 0;
+
+                // Enable detailed logging: set to true in console via: window.__STN_DEBUG_DEDUP = true
+                const DEBUG_DEDUP = window.__STN_DEBUG_DEDUP || false;
+
+                function getElementSignature(el) {
+                  // For images: normalize src (remove query params and hash) and include alt text
+                  if (el.tagName === "IMG" && el.src) {
+                    const normalizedSrc = el.src.split("?")[0].split("#")[0];
+                    const altText = el.alt || "";
+                    const dimensions = `${el.width || 0}x${el.height || 0}`;
+                    return `img:${normalizedSrc}:${altText}:${dimensions}`;
+                  }
+                  // For elements with src (like iframes, videos): normalize src
+                  if (el.src) {
+                    const normalizedSrc = el.src.split("?")[0].split("#")[0];
+                    return `${el.tagName.toLowerCase()}:${normalizedSrc}`;
+                  }
+                  // For tables: use full innerHTML for better comparison + text content length
+                  if (el.tagName === "TABLE") {
+                    const textContent = el.textContent?.trim() || "";
+                    const cellCount = el.querySelectorAll("td, th").length;
+                    const rowCount = el.querySelectorAll("tr").length;
+                    // Use first 500 chars of innerHTML + structure info
+                    const content = el.innerHTML?.substring(0, 500) || "";
+                    return `table:${rowCount}x${cellCount}:${textContent.length}:${content}`;
+                  }
+                  // For other elements: use more innerHTML (500 chars) + text length
+                  const textLength = el.textContent?.trim().length || 0;
+                  const content = el.innerHTML?.substring(0, 500) || "";
+                  return `${el.tagName.toLowerCase()}:${textLength}:${content}`;
+                }
+
+                function isContainedInAny(element, otherElements) {
+                  // Check if this element is contained within any already-added element
+                  for (const other of otherElements) {
+                    if (other.contains(element) && other !== element) {
+                      return other;
+                    }
+                  }
+                  return null;
+                }
+
+                function containsAnyAdded(element, otherElements) {
+                  // Check if this element contains any already-added element
+                  for (const other of otherElements) {
+                    if (element.contains(other) && element !== other) {
+                      return other;
+                    }
+                  }
+                  return null;
+                }
+
                 allMatches.forEach((match, index) => {
-                  console.log(
-                    `[extractContentData] Adding match ${index + 1}:`,
-                    match.className,
-                    match.tagName,
+                  const signature = getElementSignature(match);
+
+                  if (DEBUG_DEDUP) {
+                    console.log(
+                      `[extractContentData:DEDUP] 🔍 Checking ${index + 1}: ${match.tagName}.${match.className}`,
+                    );
+                  }
+
+                  // Check 1: Exact duplicate by signature
+                  if (seenElements.has(signature)) {
+                    duplicateCount++;
+                    if (DEBUG_DEDUP) {
+                      console.log(
+                        `[extractContentData:DEDUP] ⚠️ SKIP (signature) ${index + 1}: ${match.tagName}`,
+                      );
+                    }
+                    return;
+                  }
+
+                  // Check 2: Is contained within already-added element?
+                  const containingElement = isContainedInAny(
+                    match,
+                    addedElements,
                   );
+                  if (containingElement) {
+                    duplicateCount++;
+                    if (DEBUG_DEDUP) {
+                      console.log(
+                        `[extractContentData:DEDUP] ⚠️ SKIP (nested) ${index + 1}: ${match.tagName}`,
+                      );
+                    }
+                    return;
+                  }
+
+                  // Check 3: Contains already-added element? Replace child with parent
+                  const containedElement = containsAnyAdded(
+                    match,
+                    addedElements,
+                  );
+                  if (containedElement) {
+                    if (DEBUG_DEDUP) {
+                      console.log(
+                        `[extractContentData:DEDUP] ⚠️ REPLACE child with parent ${index + 1}`,
+                      );
+                    }
+                    const childClone = Array.from(container.children).find(
+                      (child) => {
+                        return (
+                          child.tagName === containedElement.tagName &&
+                          child.className === containedElement.className
+                        );
+                      },
+                    );
+                    if (childClone) {
+                      container.removeChild(childClone);
+                      const childIndex =
+                        addedElements.indexOf(containedElement);
+                      if (childIndex > -1) {
+                        addedElements.splice(childIndex, 1);
+                      }
+                    }
+                  }
+
+                  seenElements.add(signature);
+                  addedElements.push(match);
+                  if (DEBUG_DEDUP) {
+                    console.log(
+                      `[extractContentData:DEDUP] ✅ ADD ${index + 1}: ${match.tagName} (total: ${addedElements.length})`,
+                    );
+                  }
                   container.appendChild(match.cloneNode(true));
                 });
+
+                console.log(
+                  `[extractContentData:DEDUP] Found: ${allMatches.length} | Added: ${addedElements.length} | Skipped: ${duplicateCount}`,
+                );
+
+                if (duplicateCount > 0) {
+                  console.log(
+                    `[extractContentData:DEDUP] ✓ Removed ${duplicateCount} duplicates`,
+                  );
+                }
+
                 article = container;
                 console.log(
-                  `[extractContentData] Combined ${allMatches.length} elements into container`,
+                  `[extractContentData] Combined ${allMatches.length - duplicateCount} unique elements into container`,
                 );
               } else {
                 console.log(

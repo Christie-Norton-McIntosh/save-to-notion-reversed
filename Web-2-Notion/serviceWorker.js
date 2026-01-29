@@ -3500,6 +3500,16 @@ const tn = {
   },
   content: (e, t, n) => {
     if (!e.content) return;
+
+    console.log("[tn.content] CALLED");
+    console.log("[tn.content] Content type:", e.content.type);
+    console.log("[tn.content] Has notionOutput:", !!e.content.notionOutput);
+    console.log("[tn.content] Has items:", !!e.content.items);
+    console.log(
+      "[tn.content] Current withChildren.content length:",
+      t.withChildren?.content?.length || 0,
+    );
+
     (t.withChildren || ea(t),
       e.content.notionOutput
         ? o(e.content.notionOutput, !0)
@@ -3507,10 +3517,29 @@ const tn = {
           e.content.items.forEach((a) => {
             o(a.notionOutput, !0);
           }));
+
+    console.log(
+      "[tn.content] After adding - withChildren.content length:",
+      t.withChildren?.content?.length || 0,
+    );
+    console.log(
+      "[tn.content] After adding - withChildren.contentBlocks length:",
+      t.withChildren?.contentBlocks?.length || 0,
+    );
+
     function o(a, s) {
       const r = i(a, n),
         c = xr(r),
         u = Object.values(ee(r, c.value.id));
+
+      console.log("[tn.content.o] Processing block:", {
+        type: c.value.type,
+        id: c.value.id,
+        hasContent: !!c.value.content,
+        contentLength: c.value.content?.length || 0,
+        childBlocksCount: u.length,
+      });
+
       c.value.type != "page"
         ? s && c.value.type == "text"
           ? (t.withChildren.content.push(c.value.id, ...c.value.content),

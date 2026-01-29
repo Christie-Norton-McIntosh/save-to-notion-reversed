@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented in this file.
 
+## [5.1.1] - 2026-01-28
+
+### Fixed
+
+- **🐛 Duplicate Content Detection**: Resolved issues with duplicate images and tables appearing in saved content
+  - Images now matched by normalized URL (removes query parameters and hash fragments), alt text, and dimensions
+  - Tables now matched by structure (row count × column count), total text length, and first 500 characters of HTML
+  - Increased signature comparison length from 200 to 500 characters for all elements
+  - Enhanced duplicate detection now properly handles:
+    - Same images loaded with different query parameters (e.g., cache-busting params)
+    - Tables with similar starting content but different overall structure
+    - Content blocks with varying text lengths
+  - Applies to both `scanWebpage.js` (auto-extraction) and `clipContent.js` (manual selection)
+
+### Technical Details
+
+- Image signature format: `img:{normalizedURL}:{altText}:{width}x{height}`
+- Table signature format: `table:{rows}x{cells}:{textLength}:{first500CharsHTML}`
+- Other elements: `{tagName}:{textLength}:{first500CharsHTML}`
+
+---
+
 ## [5.1.0] - 2026-01-27
 
 ### Added

@@ -167,7 +167,7 @@
 
         for (const element of allElements) {
           if (element.shadowRoot) {
-            console.log(
+            console.debug(
               `getData: Checking shadow root of ${element.tagName} at depth ${depth}...`,
             );
 
@@ -198,20 +198,20 @@
       function getData(x) {
         var _a;
         if (x == null) return null;
-        console.log("getData: Processing selector config:", x);
-        console.log("getData: CSS selector:", x.css);
+        console.debug("getData: Processing selector config:", x);
+        console.debug("getData: CSS selector:", x.css);
 
         // First try regular document.querySelector
         let node = document.querySelector(x.css);
-        console.log("getData: Found element in document:", node);
+        console.debug("getData: Found element in document:", node);
 
         // If not found in regular DOM, search shadow DOMs
         if (!node) {
-          console.log(
+          console.debug(
             "getData: Not found in document, searching shadow DOMs...",
           );
           node = findInShadowDOM(x.css);
-          console.log("getData: Found element in shadow DOM:", node);
+          console.debug("getData: Found element in shadow DOM:", node);
         }
 
         if (!node) {
@@ -225,16 +225,18 @@
             (_a = node.textContent) === null || _a === void 0
               ? void 0
               : _a.trim();
-          console.log(
+          console.debug(
             "getData: Direct textContent:",
             v ? `"${v.substring(0, 100)}..."` : "(empty)",
           );
 
           // If empty or only whitespace, drill down to find actual text
           if (!v || v.length === 0) {
-            console.log("getData: Direct textContent empty, drilling down...");
+            console.debug(
+              "getData: Direct textContent empty, drilling down...",
+            );
             v = drillDownForText(node);
-            console.log(
+            console.debug(
               "getData: After drilling:",
               v ? `"${v.substring(0, 100)}..."` : "(empty)",
             );
@@ -242,9 +244,9 @@
 
           // If still empty after drilling, try shadow DOM
           if (!v || v.length === 0) {
-            console.log("getData: Checking shadow DOM...");
+            console.debug("getData: Checking shadow DOM...");
             v = searchShadowDOMForText(node);
-            console.log(
+            console.debug(
               "getData: After shadow DOM search:",
               v ? `"${v.substring(0, 100)}..."` : "(empty)",
             );
@@ -254,7 +256,7 @@
             v = v.trim();
           }
 
-          console.log(
+          console.debug(
             "getData: Final text value:",
             v ? `"${v.substring(0, 100)}..."` : "(empty/null)",
           );
