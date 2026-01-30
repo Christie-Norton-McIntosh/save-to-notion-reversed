@@ -16780,21 +16780,235 @@ function Wv(e) {
     filter: function (e) {
       return "TABLE" === e.nodeName && !Uv(e.rows[0]);
     },
-    replacement: function (e, t) {
-      return (function n(e, t) {
-        var n = new Ov({ hr: "---" });
-        t.removeScriptTags &&
-          (n.remove("script"), n.remove("style"), n.remove("head"));
-        return (
-          n.use(Xv),
-          n.use(Gv),
-          n.use(Yv),
-          n.use(Kv),
-          n.use(qv),
-          n.use($v),
-          n.turndown(e)
+    replacement: function (content, table) {
+      try {
+        // Store images extracted from table cells to render after the table
+        const extractedImages = [];
+        console.debug("[tableWithoutHeading] Starting image extraction");
+
+        // Helper to sanitize cell content (same as tableWithHeading)
+        function sanitizeCell(cell) {
+          let text = "";
+
+          // Clone the cell to avoid modifying the DOM
+          const cellClone = cell.cloneNode(true);
+
+          // Remove script and style tags
+          cellClone
+            .querySelectorAll("script, style")
+            .forEach((el) => el.remove());
+
+          // Extract images from cells - they'll be rendered after the table
+          const images = cellClone.querySelectorAll("img");
+          console.debug(
+            `[tableWithoutHeading] Found ${images.length} images in cell`,
+          );
+          images.forEach((img) => {
+            // Prefer data-original-src (preserved before parsing) over current src
+            const originalSrcAttr = img.getAttribute("data-original-src") || "";
+            const srcAttr = img.getAttribute("src") || "";
+            const srcProp = img.src || "";
+            let src = originalSrcAttr || srcAttr || srcProp;
+            const alt = img.getAttribute("alt") || "";
+            const title = img.getAttribute("title") || "";
+            console.debug(
+              `[tableWithoutHeading] Image data-original-src: ${originalSrcAttr?.substring(0, 70)}...`,
+            );
+            console.debug(
+              `[tableWithoutHeading] Image getAttribute('src'): ${srcAttr?.substring(0, 70)}...`,
+            );
+            console.debug(
+              `[tableWithoutHeading] Image .src property: ${srcProp?.substring(0, 70)}...`,
+            );
+
+            // Store the parent anchor if the image is wrapped in one
+            const parentAnchor =
+              img.parentElement?.tagName === "A" ? img.parentElement : null;
+
+            // If getAttribute returns base64 but we have an anchor, try the anchor href
+            // (ServiceNow wraps images in viewer links)
+            if (src.startsWith("data:") && parentAnchor && parentAnchor.href) {
+              const anchorHref =
+                parentAnchor.getAttribute("href") || parentAnchor.href;
+              console.debug(
+                `[tableWithoutHeading] Src is base64, trying anchor href: ${anchorHref?.substring(0, 70)}...`,
+              );
+              // Only use anchor if it points to an actual image URL, not a viewer page
+              if (
+                anchorHref &&
+                !anchorHref.includes("/viewer/attachment/") &&
+                (anchorHref.includes("/resources/") ||
+                  anchorHref.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i))
+              ) {
+                src = anchorHref;
+                console.debug(
+                  `[tableWithoutHeading] Using anchor href as image URL`,
+                );
+              }
+            }
+
+            // Only extract images with http/https URLs (Notion doesn't support base64/data URLs)
+            const isValidUrl =
+              src && (src.startsWith("http://") || src.startsWith("https://"));
+
+            if (isValidUrl) {
+              const titlePart = title ? ` "${title}"` : "";
+              extractedImages.push(`![${alt}](${src}${titlePart})`);
+              // Replace with alt text if available, otherwise just remove
+              if (alt) {
+                const replacement = document.createTextNode(`[${alt}]`);
+                if (parentAnchor) {
+                  parentAnchor.replaceWith(replacement);
+                } else {
+                  img.replaceWith(replacement);
+                }
+              } else {
+                if (parentAnchor) {
+                  parentAnchor.remove();
+                } else {
+                  img.remove();
+                }
+              }
+            } else {
+              if (parentAnchor) {
+                parentAnchor.remove();
+              } else {
+                img.remove();
+              }
+            }
+          });
+
+          // Handle nested lists
+          const lists = cellClone.querySelectorAll("ul, ol");
+          lists.forEach((list) => {
+            const items = Array.from(list.querySelectorAll("li"))
+              .map((li) => li.textContent.trim())
+              .filter(Boolean);
+            if (items.length) {
+              const replacement = document.createTextNode(items.join(", "));
+              list.parentNode.replaceChild(replacement, list);
+            }
+          });
+
+          // Handle line breaks
+          cellClone.querySelectorAll("br").forEach((br) => {
+            br.replaceWith(document.createTextNode(" "));
+          });
+
+          // Extract text content
+          text = cellClone.textContent || "";
+
+          // Normalize whitespace
+          text = text.replace(/[ \t]+/g, " ");
+          text = text.replace(/\n+/g, " ");
+          text = text.trim();
+
+          // Escape pipe characters
+          text = text.replace(/\|/g, "\\|");
+
+          // Escape backticks
+          text = text.replace(/`/g, "\\`");
+
+          // Limit cell length
+          if (text.length > 500) {
+            text = text.substring(0, 497) + "...";
+          }
+
+          return text;
+        }
+
+        const rows = Array.from(table.rows).map((tr) =>
+          Array.from(tr.cells).map(sanitizeCell),
         );
-      })(t.innerHTML, { removeScriptTags: !0 });
+
+        if (!rows.length) return "";
+
+        // Ensure all rows have same column count
+        const maxCols = Math.max(...rows.map((r) => r.length));
+        rows.forEach((row) => {
+          while (row.length < maxCols) {
+            row.push("");
+          }
+        });
+
+        // Check if table is too complex for markdown table format
+        // Fallback to single-column layout if:
+        // - More than 6 columns (hard to read in Notion)
+        // - More than 99 rows (extremely long table)
+        // - Cells are very long (average > 100 chars)
+        const avgCellLength =
+          rows.reduce((sum, row) => sum + row.join("").length, 0) /
+          (rows.length * maxCols || 1);
+        const isComplexTable =
+          maxCols > 6 || rows.length > 99 || avgCellLength > 100;
+
+        if (isComplexTable) {
+          // Fallback: Render as single-column layout
+          let fallbackContent = "\n\n";
+          rows.forEach((row, idx) => {
+            row.forEach((cell, cellIdx) => {
+              if (cell.trim()) {
+                // Use first cell as bold header, rest as normal text
+                if (cellIdx === 0) {
+                  fallbackContent += `**${cell}**\n\n`;
+                } else {
+                  fallbackContent += `${cell}\n\n`;
+                }
+              }
+            });
+            // Add spacing between rows
+            if (idx < rows.length - 1) {
+              fallbackContent += "---\n\n";
+            }
+          });
+
+          // Append extracted images
+          if (extractedImages.length > 0) {
+            fallbackContent += extractedImages.join("\n\n") + "\n\n";
+          }
+
+          return fallbackContent;
+        }
+
+        // Option 1: Use first row as headers (Notion requires headers)
+        const header = rows[0];
+        const body = rows.slice(1);
+
+        const headerLine = "| " + header.join(" | ") + " |";
+        const sepLine = "| " + header.map(() => "---").join(" | ") + " |";
+        const bodyLines = body.length
+          ? body.map((r) => "| " + r.join(" | ") + " |").join("\n")
+          : "";
+
+        let tableMarkdown = [headerLine, sepLine, bodyLines]
+          .filter(Boolean)
+          .join("\n");
+
+        // Append extracted images after the table
+        if (extractedImages.length > 0) {
+          console.debug(
+            `[tableWithoutHeading] Appending ${extractedImages.length} extracted images`,
+          );
+          console.debug(
+            `[tableWithoutHeading] First image markdown: ${extractedImages[0].substring(0, 100)}`,
+          );
+          tableMarkdown += "\n\n" + extractedImages.join("\n\n");
+        } else {
+          console.debug("[tableWithoutHeading] No images to append");
+        }
+
+        console.debug(
+          `[tableWithoutHeading] Final markdown length: ${tableMarkdown.length}`,
+        );
+        console.debug(
+          `[tableWithoutHeading] Final markdown (last 200 chars): ${tableMarkdown.substring(tableMarkdown.length - 200)}`,
+        );
+
+        return "\n\n" + tableMarkdown + "\n\n";
+      } catch (err) {
+        console.warn("tableWithoutHeading rule failed", err);
+        return content;
+      }
     },
   });
   // Improved GFM table conversion for tables with explicit headers (THEAD or first row with TH)
@@ -16804,6 +17018,10 @@ function Wv(e) {
     },
     replacement: function (content, table) {
       try {
+        // Store images extracted from table cells to render after the table
+        const extractedImages = [];
+        console.debug("[tableWithHeading] Starting image extraction");
+
         // Helper to sanitize cell content
         function sanitizeCell(cell) {
           let text = "";
@@ -16815,6 +17033,66 @@ function Wv(e) {
           cellClone
             .querySelectorAll("script, style")
             .forEach((el) => el.remove());
+
+          // Extract images from cells - they'll be rendered after the table
+          // Notion tables don't support images in cells
+          const images = cellClone.querySelectorAll("img");
+          console.debug(
+            `[tableWithHeading] Found ${images.length} images in cell`,
+          );
+          images.forEach((img) => {
+            let src = img.getAttribute("src") || img.src || "";
+            const alt = img.getAttribute("alt") || "";
+            const title = img.getAttribute("title") || "";
+            console.debug(
+              `[tableWithHeading] Image src attribute: ${src?.substring(0, 50)}...`,
+            );
+
+            // Store the parent anchor if the image is wrapped in one
+            const parentAnchor =
+              img.parentElement?.tagName === "A" ? img.parentElement : null;
+
+            // If image is wrapped in anchor, prefer the anchor href (often points to full-res image)
+            // This avoids base64-converted proxied/resized image URLs
+            if (parentAnchor && parentAnchor.href) {
+              const anchorHref =
+                parentAnchor.getAttribute("href") || parentAnchor.href;
+              console.debug(
+                `[tableWithHeading] Image wrapped in anchor, using href: ${anchorHref?.substring(0, 50)}...`,
+              );
+              src = anchorHref;
+            }
+
+            // Only extract images with http/https URLs (Notion doesn't support base64/data URLs)
+            const isValidUrl =
+              src && (src.startsWith("http://") || src.startsWith("https://"));
+
+            if (isValidUrl) {
+              const titlePart = title ? ` "${title}"` : "";
+              extractedImages.push(`![${alt}](${src}${titlePart})`);
+              // Replace with alt text if available, otherwise just remove
+              if (alt) {
+                const replacement = document.createTextNode(`[${alt}]`);
+                if (parentAnchor) {
+                  parentAnchor.replaceWith(replacement);
+                } else {
+                  img.replaceWith(replacement);
+                }
+              } else {
+                if (parentAnchor) {
+                  parentAnchor.remove();
+                } else {
+                  img.remove();
+                }
+              }
+            } else {
+              if (parentAnchor) {
+                parentAnchor.remove();
+              } else {
+                img.remove();
+              }
+            }
+          });
 
           // Handle nested lists - convert to inline comma-separated
           const lists = cellClone.querySelectorAll("ul, ol");
@@ -16828,25 +17106,18 @@ function Wv(e) {
             }
           });
 
-          // Handle line breaks - convert to newline character to preserve structure
+          // Handle line breaks - convert to space to prevent text from running together
           cellClone.querySelectorAll("br").forEach((br) => {
-            br.replaceWith(document.createTextNode("\n"));
+            br.replaceWith(document.createTextNode(" "));
           });
 
           // Extract text content
           text = cellClone.textContent || "";
 
-          // Normalize whitespace but preserve intentional line breaks
-          text = text.replace(/[ \t]+/g, " "); // collapse horizontal whitespace (spaces/tabs) to single space
-          text = text.replace(/\n[ \t]+/g, "\n"); // remove spaces after newlines
-          text = text.replace(/[ \t]+\n/g, "\n"); // remove spaces before newlines
-          text = text.replace(/\n{3,}/g, "\n\n"); // max 2 consecutive newlines (one blank line)
+          // Normalize whitespace - collapse multiple spaces but keep the text readable
+          text = text.replace(/[ \t]+/g, " "); // collapse horizontal whitespace to single space
+          text = text.replace(/\n+/g, " "); // replace newlines with spaces in table cells
           text = text.trim();
-
-          // Convert newlines to markdown line breaks (two spaces + newline)
-          // This is the standard markdown way to create line breaks within paragraphs
-          // Note: Some markdown parsers also support <br>, but this is more portable
-          text = text.replace(/\n/g, "  \n");
 
           // Escape pipe characters
           text = text.replace(/\|/g, "\\|");
@@ -16885,11 +17156,26 @@ function Wv(e) {
           ? body.map((r) => "| " + r.join(" | ") + " |").join("\n")
           : "";
 
-        return (
+        const tableMarkdown =
           "\n\n" +
           [headerLine, sepLine, bodyLines].filter(Boolean).join("\n") +
-          "\n\n"
-        );
+          "\n\n";
+
+        // Append any images that were extracted from table cells
+        // Notion tables don't support images, so we render them after the table
+        const imagesMarkdown = extractedImages.length
+          ? extractedImages.map((img) => img).join("\n\n") + "\n\n"
+          : "";
+
+        if (extractedImages.length > 0) {
+          console.debug(
+            `[tableWithHeading] Appending ${extractedImages.length} extracted images`,
+          );
+        } else {
+          console.debug("[tableWithHeading] No images to append");
+        }
+
+        return tableMarkdown + imagesMarkdown;
       } catch (err) {
         console.warn("tableWithHeading rule failed", err);
         return content;
@@ -23100,6 +23386,38 @@ const mC = { removeScriptTags: !0 };
 async function vC(e, t) {
   let n = (function r(e, t) {
     var n = new Ov({ hr: "---" });
+
+    // WORKAROUND: Parse HTML to DOM first, then preserve image src in data attributes
+    // before Turndown processes it (prevents browser from converting URLs to base64)
+    let contentToParse = e;
+    if (typeof e === "string") {
+      try {
+        const tempDoc = new DOMParser().parseFromString(e, "text/html");
+        const images = tempDoc.querySelectorAll("img[src]");
+        let preservedCount = 0;
+        images.forEach((img) => {
+          const originalSrc = img.getAttribute("src");
+          if (
+            originalSrc &&
+            (originalSrc.startsWith("http://") ||
+              originalSrc.startsWith("https://"))
+          ) {
+            img.setAttribute("data-original-src", originalSrc);
+            preservedCount++;
+          }
+        });
+        if (preservedCount > 0) {
+          console.log(
+            `[vC/Turndown] Preserved ${preservedCount} image URLs in data-original-src before Turndown processing`,
+          );
+          // Pass the body element (with data attributes) to Turndown instead of string
+          contentToParse = tempDoc.body;
+        }
+      } catch (err) {
+        console.warn("[vC/Turndown] Failed to preserve image src:", err);
+      }
+    }
+
     return (
       t.removeScriptTags &&
         (n.remove("script"), n.remove("style"), n.remove("head")),
@@ -23109,7 +23427,7 @@ async function vC(e, t) {
       n.use(Kv),
       n.use(qv),
       n.use($v),
-      n.turndown(e)
+      n.turndown(contentToParse)
     );
   })(e, mC);
   ((n = (function o(e, t) {

@@ -14620,6 +14620,49 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
   console.warn("[parseFromHtml] Starting pipeline for:", title);
   var content = normalize(html, bestUrl);
   console.warn("[parseFromHtml] After normalize:", content?.substring(0, 500));
+
+  // WORKAROUND: Preserve original image src attributes before first DOM parsing
+  // The browser will convert image URLs to base64 when DOMParser creates the DOM.
+  // We need to store the original src BEFORE that happens, in the HTML string.
+  try {
+    const srcMatches = content.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi);
+    if (srcMatches) {
+      content = content.replace(
+        /<img([^>]*?)src=(["'])([^"']+)\2([^>]*?)>/gi,
+        (match, before, quote, src, after) => {
+          // Only preserve http/https URLs
+          if (src.startsWith("http://") || src.startsWith("https://")) {
+            return `<img${before}src=${quote}${src}${quote} data-original-src=${quote}${src}${quote}${after}>`;
+          }
+          return match;
+        },
+      );
+      const preservedCount = (content.match(/data-original-src=/g) || [])
+        .length;
+      if (preservedCount > 0) {
+        console.log(
+          `[parseFromHtml] Preserved ${preservedCount} original image src attributes`,
+        );
+      }
+    }
+  } catch (e) {
+    console.warn("[parseFromHtml] Failed to preserve image src:", e);
+  }
+
+  // Check for tables before Readability
+  const beforeDoc = new DOMParser().parseFromString(content, "text/html");
+  const tablesBeforeReadability = beforeDoc.querySelectorAll("table");
+  console.warn(
+    `[parseFromHtml] Tables BEFORE Readability: ${tablesBeforeReadability.length}`,
+    tablesBeforeReadability.length > 0
+      ? Array.from(tablesBeforeReadability).map((t) => ({
+          class: t.className,
+          rows: t.querySelectorAll("tr").length,
+          cells: t.querySelectorAll("td, th").length,
+        }))
+      : "none",
+  );
+
   content = execPreParser(content, links);
   console.warn(
     "[parseFromHtml] After execPreParser:",
@@ -14630,6 +14673,21 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
     "[parseFromHtml] After extractWithReadability:",
     content?.substring(0, 500),
   );
+
+  // Check for tables after Readability
+  const afterDoc = new DOMParser().parseFromString(content, "text/html");
+  const tablesAfterReadability = afterDoc.querySelectorAll("table");
+  console.warn(
+    `[parseFromHtml] Tables AFTER Readability: ${tablesAfterReadability.length}`,
+    tablesAfterReadability.length > 0
+      ? Array.from(tablesAfterReadability).map((t) => ({
+          class: t.className,
+          rows: t.querySelectorAll("tr").length,
+          cells: t.querySelectorAll("td, th").length,
+        }))
+      : "⚠️ ALL TABLES REMOVED BY READABILITY",
+  );
+
   content = content ? execPostParser(content, links) : null;
   console.warn(
     "[parseFromHtml] After execPostParser:",
@@ -15038,12 +15096,13 @@ async function scanWebpage() {
         );
 
         if (isMultipleSelectors) {
-          // Recursive function to search shadow DOMs and collect all matches
+          // Recursive function to search shadow DOMs, iframes, and collect all matches
           function searchShadowRootsForAll(root, depth = 0) {
             const matches = [];
             const allElements = root.querySelectorAll("*");
 
             for (const el of allElements) {
+              // Check shadow DOMs
               if (el.shadowRoot) {
                 if (DEBUG_DEDUP) {
                   console.log(
@@ -15069,6 +15128,47 @@ async function scanWebpage() {
                 );
                 if (nestedMatches.length > 0) {
                   matches.push(...nestedMatches);
+                }
+              }
+
+              // Check iframes (if accessible)
+              if (el.tagName === "IFRAME") {
+                try {
+                  const iframeDoc =
+                    el.contentDocument || el.contentWindow?.document;
+                  if (iframeDoc) {
+                    if (DEBUG_DEDUP) {
+                      console.log(
+                        `[scanWebpage:DEDUP] Checking IFRAME at depth ${depth}...`,
+                      );
+                    }
+                    const iframeMatches =
+                      iframeDoc.querySelectorAll(readableZoneSelector);
+                    if (iframeMatches.length > 0) {
+                      if (DEBUG_DEDUP) {
+                        console.log(
+                          `[scanWebpage:DEDUP] ✓ FOUND ${iframeMatches.length} elements in IFRAME at depth ${depth}!`,
+                        );
+                      }
+                      matches.push(...Array.from(iframeMatches));
+                    }
+
+                    // Recurse into iframe's shadow DOMs and nested iframes
+                    const nestedIframeMatches = searchShadowRootsForAll(
+                      iframeDoc,
+                      depth + 1,
+                    );
+                    if (nestedIframeMatches.length > 0) {
+                      matches.push(...nestedIframeMatches);
+                    }
+                  }
+                } catch (e) {
+                  // Cross-origin iframe - can't access
+                  if (DEBUG_DEDUP) {
+                    console.log(
+                      `[scanWebpage:DEDUP] IFRAME inaccessible (cross-origin): ${el.src}`,
+                    );
+                  }
                 }
               }
             }
@@ -15116,11 +15216,12 @@ async function scanWebpage() {
               );
             }
 
-            // Search in shadow DOMs
+            // Search in shadow DOMs AND iframes
             function searchForSelector(root, selector, depth = 0) {
               const matches = [];
               const allElements = root.querySelectorAll("*");
               for (const el of allElements) {
+                // Check shadow DOMs
                 if (el.shadowRoot) {
                   const shadowMatches =
                     el.shadowRoot.querySelectorAll(selector);
@@ -15138,6 +15239,40 @@ async function scanWebpage() {
                     depth + 1,
                   );
                   matches.push(...nested);
+                }
+
+                // Check iframes (if accessible)
+                if (el.tagName === "IFRAME") {
+                  try {
+                    const iframeDoc =
+                      el.contentDocument || el.contentWindow?.document;
+                    if (iframeDoc) {
+                      const iframeMatches =
+                        iframeDoc.querySelectorAll(selector);
+                      if (iframeMatches.length > 0) {
+                        if (DEBUG_DEDUP) {
+                          console.log(
+                            `[scanWebpage:DEDUP]   Found ${iframeMatches.length} in IFRAME at depth ${depth}`,
+                          );
+                        }
+                        matches.push(...Array.from(iframeMatches));
+                      }
+                      // Recurse into iframe's shadow DOMs
+                      const nestedIframe = searchForSelector(
+                        iframeDoc,
+                        selector,
+                        depth + 1,
+                      );
+                      matches.push(...nestedIframe);
+                    }
+                  } catch (e) {
+                    // Cross-origin iframe - can't access
+                    if (DEBUG_DEDUP) {
+                      console.log(
+                        `[scanWebpage:DEDUP]   IFRAME inaccessible (cross-origin): ${el.src}`,
+                      );
+                    }
+                  }
                 }
               }
               return matches;
@@ -15352,11 +15487,12 @@ async function scanWebpage() {
           }
         } else {
           // Single selector - use original recursive logic
-          // Recursive function to search shadow DOMs
+          // Recursive function to search shadow DOMs and iframes
           function searchShadowRootsRecursively(root, depth = 0) {
             const allElements = root.querySelectorAll("*");
 
             for (const el of allElements) {
+              // Check shadow DOMs
               if (el.shadowRoot) {
                 // Check this shadow root
                 const match = el.shadowRoot.querySelector(readableZoneSelector);
@@ -15374,6 +15510,36 @@ async function scanWebpage() {
                 );
                 if (nestedMatch) return nestedMatch;
               }
+
+              // Check iframes (if accessible)
+              if (el.tagName === "IFRAME") {
+                try {
+                  const iframeDoc =
+                    el.contentDocument || el.contentWindow?.document;
+                  if (iframeDoc) {
+                    // Check this iframe document
+                    const match = iframeDoc.querySelector(readableZoneSelector);
+                    if (match) {
+                      console.log(
+                        `[scanwebpage] ✓ FOUND element in IFRAME at depth ${depth}!`,
+                      );
+                      return match;
+                    }
+
+                    // Recurse into iframe's shadow DOMs and nested iframes
+                    const nestedMatch = searchShadowRootsRecursively(
+                      iframeDoc,
+                      depth + 1,
+                    );
+                    if (nestedMatch) return nestedMatch;
+                  }
+                } catch (e) {
+                  // Cross-origin iframe - can't access
+                  console.log(
+                    `[scanwebpage] IFRAME inaccessible (cross-origin): ${el.src}`,
+                  );
+                }
+              }
             }
             return null;
           }
@@ -15383,7 +15549,7 @@ async function scanWebpage() {
 
         if (liveElement) {
           console.log(
-            "[scanWebpage] FOUND element via recursive shadow DOM search!",
+            "[scanWebpage] FOUND element via recursive shadow DOM/iframe search!",
           );
         } else {
           console.log("[scanWebpage] Not found even with recursive search");
@@ -15522,6 +15688,23 @@ async function scanWebpage() {
                 `[scanWebpage] Iframe ${i} element text length:`,
                 iframeElement.textContent?.length,
               );
+
+              // Debug: Check image sources in iframe BEFORE any processing
+              const iframeImages = iframeElement.querySelectorAll("img");
+              console.log(
+                `[scanWebpage] Iframe ${i} has ${iframeImages.length} images`,
+              );
+              if (iframeImages.length > 0) {
+                console.log(
+                  `[scanWebpage] First image src in iframe:`,
+                  iframeImages[0].src?.substring(0, 100),
+                );
+                console.log(
+                  `[scanWebpage] First image getAttribute('src'):`,
+                  iframeImages[0].getAttribute("src")?.substring(0, 100),
+                );
+              }
+
               // If we have multiple selectors, try to deduplicate within the
               // iframe fragment before passing to the parser (fixes cases where
               // the page provides a pre-extracted blob that already contains
@@ -15678,6 +15861,29 @@ async function scanWebpage() {
         "[scanWebpage] Element text length:",
         liveElement.textContent?.length,
       );
+
+      // Debug: Check image sources in live element BEFORE any processing
+      const liveImages = liveElement.querySelectorAll("img");
+      console.log(`[scanWebpage] Live element has ${liveImages.length} images`);
+      if (liveImages.length > 0) {
+        console.log(
+          `[scanWebpage] First image src:`,
+          liveImages[0].src?.substring(0, 100),
+        );
+        console.log(
+          `[scanWebpage] First image getAttribute('src'):`,
+          liveImages[0].getAttribute("src")?.substring(0, 100),
+        );
+
+        // Check if wrapped in anchor
+        if (liveImages[0].parentElement?.tagName === "A") {
+          console.log(
+            `[scanWebpage] First image wrapped in anchor with href:`,
+            liveImages[0].parentElement.href?.substring(0, 100),
+          );
+        }
+      }
+
       // Wrap in a complete HTML document structure for parsing
       htmlToProcess = `<!DOCTYPE html><html><head></head><body>${liveElement.outerHTML}</body></html>`;
     } else {
@@ -16187,3 +16393,4 @@ scanWebpage().then(done);
     }
   });
 })();
+window.__STN_DEBUG_DEDUP = true;
