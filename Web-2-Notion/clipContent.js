@@ -3130,17 +3130,15 @@ z-index: 2;
         });
 
         if (results.length === 0) {
-          const fallback = extractContentData(rootElement, null);
-          if (fallback) {
-            return {
-              title: fallback.title,
-              content: fallback.content,
-              textContent: fallback.textContent,
-              url: fallback.url,
-              elementCount: fallback.elementCount,
-              embeddedPostFormat: false,
-            };
-          }
+          // REMOVED: Fallback extraction that was causing duplicates
+          // Previously, if selectors didn't match, we extracted the entire page,
+          // which often included content that overlapped with the intended selector regions.
+          // This caused duplicate content blocks in the final output.
+          console.warn(
+            "[buildContentFromSelectors] No content found for configured selectors:",
+            selectorEntries.map((e) => e.selector).join(", "),
+            "- Please check your selector configuration for this domain.",
+          );
           return null;
         }
 

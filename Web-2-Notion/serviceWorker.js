@@ -426,29 +426,17 @@ class is {
           De
         );
     }
+    return Be;
   }
-} // <-- Add missing class closing bracket
-function makeBlock(e) {
-  const block = {
-    object: "block",
-    type: e.blockType,
-    ...(e.blockType && { [e.blockType]: e.blockData }),
-    ...(e.blockId && { id: e.blockId }),
-    ...(e.parentId && { parent_id: e.parentId }),
-    ...(e.archived !== undefined && { archived: e.archived }),
-    ...(e.has_children !== undefined && { has_children: e.has_children }),
-  };
-  // Only include format for callout blocks, and only with valid keys
-  if (e.blockType === "callout" && (e.blockFormat || e.format)) {
-    block.format = {};
-    if (e.blockFormat) {
-      Object.assign(block.format, e.blockFormat);
-    }
-    if (e.format && e.format.page_icon) {
-      block.format.page_icon = e.format.page_icon;
-    }
+  _makeHeader(t, n) {
+    const o = `${t}/${this.appName}(${ss()}):`;
+    return this.useColor && n ? n + o + se.reset : o;
   }
-  return block;
+}
+function ss() {
+  let t = new Date().getTimezoneOffset() * 6e4,
+    n = Date.now() - t;
+  return new Date(n).toISOString().replace(/Z|-|:/g, "");
 }
 var rs = { Logger: is, RET_FAIL: De, RET_SUCCESS: Be };
 const No = new rs.Logger("notionapi-agent");
@@ -1194,15 +1182,17 @@ const Le = {
   },
   limits: { clipTwitterThread: 3, clipEmail: 6, showRemain: 3, freeForms: 4 },
   signup: {
-    privacyPolicyUrl: "",
-    termsOfServiceUrl: "",
+    privacyPolicyUrl:
+      "https://anisg.notion.site/Privacy-Policy-Save-to-Notion-11e1ac17c54f42f1b7b6f95e5187ba32",
+    termsOfServiceUrl:
+      "https://anisg.notion.site/Terms-Conditions-Save-to-Notion-1e2e8dfb37bc408fb682ea2c9753ea6f",
   },
   auth: {
-    clientId: "",
-    cognitoUrl: "",
+    clientId: "6mm6i3ehl149cicimepgkplu8i",
+    cognitoUrl: "https://auth.savetonotion.so",
   },
   pricing: { monthlyPrice: 6, annualPrice: 50 },
-  website: { app: "" },
+  website: { app: "https://app.savetonotion.so" },
   backend: { url: "https://6kbxs6snzg.execute-api.us-east-1.amazonaws.com/v1" },
   links: { changelog: "https://savetonotion.so/changelog" },
   marketing: {
@@ -2008,73 +1998,15 @@ class ce {
           var y;
           let g = a.substr(5, a.indexOf(";") - 5);
           console.log("gonna upload 1/2...");
-          // Request an upload URL from Notion. The Notion backend can occasionally
-          // return transient 503 (PgPoolWaitConnectionTimeout) errors; treat these
-          // as retryable and perform exponential backoff with jitter.
-          const maxRetries = 4;
-          let p;
-          for (let attempt = 0; attempt <= maxRetries; attempt++) {
-            try {
-              p = await this.post("/getUploadFileUrl", {
-                bucket: "secure",
-                name: u ?? `stn-${fn(40)}.${cr(g) ?? "jpg"}`,
-                contentType: g,
-                record: r,
-                supportExtraHeaders: !1,
-                contentLength: a.length,
-              });
-              break; // success
-            } catch (err) {
-              // If the error looks transient (503 or known retryable error), retry
-              const msg = String(err?.message || "").toLowerCase();
-              const isRetryable =
-                msg.includes("notion api returned 503") ||
-                msg.includes("pgpoolwaitconnectiontimeout") ||
-                msg.includes("please retry later") ||
-                (err && err.retryable);
-              console.warn(
-                `[uploadFile] getUploadFileUrl attempt ${attempt} failed:`,
-                err,
-              );
-              if (!isRetryable || attempt === maxRetries) {
-                console.error(
-                  "uploadFile: getUploadFileUrl failed after retries",
-                  err,
-                );
-                // Could not get an upload URL after retries — enqueue for later retry
-                try {
-                  const queueId = await enqueueUploadRetry({
-                    dataB64: a,
-                    name: u,
-                    record: r,
-                    userId:
-                      this?.context?.activeUserId ||
-                      this?.context?.user?.id ||
-                      null,
-                    reason: "getUploadFileUrlFailed",
-                  });
-                  console.warn(
-                    `uploadFile: enqueued upload (id=${queueId}) after getUploadFileUrl failures`,
-                  );
-                  return { success: !1, enqueued: !0, queueId };
-                } catch (enqueueErr) {
-                  console.error("uploadFile: enqueue failed", enqueueErr);
-                  throw err;
-                }
-              }
-
-              // Exponential backoff with jitter
-              const base = 1000; // ms
-              const delay = Math.floor(
-                base * Math.pow(2, attempt) + Math.random() * 500,
-              );
-              console.log(
-                `[uploadFile] Retrying getUploadFileUrl in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`,
-              );
-              await new Promise((res) => setTimeout(res, delay));
-            }
-          }
-          const h = rr(p.url, r.spaceId);
+          const p = await this.post("/getUploadFileUrl", {
+              bucket: "secure",
+              name: u ?? `stn-${fn(40)}.${cr(g) ?? "jpg"}`,
+              contentType: g,
+              record: r,
+              supportExtraHeaders: !1,
+              contentLength: a.length,
+            }),
+            h = rr(p.url, r.spaceId);
           console.log("gonna upload 2/2...");
           try {
             const w = await Ys(p.signedPutUrl, {
@@ -2096,27 +2028,7 @@ class ce {
               { success: !0, url: p.url, fileId: h }
             );
           } catch (w) {
-            console.error("error uploading", w);
-            // Try to enqueue the upload for retry later
-            try {
-              const queueId = await enqueueUploadRetry({
-                dataB64: a,
-                name: u,
-                record: r,
-                userId:
-                  this?.context?.activeUserId ||
-                  this?.context?.user?.id ||
-                  null,
-                reason: "putFailed",
-              });
-              console.warn(
-                `uploadFile: enqueued upload (id=${queueId}) after PUT failure`,
-              );
-              return { success: !1, enqueued: !0, queueId };
-            } catch (enqueueErr) {
-              console.error("uploadFile: enqueue failed", enqueueErr);
-              return { success: !1 };
-            }
+            return (console.error("error uploading", w), { success: !1 });
           }
         },
         createWebClippedPage: async (a, { title: s, url: r }) => {
@@ -2260,214 +2172,97 @@ class ce {
           var g;
           const s = a.id || j();
           let r = Pt(a.notionParentId);
-
-          // DISABLED: Callout wrapper for collection pages
-          // Now that we add a "Related Links" heading in scanWebpage.js before embedded
-          // selector content, we don't need a callout wrapper. The heading provides
-          // sufficient visual separation between regular content and embedded content.
-          const isCollectionPageWithCallout = false;
-
-          // Set default format for callout blocks if not already set
-          // But preserve format for page blocks (which may have icon/cover from templates)
-          if (a.blockFormat === "callout" && !a.format) {
-            a.format = { page_icon: a.calloutIcon ?? "📋" };
-          }
-          // DON'T delete format for other block types - pages need it for icon/cover!
-
-          console.log("[addBlockGetOperations] Creating block:", {
-            blockFormat: a.blockFormat,
-            notionParentTable: a.notionParentTable,
-            calloutIcon: a.calloutIcon,
-            isCollectionPageWithCallout,
-            text: a.text?.substring?.(0, 100),
-            format: a.format,
-          });
           const c = {
-            [$.bullet]: { type: "bulleted_list" },
-            [$.code]: {
-              type: "code",
-              properties: { language: [["Plain Text"]] },
+              [$.bullet]: { type: "bulleted_list" },
+              [$.code]: {
+                type: "code",
+                properties: { language: [["Plain Text"]] },
+              },
+              [$.toggle]: { type: "toggle" },
+              [$.quote]: { type: "quote" },
+              page: { type: "page" },
+              callout: {
+                type: "callout",
+                format: { page_icon: a.calloutIcon ?? "📋" },
+              },
             },
-            [$.toggle]: { type: "toggle" },
-            [$.quote]: { type: "quote" },
-            page: { type: "page" },
-            callout: {
-              type: "callout",
-              format: { page_icon: a.calloutIcon ?? "📋" },
-            },
-          };
-
-          // If this is a collection page that should contain a callout, create a callout child
-          let calloutChildBlocks = [];
-          if (isCollectionPageWithCallout && a.withChildren?.contentBlocks) {
-            const calloutId = j();
-            // Create callout block as first child
-            calloutChildBlocks = [
+            u = [
               {
+                id: s,
                 table: "block",
-                id: calloutId,
                 path: [],
                 command: "update",
-                args: {
-                  type: "callout",
-                  id: calloutId,
-                  parent_id: s,
-                  parent_table: "block",
-                  space_id: a.notionSpaceId,
-                  alive: true,
-                  version: 1,
-                  created_time: Date.now(),
-                  last_edited_time: Date.now(),
-                  ...(a.userId && {
-                    created_by_table: "notion_user",
-                    created_by_id: a.userId,
-                    last_edited_by_table: "notion_user",
-                    last_edited_by_id: a.userId,
-                  }),
-                  properties: {
-                    title: [[" "]], // Empty callout
-                  },
-                  format: {
-                    page_icon: a.calloutIcon ?? "📋",
-                  },
-                },
-              },
-              {
-                table: "block",
-                id: s,
-                path: ["content"],
-                command: "listAfter",
-                args: {
-                  id: calloutId,
-                },
-              },
-            ];
-
-            // Move all content blocks to be children of the callout instead of the page
-            const contentBlockOps = a.withChildren.contentBlocks.flatMap(
-              (p, index) => [
-                {
-                  table: "block",
-                  id: p.value.id,
-                  path: [],
-                  command: "update",
-                  args: {
-                    parent_id: calloutId, // Changed from s (page) to calloutId
-                    parent_table: "block",
-                    space_id: a.notionSpaceId,
-                    ...p.value,
-                  },
-                },
-                {
-                  table: "block",
-                  id: calloutId, // Changed from s (page) to calloutId
-                  path: ["content"],
-                  command: "listAfter",
-                  args: {
-                    ...(index > 0
-                      ? {
-                          after:
-                            a.withChildren.contentBlocks[index - 1].value.id,
-                        }
-                      : {}),
-                    id: p.value.id,
-                  },
-                },
-              ],
-            );
-
-            calloutChildBlocks.push(...contentBlockOps);
-          }
-
-          let u = [
-            {
-              id: s,
-              table: "block",
-              path: [],
-              command: "update",
-              args: Do([
-                {
-                  type: "bulleted_list",
-                  id: s,
-                  space_id: a.notionSpaceId,
-                  parent_id: r,
-                  parent_table: a.notionParentTable || "block",
-                  alive: !0,
-                  version: 1,
-                  created_time: Date.now(),
-                  last_edited_time: Date.now(),
-                  ...(a.userId && {
-                    created_by_table: "notion_user",
-                    created_by_id: a.userId,
-                    last_edited_by_table: "notion_user",
-                    last_edited_by_id: a.userId,
-                  }),
-                  properties: {
-                    ...(a.text && {
-                      title: Array.isArray(a.text) ? a.text : [[a.text]],
-                    }),
-                    ...(a.properties || {}),
-                  },
-                  ...(a.copiedFrom && { copied_from: a.copiedFrom }),
-                },
-                c[a.blockFormat] || { type: a.blockFormat },
-                (a.properties && { properties: a.properties }) || {},
-                (a.format && { format: a.format }) || {},
-                // Only include content for page blocks, not callout or other non-page blocks
-                (a.blockFormat === "page" &&
-                  a.withChildren &&
-                  !isCollectionPageWithCallout && {
-                    // Don't include if we're creating callout child
-                    content: a.withChildren.content,
-                  }) ||
-                  {},
-              ]),
-            },
-            ...(a.blockFormat != "page" || a.isSubpage
-              ? [
+                args: Do([
                   {
-                    table: "block",
-                    id: r,
-                    path: ["content"],
-                    command: (a.afterId, "listAfter"),
-                    args: {
-                      ...(a.afterId ? { after: a.afterId } : {}),
-                      id: s,
-                    },
-                  },
-                ]
-              : []),
-            ...((a.blockColor && [
-              {
-                table: "block",
-                id: s,
-                path: ["format"],
-                command: "update",
-                args: { block_color: a.blockColor },
-              },
-            ]) ||
-              []),
-            ...((a.fileIds &&
-              a.fileIds.length > 0 && [
-                {
-                  pointer: {
-                    table: "block",
+                    type: "bulleted_list",
                     id: s,
-                    spaceId: a.notionSpaceId,
+                    space_id: a.notionSpaceId,
+                    parent_id: r,
+                    parent_table: a.notionParentTable || "block",
+                    alive: !0,
+                    version: 1,
+                    created_time: Date.now(),
+                    last_edited_time: Date.now(),
+                    ...(a.userId && {
+                      created_by_table: "notion_user",
+                      created_by_id: a.userId,
+                      last_edited_by_table: "notion_user",
+                      last_edited_by_id: a.userId,
+                    }),
+                    properties: {
+                      ...(a.text && {
+                        title: Array.isArray(a.text) ? a.text : [[a.text]],
+                      }),
+                      ...(a.properties || {}),
+                    },
+                    ...(a.copiedFrom && { copied_from: a.copiedFrom }),
                   },
-                  path: ["file_ids"],
-                  command: "listAfterMulti",
-                  args: { ids: a.fileIds },
+                  c[a.blockFormat] || { type: a.blockFormat },
+                  (a.properties && { properties: a.properties }) || {},
+                  (a.format && { format: a.format }) || {},
+                  (a.withChildren && { content: a.withChildren.content }) || {},
+                ]),
+              },
+              ...(a.blockFormat != "page" || a.isSubpage
+                ? [
+                    {
+                      table: "block",
+                      id: r,
+                      path: ["content"],
+                      command: (a.afterId, "listAfter"),
+                      args: {
+                        ...(a.afterId ? { after: a.afterId } : {}),
+                        id: s,
+                      },
+                    },
+                  ]
+                : []),
+              ...((a.blockColor && [
+                {
+                  table: "block",
+                  id: s,
+                  path: ["format"],
+                  command: "update",
+                  args: { block_color: a.blockColor },
                 },
               ]) ||
-              []),
-            // Add callout child blocks if this is a collection page with callout
-            ...calloutChildBlocks,
-            // Add regular content blocks only if NOT creating a callout wrapper
-            ...((((g = a.withChildren) == null ? void 0 : g.contentBlocks) &&
-              !isCollectionPageWithCallout &&
-              a.withChildren.contentBlocks.flatMap((p, index) => [
-                {
+                []),
+              ...((a.fileIds &&
+                a.fileIds.length > 0 && [
+                  {
+                    pointer: {
+                      table: "block",
+                      id: s,
+                      spaceId: a.notionSpaceId,
+                    },
+                    path: ["file_ids"],
+                    command: "listAfterMulti",
+                    args: { ids: a.fileIds },
+                  },
+                ]) ||
+                []),
+              ...((((g = a.withChildren) == null ? void 0 : g.contentBlocks) &&
+                a.withChildren.contentBlocks.map((p) => ({
                   table: "block",
                   id: p.value.id,
                   path: [],
@@ -2478,29 +2273,9 @@ class ce {
                     space_id: a.notionSpaceId,
                     ...p.value,
                   },
-                },
-                {
-                  table: "block",
-                  id: s,
-                  path: ["content"],
-                  command: "listAfter",
-                  args: {
-                    ...(index > 0
-                      ? {
-                          after:
-                            a.withChildren.contentBlocks[index - 1].value.id,
-                        }
-                      : {}),
-                    id: p.value.id,
-                  },
-                },
-              ])) ||
-              []),
-          ];
-          console.log(
-            "[addBlockGetOperations] Generated operations:",
-            JSON.stringify(u, null, 2),
-          );
+                }))) ||
+                []),
+            ];
           return { newBlockId: s, operations: u };
         },
         addBlock: async (a) => {
@@ -2513,44 +2288,8 @@ class ce {
                 ...a.extraOperationsFn({ newBlockId: c, operations: r }),
               ])
             : (s = r);
-
-          // For callout blocks with children, split operations to avoid incomplete_ancestor_path error
-          console.log("[addBlock] Checking split logic:", {
-            blockFormat: a.blockFormat,
-            hasChildren: !!a.withChildren?.contentBlocks?.length,
-            totalOps: s.length,
-          });
-
-          if (
-            a.blockFormat === "callout" &&
-            a.withChildren?.contentBlocks?.length > 0
-          ) {
-            console.log(
-              "[addBlock] Splitting callout operations into 3 transactions",
-            );
-            // Transaction 1: Create the parent callout block ONLY (no listAfter yet)
-            const createParentOp = s.slice(0, 1);
-            console.log(
-              "[addBlock] Transaction 1 - Create parent:",
-              JSON.stringify(createParentOp, null, 2),
-            );
-            await this.submitOperations(createParentOp, a.notionSpaceId);
-
-            // Transaction 2: Add parent to collection + create all child blocks
-            const addToCollectionAndChildrenOps = s.slice(1);
-            console.log(
-              "[addBlock] Transaction 2 - Add to collection + children ops count:",
-              addToCollectionAndChildrenOps.length,
-            );
-            const u = io(addToCollectionAndChildrenOps, 300);
-            for (let g of u) await this.submitOperations(g, a.notionSpaceId);
-          } else {
-            console.log("[addBlock] Using standard single transaction");
-            // Original logic for non-callout blocks
-            const u = io(s, 300);
-            for (let g of u) await this.submitOperations(g, a.notionSpaceId);
-          }
-
+          const u = io(s, 300);
+          for (let g of u) await this.submitOperations(g, a.notionSpaceId);
           return (a.withCallback && (await a.withCallback(c)), c);
         },
         patchBlocks: async (a) => {
@@ -2826,16 +2565,8 @@ class ce {
       )),
       console.log("Done call", a),
       !a.ok)
-    ) {
-      const errorBody = await a.text();
-      console.error(
-        `[_axios] Notion API Error ${a.status} for ${t}:`,
-        errorBody,
-      );
-      throw new Error(
-        `Notion API returned ${a.status} for route ${t}: ${errorBody}`,
-      );
-    }
+    )
+      throw new Error(`Notion API returned ${a.status} for route ${t}`);
     return a.json();
   }
   post(t, n = {}, o = {}) {
@@ -3049,32 +2780,13 @@ function fr(
   var g;
   let s = e;
   const r = ((g = s.caption) == null ? void 0 : g.length) > 0,
-    c = n.savingTo == "collection",
-    isEmbedded = s.embeddedPostFormat || s.highlightFormat === "callout";
+    c = n.savingTo == "collection";
   let u = c ? `"${s.text}"${r ? ` — ${s.caption}` : ""}` : s.text;
-
-  // CRITICAL: Callout blocks cannot be direct children of collections
-  // When saving to collection with embedded/callout format, always create a page block
-  const blockFormat = c
-    ? "page"
-    : isEmbedded
-      ? "callout"
-      : (s.highlightFormat ?? $.bullet);
-
-  console.log("[fr] Building block config:", {
-    highlightFormat: s.highlightFormat,
-    embeddedPostFormat: s.embeddedPostFormat,
-    calloutIcon: s.calloutIcon,
-    savingToCollection: c,
-    isEmbedded,
-    computedBlockFormat: blockFormat,
-  });
   return {
     ...t,
     text: u,
-    blockFormat: blockFormat,
+    blockFormat: c ? "page" : (s.highlightFormat ?? $.bullet),
     ...(s.highlightColor && !c ? { blockColor: pr(s.highlightColor) } : {}),
-    ...(s.calloutIcon ? { calloutIcon: s.calloutIcon } : {}),
     afterId: n.notionListAfterId,
     notionSpaceId: n.notionSpaceId,
     userId: i,
@@ -3113,31 +2825,10 @@ function wr(
     savingAs: a,
   },
 ) {
-  const c = n.savingTo == "collection";
-  const isEmbedded = e.embeddedPostFormat || e.highlightFormat === "callout";
-  const format =
-    isEmbedded && e.calloutIcon ? { page_icon: e.calloutIcon } : undefined;
-
-  // CRITICAL: Callout blocks cannot be direct children of collections
-  // When saving to collection with embedded/callout format, always create a page block
-  const blockFormat = c ? "page" : isEmbedded ? "callout" : a;
-
-  console.log("[wr] Building note block config:", {
-    highlightFormat: e.highlightFormat,
-    embeddedPostFormat: e.embeddedPostFormat,
-    calloutIcon: e.calloutIcon,
-    savingAs: a,
-    savingToCollection: c,
-    isEmbedded,
-    computedBlockFormat: blockFormat,
-    format,
-  });
   return {
     ...t,
     text: e.note,
-    blockFormat: blockFormat,
-    ...(format ? { format } : {}),
-    ...(e.calloutIcon ? { calloutIcon: e.calloutIcon } : {}),
+    blockFormat: a,
     afterId: n.notionListAfterId,
     notionSpaceId: n.notionSpaceId,
     userId: o,
@@ -3449,27 +3140,10 @@ function xr(e) {
 const tn = {
   pageFrontImage: (e, t, n) => {
     const o = e.image;
-    console.log("[tn.pageFrontImage] CALLED - Extension code is updated!");
-    // Only process images that haven't been uploaded yet (needToUploadFile = true)
-    // Images already uploaded by Ar will have needToUploadFile = false
-    if (o.items.length != 0) {
-      console.log(
-        "[tn.pageFrontImage] Image items:",
-        o.items.map((i) => ({
-          name: i.name,
-          needToUploadFile: i.needToUploadFile,
-          hasImgUrl: !!i.imgUrl,
-          hasFileId: !!i.fileId,
-        })),
-      );
-      const imagesToProcess = o.items.filter((i) => i.needToUploadFile);
-      console.log(
-        `[tn.pageFrontImage] Total images: ${o.items.length}, Need upload: ${imagesToProcess.length}`,
-      );
-      imagesToProcess.forEach((i) => {
+    o.items.length != 0 &&
+      o.items.forEach((i) => {
         Pr(i, t, n);
       });
-    }
   },
   template: (e, t, n) => {
     if (!e.template) return;
@@ -3483,33 +3157,20 @@ const tn = {
     };
     let o = e.template.properties ?? {},
       i = e.template.format ?? {};
-
-    // IMPORTANT: Template format should take precedence
-    // Don't let existing t.format overwrite template icon/cover
-    t.format = {
-      ...t.format, // existing format (lower priority)
-      ...i, // template format (higher priority - includes icon/cover)
+    ((t.format = {
+      ...i,
+      ...t.format,
       copied_from_pointer: {
         table: "block",
         id: e.template.id,
         spaceId: n.spaceId,
       },
-    };
-    t.properties = { ...ee(o, "title"), ...t.properties };
-    t.copiedFrom = e.template.id;
+    }),
+      (t.properties = { ...ee(o, "title"), ...t.properties }),
+      (t.copiedFrom = e.template.id));
   },
   content: (e, t, n) => {
     if (!e.content) return;
-
-    console.log("[tn.content] CALLED");
-    console.log("[tn.content] Content type:", e.content.type);
-    console.log("[tn.content] Has notionOutput:", !!e.content.notionOutput);
-    console.log("[tn.content] Has items:", !!e.content.items);
-    console.log(
-      "[tn.content] Current withChildren.content length:",
-      t.withChildren?.content?.length || 0,
-    );
-
     (t.withChildren || ea(t),
       e.content.notionOutput
         ? o(e.content.notionOutput, !0)
@@ -3517,29 +3178,10 @@ const tn = {
           e.content.items.forEach((a) => {
             o(a.notionOutput, !0);
           }));
-
-    console.log(
-      "[tn.content] After adding - withChildren.content length:",
-      t.withChildren?.content?.length || 0,
-    );
-    console.log(
-      "[tn.content] After adding - withChildren.contentBlocks length:",
-      t.withChildren?.contentBlocks?.length || 0,
-    );
-
     function o(a, s) {
       const r = i(a, n),
         c = xr(r),
         u = Object.values(ee(r, c.value.id));
-
-      console.log("[tn.content.o] Processing block:", {
-        type: c.value.type,
-        id: c.value.id,
-        hasContent: !!c.value.content,
-        contentLength: c.value.content?.length || 0,
-        childBlocksCount: u.length,
-      });
-
       c.value.type != "page"
         ? s && c.value.type == "text"
           ? (t.withChildren.content.push(c.value.id, ...c.value.content),
@@ -3573,9 +3215,6 @@ const tn = {
   },
 };
 function Ur(e, t, n) {
-  console.log("[Ur] ===== CALLED =====");
-  console.log("[Ur] Input properties:", Object.keys(t ?? {}));
-
   const o = Object.entries(t ?? {}),
     i = o
       .filter(([g, p]) => g in en)
@@ -3593,87 +3232,16 @@ function Ur(e, t, n) {
       format: Object.fromEntries(i),
       ...(c.length > 0 ? { fileIds: c } : {}),
     };
-
-  console.log(
-    "[Ur] Properties in en (format):",
-    i.map(([k]) => k),
-  );
-  console.log(
-    "[Ur] Properties in tn (handlers):",
-    a.map(([k]) => k),
-  );
-  console.log(
-    "[Ur] Regular properties:",
-    r.map(([k]) => k),
-  );
-  console.log("[Ur] Initial format keys:", Object.keys(u.format));
-  console.log(
-    "[Ur] Has page_icon in format BEFORE tn handlers:",
-    !!u.format.page_icon,
-  );
-  console.log(
-    "[Ur] Has page_cover in format BEFORE tn handlers:",
-    !!u.format.page_cover,
-  );
-
   return (
     a.forEach(([g, p]) => {
-      console.log(`[Ur] Calling tn.${g} handler...`);
       tn[g](p, u, n);
-      console.log(`[Ur] After tn.${g} - format keys:`, Object.keys(u.format));
-      console.log(`[Ur] After tn.${g} - has page_icon:`, !!u.format.page_icon);
-      console.log(
-        `[Ur] After tn.${g} - has page_cover:`,
-        !!u.format.page_cover,
-      );
     }),
-    console.log("[Ur] ===== FINAL RESULT ====="),
-    console.log("[Ur] Final format:", JSON.stringify(u.format, null, 2)),
-    console.log("[Ur] Final format keys:", Object.keys(u.format)),
-    console.log("[Ur] Final has page_icon:", !!u.format.page_icon),
-    console.log("[Ur] Final has page_cover:", !!u.format.page_cover),
     u
   );
 }
 function Er(e, t, n) {
-  console.log("[Er] ===== CALLED =====");
-  console.log(
-    "[Er] Block BEFORE merge - format:",
-    JSON.stringify(e.format, null, 2),
-  );
-  console.log(
-    "[Er] Block BEFORE merge - has page_icon:",
-    !!e.format?.page_icon,
-  );
-  console.log(
-    "[Er] Block BEFORE merge - has page_cover:",
-    !!e.format?.page_cover,
-  );
-
   const o = Ur(e, t, n);
-
-  console.log(
-    "[Er] Result from Ur - format:",
-    JSON.stringify(o.format, null, 2),
-  );
-  console.log("[Er] Result from Ur - has page_icon:", !!o.format?.page_icon);
-  console.log("[Er] Result from Ur - has page_cover:", !!o.format?.page_cover);
-
   Et(e, o);
-
-  console.log(
-    "[Er] Block AFTER merge - format:",
-    JSON.stringify(e.format, null, 2),
-  );
-  console.log(
-    "[Er] Block AFTER merge - format keys:",
-    Object.keys(e.format || {}),
-  );
-  console.log("[Er] Block AFTER merge - has page_icon:", !!e.format?.page_icon);
-  console.log(
-    "[Er] Block AFTER merge - has page_cover:",
-    !!e.format?.page_cover,
-  );
 }
 async function Or(e) {
   return e.context.notionClient.custom.uploadFile({
@@ -3780,18 +3348,7 @@ async function Ar({ properties: e, record: t, parentRecord: n, context: o }) {
       },
       context: o,
     });
-    if (h == null) throw new Error("failed to upload file");
-    if (h.success == !1) {
-      if (h.enqueued) {
-        // Upload will be retried in background. Keep needToUploadFile = true and continue.
-        o.updateProgressToast({
-          message: `Upload queued for retry (${r + 1}/${i.length})`,
-        });
-        r += 1;
-        continue;
-      }
-      throw new Error("failed to upload file");
-    }
+    if (h == null || h.success == !1) throw new Error("failed to upload file");
     const y = e[c],
       w = Object.keys(y)[0];
     if (w == "content") {
@@ -3858,9 +3415,6 @@ async function ta(
     highlightContextData: s,
   },
 ) {
-  console.log("========================================");
-  console.log("[ta] ★ Extension code v2026-01-28-18:00 loaded ★");
-  console.log("========================================");
   var E;
   o("load user...");
   const r = e.highlight,
@@ -3885,11 +3439,6 @@ async function ta(
     updateHighlight: async (C) => {},
   };
   let y = r.properties;
-  console.log(
-    "[ta] Initial properties from highlight:",
-    JSON.stringify(y, null, 2),
-  );
-
   r.type == "screenshot" &&
     (y = {
       ...y,
@@ -3908,122 +3457,26 @@ async function ta(
         },
       },
     });
-  console.log("[ta] Before calling br with highlight:", {
-    id: r.id,
-    type: r.type,
-    highlightFormat: r.highlightFormat,
-    embeddedPostFormat: r.embeddedPostFormat,
-    calloutIcon: r.calloutIcon,
-  });
   const w = br(r, h),
     I = J();
-
-  console.log("[ta] Page info:", {
-    hasPage: !!n,
-    pageId: n?.id,
-    pageType: n?.type,
-    capturedWebpageFormId: u?.formId,
-    hasTemplateInProperties: !!y.template,
-  });
-
-  // Load form template and apply it to properties BEFORE uploading files
-  // NOTE: Forms are an extension feature (not Notion templates).
-  // If template is already in properties, form lookup may be null (expected).
-  // Try to get form from: 1) page.id, 2) capturedWebpage.formId
-  const formId = n?.id || u?.formId;
-  const form = formId ? await i.form.get(formId) : null;
-
-  if (y.template && !form) {
-    console.log(
-      "[ta] Using Notion template from properties (no extension form needed):",
-      {
-        templateId: y.template?.template?.id,
-        templateName: y.template?.template?.name,
+  if (
+    (await Ar({
+      properties: y,
+      parentRecord: {
+        id: w.notionParentId,
+        table: w.notionParentTable,
+        spaceId: w.notionSpaceId,
       },
-    );
-  } else {
-    console.log(
-      "[ta] Loaded extension form:",
-      form
-        ? {
-            id: form.id,
-            name: form.name,
-            hasTemplate: !!form.template,
-            fieldCount: form.fields?.length || 0,
-          }
-        : `null (tried formId: ${formId})`,
-    );
-  }
-
-  // Apply ALL form field defaults (including template, pageIcon, pageCover, etc.)
-  if (form && form.fields) {
-    form.fields.forEach((field) => {
-      const propKey = field.property?.id || field.key;
-      if (propKey && field.options?.defaultValue) {
-        console.log(
-          `[ta] Applying default value for property ${propKey}:`,
-          typeof field.options.defaultValue === "object"
-            ? JSON.stringify(field.options.defaultValue)
-            : field.options.defaultValue,
-        );
-        y[propKey] = field.options.defaultValue;
-      }
-    });
-  }
-
-  console.log("[ta] Final properties before Ar:", JSON.stringify(y, null, 2));
-
-  // Upload any file attachments
-  await Ar({
-    properties: y,
-    parentRecord: {
-      id: w.notionParentId,
-      table: w.notionParentTable,
-      spaceId: w.notionSpaceId,
-    },
-    record: { id: I, table: "block", spaceId: w.notionSpaceId },
-    context: h,
-  });
-
-  o("save highlight... in database");
-
-  // Apply properties (including pageIcon, pageCover, template) to the block
-  Er(w, y, h);
-
-  console.log("[ta] ===== AFTER Er (property application) =====");
-  console.log("[ta] Block type:", w.type);
-  console.log("[ta] Block format:", JSON.stringify(w.format, null, 2));
-  console.log("[ta] Block format keys:", Object.keys(w.format || {}));
-  console.log("[ta] Has page_icon in format:", !!w.format?.page_icon);
-  console.log("[ta] Has page_cover in format:", !!w.format?.page_cover);
-  console.log("[ta] Has copied_from_pointer:", !!w.format?.copied_from_pointer);
-  console.log("[ta] Block properties keys:", Object.keys(w.properties || {}));
-  console.log("[ta] Block properties sample:", {
-    hasTitle: !!w.properties?.title,
-    titlePreview: w.properties?.title?.[0]?.[0]?.substring(0, 50),
-  });
-  console.log("[ta] Has withCallback:", !!w.withCallback);
-  console.log("[ta] copiedFrom:", w.copiedFrom);
-
-  await a({ id: r.id, type: "progress", message: "Saving to Notion..." });
-
-  const blockToSend = { ...w, id: I };
-  console.log("[ta] ===== SENDING TO NOTION =====");
-  console.log("[ta] Block ID:", I);
-  console.log("[ta] Block type:", blockToSend.type);
-  console.log(
-    "[ta] Block format being sent:",
-    JSON.stringify(blockToSend.format, null, 2),
-  );
-  console.log("[ta] Block format keys:", Object.keys(blockToSend.format || {}));
-  console.log("[ta] Has page_icon:", !!blockToSend.format?.page_icon);
-  console.log("[ta] Has page_cover:", !!blockToSend.format?.page_cover);
-  console.log("[ta] page_icon value:", blockToSend.format?.page_icon);
-  console.log("[ta] page_cover value:", blockToSend.format?.page_cover);
-
-  g = await t.custom.addBlock(blockToSend);
-
-  if (g == null) throw new Error("Failed to save to Web-2-Notion");
+      record: { id: I, table: "block", spaceId: w.notionSpaceId },
+      context: h,
+    }),
+    o("save highlight... in database"),
+    Er(w, y, h),
+    await a({ id: r.id, type: "progress", message: "Saving to Notion..." }),
+    (g = await t.custom.addBlock({ ...w, id: I })),
+    g == null)
+  )
+    throw new Error("Failed to save to Web-2-Notion");
   o("‣ save highlight in database");
   const v = {
     ...(await i.highlight.get(r.id)),
@@ -4784,8 +4237,6 @@ async function cc(e, t) {
     return Mt("takeScreenshot", t == null ? void 0 : t.id, n);
   if (e.menuItemId == "stn_select_zone_screenshot")
     return Mt("capturePortion", t == null ? void 0 : t.id, n);
-  if (e.menuItemId == "stn_configure_site_selectors")
-    return chrome.runtime.openOptionsPage();
   if (e.menuItemId === "stn_highlight" && !da(e.selectionText)) {
     (ke("Highlight validation failed in contextMenuOnClick"),
       await R({
@@ -4803,11 +4254,6 @@ async function lc(e, t) {
     return Mt("takeScreenshot", t == null ? void 0 : t.id, n);
   if (e == "take-custom-area-screenshot")
     return Mt("capturePortion", t == null ? void 0 : t.id, n);
-  if (e == "open-site-selectors") return chrome.runtime.openOptionsPage();
-  if (e == "open-auto-pagination")
-    return chrome.tabs.create({
-      url: chrome.runtime.getURL("autoPagination.html"),
-    });
   const o = await Y();
   la(o.id, void 0, void 0, !0);
 }
@@ -5944,43 +5390,8 @@ async function go(e, t, n) {
     ns("clipContent.js", i, { action: e, props: t }, n),
   );
 }
-// Temporary storage for scan results with embedded format metadata
-const scanResultCache = new Map();
 async function Nc(e) {
-  const result = await new Promise((n) => mn("scanWebpage.js", n, {}, e));
-  console.log(
-    "[Nc] Scan complete, result keys:",
-    result ? Object.keys(result).join(", ") : "null",
-  );
-  // Store embedded format metadata for later retrieval in submitCapture
-  if (
-    result &&
-    (result.embeddedPostFormat || result.blockFormat || result.calloutIcon)
-  ) {
-    console.log("[Nc] Caching scan result with embedded metadata:", {
-      embeddedPostFormat: result.embeddedPostFormat,
-      blockFormat: result.blockFormat,
-      calloutIcon: result.calloutIcon,
-      url: result.url,
-      cacheKey: result.url || "latest",
-    });
-    scanResultCache.set(result.url || "latest", {
-      embeddedPostFormat: result.embeddedPostFormat,
-      blockFormat: result.blockFormat,
-      calloutIcon: result.calloutIcon,
-      timestamp: Date.now(),
-    });
-    console.log("[Nc] Cache now has", scanResultCache.size, "entries");
-    // Clean up old entries (older than 5 minutes)
-    for (const [key, value] of scanResultCache.entries()) {
-      if (Date.now() - value.timestamp > 300000) {
-        scanResultCache.delete(key);
-      }
-    }
-  } else {
-    console.log("[Nc] NOT caching - no embedded metadata found");
-  }
-  return result;
+  return await new Promise((n) => mn("scanWebpage.js", n, {}, e));
 }
 function jc(e) {
   try {
@@ -6004,14 +5415,14 @@ function Rc(e, t) {
 async function ho(e) {
   if (ge) return !0;
   const t = await Rc("<all_urls>", ["tabs"]);
-  if (t) return !0;
-
-  // Permission not granted - request it
-  await Fe(e);
-  await z("showDownloadRemoteImagePermissionsAlert", {}, e);
-
-  // Request the permission using po (which handles both contains + request)
-  return await po("<all_urls>", ["tabs"]);
+  let n;
+  if (t) n = !0;
+  else
+    return (
+      await Fe(e),
+      await z("showDownloadRemoteImagePermissionsAlert", {}, e)
+    );
+  return n;
 }
 function Lc(e) {
   const t = new FileReader();
@@ -6045,249 +5456,6 @@ async function Vc(e) {
 }
 async function zc(e) {
   return e == null ? { success: !1 } : { success: !0, imageBase64: e };
-}
-
-// Upload retry queue helpers
-const UPLOAD_RETRY_QUEUE_KEY = "__stn_upload_retry_queue";
-const UPLOAD_RETRY_MAX_ATTEMPTS = 10;
-
-function getQueueFromStorage() {
-  return new Promise((resolve) => {
-    try {
-      chrome.storage.local.get([UPLOAD_RETRY_QUEUE_KEY], (res) => {
-        resolve(res[UPLOAD_RETRY_QUEUE_KEY] || []);
-      });
-    } catch (e) {
-      console.error("getQueueFromStorage error", e);
-      resolve([]);
-    }
-  });
-}
-
-function saveQueueToStorage(queue) {
-  return new Promise((resolve) => {
-    try {
-      chrome.storage.local.set({ [UPLOAD_RETRY_QUEUE_KEY]: queue }, () =>
-        resolve(),
-      );
-    } catch (e) {
-      console.error("saveQueueToStorage error", e);
-      resolve();
-    }
-  });
-}
-
-async function enqueueUploadRetry(entry) {
-  try {
-    // Avoid storing extremely large payloads in chrome.storage.local which is quota limited
-    if (entry.dataB64 && entry.dataB64.length > 3 * 1024 * 1024) {
-      console.error("enqueueUploadRetry: data too large to enqueue");
-      try {
-        await F.updateAndShowToastEvent({
-          id: J(),
-          type: "error",
-          message:
-            "Upload failed and cannot be queued (file too large). Please retry manually.",
-        });
-      } catch (e) {}
-      return null;
-    }
-    const queue = (await getQueueFromStorage()) || [];
-    const qEntry = {
-      id: J(),
-      attempts: 0,
-      createdAt: Date.now(),
-      lastAttemptAt: null,
-      ...entry,
-    };
-    queue.push(qEntry);
-    await saveQueueToStorage(queue);
-    console.log("Enqueued upload for retry", qEntry.id);
-    // Show a user toast indicating queueing
-    try {
-      await F.updateAndShowToastEvent({
-        id: J(),
-        type: "info",
-        message: `Upload queued for retry (id: ${qEntry.id})`,
-      });
-    } catch (e) {}
-    // Trigger processing sooner than the periodic schedule
-    try {
-      processUploadQueue();
-    } catch (e) {}
-    return qEntry.id;
-  } catch (e) {
-    console.error("enqueueUploadRetry failed", e);
-    return null;
-  }
-}
-
-// Process the upload retry queue. Runs periodically and also on demand.
-let _processingQueue = false;
-async function processUploadQueue() {
-  if (_processingQueue) return;
-  _processingQueue = true;
-  try {
-    let queue = (await getQueueFromStorage()) || [];
-    if (!queue || queue.length === 0) return;
-    console.log(`[uploadQueue] Processing ${queue.length} queued uploads`);
-
-    // Simple sequential processing with light concurrency to avoid spamming Notion
-    const concurrency = 2;
-    let active = 0;
-    const next = async () => {
-      if (queue.length === 0) return;
-      if (active >= concurrency) return;
-      const entry = queue.shift();
-      if (!entry) return;
-      const now = Date.now();
-      // Respect exponential backoff cooldown
-      const backoffMs = Math.min(
-        60 * 60 * 1000,
-        Math.floor(1000 * Math.pow(2, entry.attempts)),
-      ); // cap at 1h
-      if (entry.lastAttemptAt && now - entry.lastAttemptAt < backoffMs) {
-        // Not ready yet, push back to queue
-        queue.push(entry);
-        // schedule next
-        setTimeout(next, 50);
-        return;
-      }
-
-      active += 1;
-      try {
-        console.log(
-          `[uploadQueue] Attempting upload for ${entry.id} (attempts=${entry.attempts})`,
-        );
-        // get notion client for userId if provided
-        let client = null;
-        if (entry.userId) {
-          try {
-            client = await Q(entry.userId);
-          } catch (e) {
-            console.warn(
-              "processUploadQueue: could not load notion client for user",
-              entry.userId,
-              e,
-            );
-          }
-        }
-
-        // If we couldn't get a client, requeue with updated attempts and timestamp
-        if (!client) {
-          entry.attempts = (entry.attempts || 0) + 1;
-          entry.lastAttemptAt = Date.now();
-          queue.push(entry);
-          console.log(`[uploadQueue] No client for ${entry.id}, requeued`);
-          return;
-        }
-
-        const res = await client.custom.uploadFile({
-          dataB64: entry.dataB64,
-          name: entry.name,
-          record: entry.record,
-          onProgress: (p) => {
-            // emit small telemetry if needed
-          },
-        });
-
-        if (res && res.success) {
-          console.log(`[uploadQueue] Upload succeeded for ${entry.id}`, res);
-          // Update the block with source and file_ids via submitOperations
-          const ops = [];
-          // set source property
-          ops.push({
-            pointer: {
-              table: "block",
-              id: entry.record.id,
-              spaceId: entry.record.spaceId,
-            },
-            path: ["properties", "source"],
-            command: "set",
-            args: [[res.url]],
-            size: 3,
-          });
-          if (res.fileId) {
-            ops.push({
-              pointer: {
-                table: "block",
-                id: entry.record.id,
-                spaceId: entry.record.spaceId,
-              },
-              path: ["file_ids"],
-              command: "listAfterMulti",
-              args: { ids: [res.fileId] },
-              size: 3,
-            });
-          }
-          try {
-            await client.custom.submitOperations(ops, entry.record.spaceId);
-            // notify user
-            try {
-              await F.updateAndShowToastEvent({
-                id: J(),
-                type: "success",
-                message: `Upload succeeded (queued) for ${entry.id}`,
-              });
-            } catch (e) {}
-          } catch (e) {
-            console.error("processUploadQueue: submitOperations failed", e);
-          }
-          // success - don't requeue
-        } else {
-          // failure - increment attempts and requeue if under limit
-          entry.attempts = (entry.attempts || 0) + 1;
-          entry.lastAttemptAt = Date.now();
-          if (entry.attempts >= UPLOAD_RETRY_MAX_ATTEMPTS) {
-            console.error(
-              `[uploadQueue] Dropping ${entry.id} after ${entry.attempts} attempts`,
-            );
-            try {
-              await F.updateAndShowToastEvent({
-                id: J(),
-                type: "error",
-                message: `Upload failed after retries (id: ${entry.id})`,
-              });
-            } catch (e) {}
-          } else {
-            queue.push(entry);
-          }
-        }
-      } catch (err) {
-        console.error(`[uploadQueue] Error processing ${entry.id}`, err);
-        entry.attempts = (entry.attempts || 0) + 1;
-        entry.lastAttemptAt = Date.now();
-        if (entry.attempts < UPLOAD_RETRY_MAX_ATTEMPTS) queue.push(entry);
-      } finally {
-        active -= 1;
-        // Save queue after each processed item
-        await saveQueueToStorage(queue);
-        // kick off next
-        next();
-      }
-    };
-
-    // start initial workers
-    for (let i = 0; i < concurrency; i++) next();
-  } catch (e) {
-    console.error("processUploadQueue error", e);
-  } finally {
-    _processingQueue = false;
-  }
-}
-
-// Schedule periodic processing every 5 minutes and trigger once at startup
-try {
-  setInterval(
-    () => {
-      processUploadQueue();
-    },
-    5 * 60 * 1000,
-  );
-  // run once immediately
-  processUploadQueue();
-} catch (e) {
-  console.error("Failed to schedule upload queue processor", e);
 }
 function po(e, t) {
   return new Promise((n) => {
@@ -6908,129 +6076,21 @@ const F = {
   submitCapture: async (e, t, n) => {
     var p, h, y, w, I, b, v, T, E;
     const o = e.session;
-
-    // Check cache for embedded format metadata from scanWebpage
-    // Extract page URL from payload.properties (it's stored in a property with key like "tDM^")
-    let pageUrl = null;
-    if (e.payload.highlightContextData?.url) {
-      pageUrl = e.payload.highlightContextData.url;
-    } else if (e.payload?.properties) {
-      // Find the URL property in the payload properties (key varies, but value has .url)
-      for (const [key, value] of Object.entries(e.payload.properties)) {
-        if (value && typeof value === "object" && value.url) {
-          pageUrl = value.url;
-          console.log(
-            "[submitCapture] Found URL in payload.properties:",
-            pageUrl,
-          );
-          break;
-        }
-      }
-    }
-
-    console.log(
-      "[submitCapture] Looking for cached metadata with pageUrl:",
-      pageUrl,
-    );
-    console.log("[submitCapture] Cache has", scanResultCache.size, "entries");
-    console.log(
-      "[submitCapture] Cache keys:",
-      Array.from(scanResultCache.keys()),
-    );
-    const cachedMetadata = pageUrl
-      ? scanResultCache.get(pageUrl) || scanResultCache.get("latest")
-      : null;
-    if (cachedMetadata) {
-      console.log("[submitCapture] Retrieved cached metadata:", cachedMetadata);
-      // Inject cached metadata into payload if not already present
-      if (!e.payload.embeddedPostFormat && cachedMetadata.embeddedPostFormat) {
-        e.payload.embeddedPostFormat = cachedMetadata.embeddedPostFormat;
-      }
-      if (!e.payload.blockFormat && cachedMetadata.blockFormat) {
-        e.payload.blockFormat = cachedMetadata.blockFormat;
-      }
-      if (!e.payload.calloutIcon && cachedMetadata.calloutIcon) {
-        e.payload.calloutIcon = cachedMetadata.calloutIcon;
-      }
-      // Also inject into highlightContextData if it exists
-      if (e.payload.highlightContextData) {
-        if (
-          !e.payload.highlightContextData.embeddedPostFormat &&
-          cachedMetadata.embeddedPostFormat
-        ) {
-          e.payload.highlightContextData.embeddedPostFormat =
-            cachedMetadata.embeddedPostFormat;
-        }
-        if (
-          !e.payload.highlightContextData.blockFormat &&
-          cachedMetadata.blockFormat
-        ) {
-          e.payload.highlightContextData.blockFormat =
-            cachedMetadata.blockFormat;
-        }
-        if (
-          !e.payload.highlightContextData.calloutIcon &&
-          cachedMetadata.calloutIcon
-        ) {
-          e.payload.highlightContextData.calloutIcon =
-            cachedMetadata.calloutIcon;
-        }
-      }
-      // Clean up after use
-      if (pageUrl) {
-        scanResultCache.delete(pageUrl);
-      }
-    } else {
-      console.log("[submitCapture] No cached metadata found for URL:", pageUrl);
-    }
-
     if (
       (e.payload.type == "highlight"
         ? an("save_highlight", { url: e.payload.highlightContextData.url })
         : e.payload.type == "note" && an(),
       e.payload.type == "highlight")
     ) {
-      const L = { ...(e.payload.highlightContextData || {}) },
-        H =
-          e.payload.embeddedPostFormat ||
-          L.embeddedPostFormat ||
-          L.blockFormat === "callout" ||
-          e.payload.blockFormat === "callout",
-        C =
-          L.highlightFormat ||
-          e.payload.highlightFormat ||
-          (H ? "callout" : void 0) ||
-          (L.calloutIcon || e.payload.calloutIcon ? "callout" : void 0) ||
+      const C =
           ((p = e.payload.highlightContextData) == null
             ? void 0
-            : p.highlightFormat) ||
-          $.bullet,
+            : p.highlightFormat) || $.bullet,
         D =
-          L.highlightColor ||
-          e.payload.highlightColor ||
           ((h = e.payload.highlightContextData) == null
             ? void 0
-            : h.highlightColor) ||
-          "default",
-        Q =
-          L.calloutIcon ||
-          e.payload.calloutIcon ||
-          (C === "callout" ? "📎" : void 0);
-      e.payload.highlightContextData = {
-        ...L,
-        highlightFormat: C,
-        highlightColor: D,
-        ...(H ? { embeddedPostFormat: !0, blockFormat: "callout" } : {}),
-        ...(Q ? { calloutIcon: Q } : {}),
-      };
-      console.log("[submitCapture] Computed highlight format:", {
-        highlightFormat: C,
-        embeddedPostFormat: H,
-        calloutIcon: Q,
-        fullContext: e.payload.highlightContextData,
-      });
-
-      const S = await m.user.load(),
+            : h.highlightColor) || "default",
+        S = await m.user.load(),
         q = (S == null ? void 0 : S.settings.highlightFormat) || $.bullet,
         X = (S == null ? void 0 : S.settings.highlightColor) || "default";
       (C != q || D != X) &&
@@ -7095,22 +6155,7 @@ const F = {
               showCaption: !1,
             }
           : e.payload.type == "note"
-            ? {
-                ...c,
-                note: e.payload.note,
-                type: "note",
-                showCaption: !1,
-                // Include embedded format metadata from cache for notes
-                ...(e.payload.embeddedPostFormat
-                  ? { embeddedPostFormat: !0 }
-                  : {}),
-                ...(e.payload.calloutIcon
-                  ? { calloutIcon: e.payload.calloutIcon }
-                  : {}),
-                ...(e.payload.blockFormat
-                  ? { highlightFormat: e.payload.blockFormat }
-                  : {}),
-              }
+            ? { ...c, note: e.payload.note, type: "note", showCaption: !1 }
             : {
                 ...c,
                 type: "highlight",
@@ -7121,23 +6166,10 @@ const F = {
                 selectionRange: e.payload.highlightContextData.selectionRange,
                 highlightFormat:
                   e.payload.highlightContextData.highlightFormat || $.bullet,
-                ...(e.payload.highlightContextData.calloutIcon
-                  ? { calloutIcon: e.payload.highlightContextData.calloutIcon }
-                  : {}),
-                ...(e.payload.highlightContextData.embeddedPostFormat
-                  ? { embeddedPostFormat: !0 }
-                  : {}),
                 highlightColor:
                   e.payload.highlightContextData.highlightColor || void 0,
               },
       );
-    console.log("[submitCapture] Created highlight record:", {
-      id: g.id,
-      type: g.type,
-      highlightFormat: g.highlightFormat,
-      calloutIcon: g.calloutIcon,
-      embeddedPostFormat: g.embeddedPostFormat,
-    });
     if (
       (e.payload.type == "highlight" && !u && (await at([g])),
       (I = e.context) != null && I.executeDirectly)
@@ -7594,15 +6626,27 @@ class bo {
         signUp: async (o) => await this.post("auth/signup", o),
         googleSsoCompleteLogin: async (o) =>
           await this.post("auth/google-sso-complete-login", o),
-        sendMagicLink: async (o) => ({
-          success: false,
-          error: "Cognito authentication removed",
-        }),
-        validateMagicLink: async (o) => ({
-          success: false,
-          error: "Cognito authentication removed",
-        }),
-        getCognitoUrlWithSessionId: (o) => ({ sessionId: "", url: "" }),
+        sendMagicLink: async (o) => await this.post("auth/magic-link/send", o),
+        validateMagicLink: async (o) =>
+          await this.post("auth/magic-link/validate", o),
+        getCognitoUrlWithSessionId: (o) => {
+          const i = o || j(),
+            a = {
+              redirectionUri: `${Le.backend.url}/auth/google-sso-callback`,
+              clientId: Le.auth.clientId,
+              domain: Le.auth.cognitoUrl,
+            },
+            s = new URLSearchParams({
+              client_id: a.clientId,
+              response_type: "code",
+              scope: "email openid profile",
+              identity_provider: "Google",
+              state: i,
+              redirect_uri: a.redirectionUri,
+            }),
+            r = `${a.domain}/oauth2/authorize?${s.toString()}`;
+          return { sessionId: i, url: r };
+        },
         changePassword: async (o) => this.post("auth/change-password", o),
       }),
       (this.api = {
@@ -9847,33 +8891,25 @@ async function Rl(e) {
 const Ce = Mo ? chrome.browserAction : chrome.action;
 let Se = {};
 function Ea() {
-  chrome.contextMenus.removeAll(() => {
-    (chrome.contextMenus.create({
-      title: "Save Page to Notion",
-      id: "stn_save_page",
-      contexts: ["page"],
-      documentUrlPatterns: ["*://*/*"],
-    }),
-      !(ge || it) &&
-        (chrome.contextMenus.create({
-          title: "Take Full Page Screenshot",
-          id: "stn_take_full_page_screenshot",
-          contexts: ["page"],
-          documentUrlPatterns: ["*://*/*"],
-        }),
-        chrome.contextMenus.create({
-          title: "Select Zone to Screenshot",
-          id: "stn_select_zone_screenshot",
-          contexts: ["page"],
-          documentUrlPatterns: ["*://*/*"],
-        })),
-      chrome.contextMenus.create({
-        title: "Configure Site Selectors",
-        id: "stn_configure_site_selectors",
+  (chrome.contextMenus.create({
+    title: "Save Page to Notion",
+    id: "stn_save_page",
+    contexts: ["page"],
+    documentUrlPatterns: ["*://*/*"],
+  }),
+    !(ge || it) &&
+      (chrome.contextMenus.create({
+        title: "Take Full Page Screenshot",
+        id: "stn_take_full_page_screenshot",
         contexts: ["page"],
         documentUrlPatterns: ["*://*/*"],
-      }));
-  });
+      }),
+      chrome.contextMenus.create({
+        title: "Select Zone to Screenshot",
+        id: "stn_select_zone_screenshot",
+        contexts: ["page"],
+        documentUrlPatterns: ["*://*/*"],
+      })));
 }
 async function Ll() {
   (chrome.contextMenus.create({
@@ -9905,37 +8941,4 @@ async function Ll() {
       e && xn();
     }));
 }
-
-// Auto-pagination helper - inject script when needed
-async function injectAutoPagination(tabId) {
-  try {
-    await ze("autoPagination.js", tabId);
-    console.log("Auto-pagination script injected into tab:", tabId);
-  } catch (e) {
-    console.error("Error injecting auto-pagination script:", e);
-  }
-}
-
-// Listen for messages related to auto-pagination
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === "injectAutoPagination") {
-    injectAutoPagination(message.tabId || sender.tab?.id)
-      .then(() => sendResponse({ success: true }))
-      .catch((e) => sendResponse({ success: false, error: e.message }));
-    return true;
-  }
-
-  if (message.action === "notifySaveComplete") {
-    // Notify content script that save is complete
-    if (sender.tab?.id) {
-      chrome.tabs
-        .sendMessage(sender.tab.id, {
-          action: "saveComplete",
-        })
-        .catch((e) => console.error("Error notifying save complete:", e));
-    }
-    return false;
-  }
-});
-
 Ll();

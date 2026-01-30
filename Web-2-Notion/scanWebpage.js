@@ -294,20 +294,19 @@ async function getReadableZone() {
     selectorsWithMetadata = selectorEntry
       .filter((item) => item && item.selector)
       .map((item) => {
-        // Support both old (embeddedPostFormat) and new (customHeading) formats
-        const hasCustomHeading = !!(
-          item.customHeading || item.embeddedPostFormat
-        );
-        const headingText =
-          item.customHeading ||
-          (item.embeddedPostFormat ? "Related Links" : "");
+        // customHeading is now independent - it just adds an H2, no special Notion formatting
+        const headingText = item.customHeading || "";
 
-        if (hasCustomHeading) embeddedPostFormat = true;
+        // Only set embeddedPostFormat if explicitly set (for backward compatibility)
+        // Do NOT auto-set it based on customHeading presence
+        if (item.embeddedPostFormat) {
+          embeddedPostFormat = true;
+        }
 
         return {
           selector: item.selector,
           customHeading: headingText,
-          embeddedPostFormat: hasCustomHeading, // For backward compatibility
+          embeddedPostFormat: !!item.embeddedPostFormat, // Only if explicitly set
         };
       });
     selectors = selectorsWithMetadata.map((item) => item.selector);
@@ -318,19 +317,17 @@ async function getReadableZone() {
     ];
   } else if (selectorEntry && typeof selectorEntry === "object") {
     selectors = [selectorEntry.selector].filter(Boolean);
-    const hasCustomHeading = !!(
-      selectorEntry.customHeading || selectorEntry.embeddedPostFormat
-    );
-    const headingText =
-      selectorEntry.customHeading ||
-      (selectorEntry.embeddedPostFormat ? "Related Links" : "");
 
-    embeddedPostFormat = hasCustomHeading;
+    // Only set embeddedPostFormat if explicitly present
+    if (selectorEntry.embeddedPostFormat) {
+      embeddedPostFormat = true;
+    }
+
     selectorsWithMetadata = [
       {
         selector: selectorEntry.selector,
-        customHeading: headingText,
-        embeddedPostFormat: hasCustomHeading,
+        customHeading: selectorEntry.customHeading || "",
+        embeddedPostFormat: !!selectorEntry.embeddedPostFormat,
       },
     ];
   }
@@ -14618,16 +14615,69 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
     return null;
   }
   var bestUrl = links.length == 0 ? null : chooseBestUrl(links, title);
+
   // Process content through pipeline
+  console.warn("[parseFromHtml] Starting pipeline for:", title);
   var content = normalize(html, bestUrl);
+  console.warn("[parseFromHtml] After normalize:", content?.substring(0, 500));
   content = execPreParser(content, links);
+  console.warn(
+    "[parseFromHtml] After execPreParser:",
+    content?.substring(0, 500),
+  );
   content = await extractWithReadability(content, bestUrl);
+  console.warn(
+    "[parseFromHtml] After extractWithReadability:",
+    content?.substring(0, 500),
+  );
   content = content ? execPostParser(content, links) : null;
+  console.warn(
+    "[parseFromHtml] After execPostParser:",
+    content?.substring(0, 500),
+  );
   content = content
     ? cleanify(content, {
         sanitize: false,
       })
     : null;
+  console.warn("[parseFromHtml] After cleanify:", content?.substring(0, 500));
+
+  // Check for duplicate blocks in final content
+  if (content) {
+    try {
+      const doc = new DOMParser().parseFromString(content, "text/html");
+      const sections = doc.querySelectorAll(
+        "section, div.section, div[class*='section']",
+      );
+      const textCounts = new Map();
+      sections.forEach((section) => {
+        const text = section.textContent?.trim().substring(0, 100);
+        if (text && text.length > 50) {
+          textCounts.set(text, (textCounts.get(text) || 0) + 1);
+        }
+      });
+      const duplicates = Array.from(textCounts.entries()).filter(
+        ([_, count]) => count > 1,
+      );
+      if (duplicates.length > 0) {
+        console.warn(
+          `[parseFromHtml] ⚠️ FOUND ${duplicates.length} DUPLICATE SECTIONS in final content:`,
+        );
+        duplicates.forEach(([text, count]) => {
+          console.warn(
+            `  - "${text.substring(0, 60)}..." appears ${count} times`,
+          );
+        });
+      } else {
+        console.warn(
+          "[parseFromHtml] ✓ No duplicate sections found in final content",
+        );
+      }
+    } catch (e) {
+      console.warn("[parseFromHtml] Could not check for duplicates:", e);
+    }
+  }
+
   if (!content) {
     return null;
   }
@@ -15140,12 +15190,14 @@ async function scanWebpage() {
             const DEBUG_DEDUP = window.__STN_DEBUG_DEDUP || false;
 
             function getElementSignature(el) {
-              // For images: normalize src (remove query params and hash) and include alt text
+              // For images: ONLY use normalized src (don't include alt/dimensions to avoid removing valid images)
+              // Images with same src but different context should still be allowed
               if (el.tagName === "IMG" && el.src) {
                 const normalizedSrc = el.src.split("?")[0].split("#")[0];
-                const altText = el.alt || "";
-                const dimensions = `${el.width || 0}x${el.height || 0}`;
-                return `img:${normalizedSrc}:${altText}:${dimensions}`;
+                // Include parent element info to allow same image in different contexts
+                const parentTag = el.parentElement?.tagName || "";
+                const parentClass = el.parentElement?.className || "";
+                return `img:${normalizedSrc}:in:${parentTag}.${parentClass}`;
               }
               // For elements with src (like iframes, videos): normalize src
               if (el.src) {
@@ -15282,6 +15334,19 @@ async function scanWebpage() {
                 `[scanWebpage:DEDUP] ✓ Removed ${duplicateCount} duplicates`,
               );
             }
+
+            console.warn(
+              "[scanWebpage] Combined container HTML preview (first 1000 chars):",
+              container.innerHTML.substring(0, 1000),
+            );
+            console.warn(
+              "[scanWebpage] Combined container has",
+              container.children.length,
+              "direct children:",
+              Array.from(container.children)
+                .map((c) => `${c.tagName}.${c.className}`)
+                .join(", "),
+            );
 
             liveElement = container;
           }
@@ -15623,302 +15688,354 @@ async function scanWebpage() {
   }
 
   // Final deduplication pass on the HTML we're about to parse.
-  // This is a fallback that operates on the produced HTML string and
-  // removes duplicate images/tables when multiple selectors were used but
-  // the element-collection dedupe path didn't catch them (real-world
-  // sites sometimes return pre-extracted blobs where selectors don't
-  // map 1:1 inside the fragment).
-  try {
-    if (
-      new DOMParser()
-        .parseFromString(htmlToProcess, "text/html")
-        .body.querySelectorAll("img,table").length > 1 ||
-      (typeof readableZoneSelector === "string" &&
-        readableZoneSelector.includes(","))
-    ) {
-      (function dedupeHtmlStringInPlace() {
-        try {
-          const doc = new DOMParser().parseFromString(
-            htmlToProcess,
-            "text/html",
-          );
-          const DEBUG_DEDUP = window.__STN_DEBUG_DEDUP || false;
+  // DISABLED: This was incorrectly removing valid images as "duplicates"
+  // The element-level dedup above is sufficient.
+  // Disabled to prevent incorrect removal of valid images.
+  if (false) {
+    try {
+      const dedupCheckDoc = new DOMParser().parseFromString(
+        htmlToProcess,
+        "text/html",
+      );
+      const imgTableCount =
+        dedupCheckDoc.body.querySelectorAll("img,table").length;
+      const hasComma =
+        typeof readableZoneSelector === "string" &&
+        readableZoneSelector.includes(",");
 
-          // Collect candidate elements by selectors; if none match, fall
-          // back to scanning imgs and tables in the body.
-          const selectors = readableZoneSelector
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean);
+      if (imgTableCount > 1 || hasComma) {
+        (function dedupeHtmlStringInPlace() {
+          try {
+            const doc = new DOMParser().parseFromString(
+              htmlToProcess,
+              "text/html",
+            );
+            const DEBUG_DEDUP = window.__STN_DEBUG_DEDUP || false;
 
-          let candidates = [];
-          for (const sel of selectors) {
-            try {
-              candidates.push(...Array.from(doc.querySelectorAll(sel)));
-            } catch (e) {
-              // ignore invalid selector
-            }
-          }
+            // Collect candidate elements by selectors; if none match, fall
+            // back to scanning imgs and tables in the body.
+            const selectors = readableZoneSelector
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
 
-          if (candidates.length === 0) {
-            candidates = Array.from(doc.body.querySelectorAll("img, table"));
-          }
-
-          const seen = new Set();
-          const added = [];
-          let skipped = 0;
-          // Instrumentation: record per-element signature + action for one-shot debugging
-          const __stn_decisions = [];
-
-          const sigFor = (el) => {
-            if (!el) return "";
-            const t = el.tagName;
-            if (t === "IMG" && el.getAttribute("src")) {
-              let src = (el.getAttribute("src") || "").trim();
-              // Normalize data: URIs (common for inline SVG icons) so
-              // identical embedded icons compare equal even if long.
-              if (src.indexOf("data:") === 0) {
-                const parts = src.split(",");
-                const meta = parts[0];
-                let payload = parts.slice(1).join(",") || "";
-                try {
-                  payload = decodeURIComponent(payload);
-                } catch (e) {
-                  /* ignore */
-                }
-                payload = payload.replace(/\s+/g, " ").substring(0, 200);
-                src = `${meta},${payload}`;
-              } else {
-                src = src.split("?")[0].split("#")[0];
+            let candidates = [];
+            for (const sel of selectors) {
+              try {
+                candidates.push(...Array.from(doc.querySelectorAll(sel)));
+              } catch (e) {
+                // ignore invalid selector
               }
-              const alt = (el.getAttribute("alt") || "").trim();
-              const dim = `${el.getAttribute("width") || el.width || 0}x${el.getAttribute("height") || el.height || 0}`;
-              return `img:${src}:${alt}:${dim}`;
             }
-            if (t === "TABLE") {
-              const rows = el.querySelectorAll("tr").length;
-              const cells = el.querySelectorAll("td,th").length;
-              const txt = (el.textContent || "").trim().length;
-              const html = (el.innerHTML || "").substring(0, 500);
-              return `table:${rows}x${cells}:${txt}:${html}`;
+
+            if (candidates.length === 0) {
+              candidates = Array.from(doc.body.querySelectorAll("img, table"));
             }
-            const txtLen = (el.textContent || "").trim().length;
-            const html = (el.innerHTML || "").substring(0, 300);
-            return `${t.toLowerCase()}:${txtLen}:${html}`;
-          };
 
-          const isContained = (el, arr) =>
-            arr.some((o) => o !== el && o.contains(el));
+            const seen = new Set();
+            const added = [];
+            let skipped = 0;
+            // Instrumentation: record per-element signature + action for one-shot debugging
+            const __stn_decisions = [];
 
-          for (const el of candidates) {
-            const s = sigFor(el);
-            if (!s) continue;
-            if (seen.has(s) || isContained(el, added)) {
-              skipped++;
+            const sigFor = (el) => {
+              if (!el) return "";
+              const t = el.tagName;
+              if (t === "IMG" && el.getAttribute("src")) {
+                let src = (el.getAttribute("src") || "").trim();
+                // Normalize data: URIs (common for inline SVG icons) so
+                // identical embedded icons compare equal even if long.
+                if (src.indexOf("data:") === 0) {
+                  const parts = src.split(",");
+                  const meta = parts[0];
+                  let payload = parts.slice(1).join(",") || "";
+                  try {
+                    payload = decodeURIComponent(payload);
+                  } catch (e) {
+                    /* ignore */
+                  }
+                  payload = payload.replace(/\s+/g, " ").substring(0, 200);
+                  src = `${meta},${payload}`;
+                } else {
+                  src = src.split("?")[0].split("#")[0];
+                }
+                const alt = (el.getAttribute("alt") || "").trim();
+                const dim = `${el.getAttribute("width") || el.width || 0}x${el.getAttribute("height") || el.height || 0}`;
+                return `img:${src}:${alt}:${dim}`;
+              }
+              if (t === "TABLE") {
+                const rows = el.querySelectorAll("tr").length;
+                const cells = el.querySelectorAll("td,th").length;
+                const txt = (el.textContent || "").trim().length;
+                const html = (el.innerHTML || "").substring(0, 500);
+                return `table:${rows}x${cells}:${txt}:${html}`;
+              }
+              const txtLen = (el.textContent || "").trim().length;
+              const html = (el.innerHTML || "").substring(0, 300);
+              return `${t.toLowerCase()}:${txtLen}:${html}`;
+            };
+
+            const isContained = (el, arr) =>
+              arr.some((o) => o !== el && o.contains(el));
+
+            for (const el of candidates) {
+              const s = sigFor(el);
+              if (!s) continue;
+              if (seen.has(s) || isContained(el, added)) {
+                skipped++;
+                __stn_decisions.push({
+                  sig: s,
+                  action: "removed",
+                  reason: seen.has(s) ? "signature" : "contained",
+                  outer: (el.outerHTML || "").slice(0, 200),
+                });
+                // remove the duplicate from the DOM
+                if (el.parentNode) el.parentNode.removeChild(el);
+                continue;
+              }
+              // remove previously-added children contained by this el
+              for (let i = added.length - 1; i >= 0; i--) {
+                const a = added[i];
+                if (el.contains(a)) {
+                  if (a.parentNode) a.parentNode.removeChild(a);
+                  added.splice(i, 1);
+                }
+              }
+              seen.add(s);
+              added.push(el);
               __stn_decisions.push({
                 sig: s,
-                action: "removed",
-                reason: seen.has(s) ? "signature" : "contained",
+                action: "kept",
                 outer: (el.outerHTML || "").slice(0, 200),
               });
-              // remove the duplicate from the DOM
-              if (el.parentNode) el.parentNode.removeChild(el);
-              continue;
             }
-            // remove previously-added children contained by this el
-            for (let i = added.length - 1; i >= 0; i--) {
-              const a = added[i];
-              if (el.contains(a)) {
-                if (a.parentNode) a.parentNode.removeChild(a);
-                added.splice(i, 1);
-              }
-            }
-            seen.add(s);
-            added.push(el);
-            __stn_decisions.push({
-              sig: s,
-              action: "kept",
-              outer: (el.outerHTML || "").slice(0, 200),
-            });
-          }
 
-          if (skipped > 0) {
-            console.log(
-              `[scanWebpage:DEDUP] Final HTML dedup applied — removed ${skipped} duplicates`,
-            );
-            if (DEBUG_DEDUP) {
-              console.log(
-                "[scanWebpage:DEDUP] Remaining candidates:",
-                added.length,
+            if (skipped > 0) {
+              console.warn(
+                `[scanWebpage:DEDUP] ⚠️ Final HTML dedup removed ${skipped} elements (${added.length} kept)`,
               );
-            }
-            htmlToProcess = `<!doctype html>${doc.documentElement.outerHTML}`;
-          }
-
-          // Aggressive fallback for repeated inline SVG icons: if the same
-          // data:image/svg+xml appears many times (common UI icons), remove
-          // all but one occurrence. This is conservative: only applies when
-          // the same exact normalized data:svg signature appears >= 3 times.
-          try {
-            const dataImgs = Array.from(
-              doc.querySelectorAll('img[src^="data:image/svg+xml"]'),
-            );
-            if (dataImgs.length > 1) {
-              const map = new Map();
-              const normalizeData = (src) => {
-                const parts = src.split(",");
-                const meta = parts[0];
-                let payload = parts.slice(1).join(",") || "";
-                try {
-                  payload = decodeURIComponent(payload);
-                } catch (e) {}
-                payload = payload.replace(/\s+/g, " ").trim();
-                // remove trivial attribute ordering differences
-                payload = payload.replace(/\s(id|class)\s*=\s*"[^"]+"/g, "");
-                return `${meta},${payload}`.substring(0, 600);
-              };
-
-              for (const el of dataImgs) {
-                const key = normalizeData(el.getAttribute("src") || "");
-                if (!map.has(key)) map.set(key, []);
-                map.get(key).push(el);
+              console.warn(
+                `[scanWebpage:DEDUP] Removed decisions:`,
+                __stn_decisions
+                  .filter((d) => d.action === "removed")
+                  .map((d) => ({
+                    reason: d.reason,
+                    sig: d.sig.substring(0, 100),
+                  })),
+              );
+              if (DEBUG_DEDUP) {
+                console.log(
+                  "[scanWebpage:DEDUP] Remaining candidates:",
+                  added.length,
+                );
               }
 
-              let aggressiveRemoved = 0;
-              for (const [k, group] of map.entries()) {
-                if (group.length >= 3) {
-                  // keep the first, remove the rest
-                  for (let i = 1; i < group.length; i++) {
-                    const el = group[i];
-                    aggressiveRemoved++;
-                    __stn_decisions.push({
-                      sig: sigFor(el),
-                      action: "aggressive-removed",
-                      reason: "repeated-inline-svg",
-                      outer: (el.outerHTML || "").slice(0, 200),
-                    });
-                    if (el.parentNode) el.parentNode.removeChild(el);
+              // Count images before updating htmlToProcess
+              const beforeDoc = new DOMParser().parseFromString(
+                htmlToProcess,
+                "text/html",
+              );
+              const imgsBeforeDedup = beforeDoc.querySelectorAll("img").length;
+
+              htmlToProcess = `<!doctype html>${doc.documentElement.outerHTML}`;
+
+              // Re-count images after dedup
+              const afterDoc = new DOMParser().parseFromString(
+                htmlToProcess,
+                "text/html",
+              );
+              const imgsAfterDedup = afterDoc.querySelectorAll("img").length;
+              console.warn(
+                `[scanWebpage:DEDUP] Images: ${imgsBeforeDedup} → ${imgsAfterDedup} (removed ${imgsBeforeDedup - imgsAfterDedup})`,
+              );
+            } else {
+              // Even if skipped === 0, check if images were removed
+              const beforeDoc = new DOMParser().parseFromString(
+                htmlToProcess,
+                "text/html",
+              );
+              const afterImgs = doc.querySelectorAll("img").length;
+              const beforeImgs = beforeDoc.querySelectorAll("img").length;
+              if (beforeImgs !== afterImgs) {
+                console.warn(
+                  `[scanWebpage:DEDUP] ⚠️ Images changed without skipped count: ${beforeImgs} → ${afterImgs} (removed ${beforeImgs - afterImgs})`,
+                );
+                console.warn(
+                  `[scanWebpage:DEDUP] Kept decisions:`,
+                  __stn_decisions.filter((d) => d.action === "kept").length,
+                );
+                console.warn(
+                  `[scanWebpage:DEDUP] Removed decisions:`,
+                  __stn_decisions.filter((d) => d.action === "removed").length,
+                );
+              }
+            }
+
+            // Aggressive fallback for repeated inline SVG icons: if the same
+            // data:image/svg+xml appears many times (common UI icons), remove
+            // all but one occurrence. This is conservative: only applies when
+            // the same exact normalized data:svg signature appears >= 3 times.
+            try {
+              const dataImgs = Array.from(
+                doc.querySelectorAll('img[src^="data:image/svg+xml"]'),
+              );
+              if (dataImgs.length > 1) {
+                const map = new Map();
+                const normalizeData = (src) => {
+                  const parts = src.split(",");
+                  const meta = parts[0];
+                  let payload = parts.slice(1).join(",") || "";
+                  try {
+                    payload = decodeURIComponent(payload);
+                  } catch (e) {}
+                  payload = payload.replace(/\s+/g, " ").trim();
+                  // remove trivial attribute ordering differences
+                  payload = payload.replace(/\s(id|class)\s*=\s*"[^"]+"/g, "");
+                  return `${meta},${payload}`.substring(0, 600);
+                };
+
+                for (const el of dataImgs) {
+                  const key = normalizeData(el.getAttribute("src") || "");
+                  if (!map.has(key)) map.set(key, []);
+                  map.get(key).push(el);
+                }
+
+                let aggressiveRemoved = 0;
+                for (const [k, group] of map.entries()) {
+                  if (group.length >= 3) {
+                    // keep the first, remove the rest
+                    for (let i = 1; i < group.length; i++) {
+                      const el = group[i];
+                      aggressiveRemoved++;
+                      __stn_decisions.push({
+                        sig: sigFor(el),
+                        action: "aggressive-removed",
+                        reason: "repeated-inline-svg",
+                        outer: (el.outerHTML || "").slice(0, 200),
+                      });
+                      if (el.parentNode) el.parentNode.removeChild(el);
+                    }
                   }
                 }
+                if (aggressiveRemoved > 0) {
+                  skipped += aggressiveRemoved;
+                  console.log(
+                    `[scanWebpage:DEDUP] Relaxed dedup removed ${aggressiveRemoved} inline-svg duplicates`,
+                  );
+                  htmlToProcess = `<!doctype html>${doc.documentElement.outerHTML}`;
+                }
               }
-              if (aggressiveRemoved > 0) {
-                skipped += aggressiveRemoved;
-                console.log(
-                  `[scanWebpage:DEDUP] Relaxed dedup removed ${aggressiveRemoved} inline-svg duplicates`,
-                );
-                htmlToProcess = `<!doctype html>${doc.documentElement.outerHTML}`;
+            } catch (e) {
+              // best-effort
+            }
+
+            // If instrumentation was requested, emit the per-element decisions
+            if (window.__STN_DEDUP_INSTRUMENT) {
+              try {
+                const hdr = `<<<STN-DEDUP-INSTRUMENT:${Date.now().toString(36)}:BEGIN>>>`;
+                const ftr = hdr.replace(":BEGIN", ":END>>>");
+                const report = {
+                  id: hdr.slice(3, 16),
+                  url: window.location.href,
+                  decisions: __stn_decisions.slice(0, 200),
+                };
+                console.__stn_originalLog && console.__stn_originalLog(hdr);
+                console.__stn_originalLog &&
+                  console.__stn_originalLog(JSON.stringify(report, null, 2));
+                console.__stn_originalLog && console.__stn_originalLog(ftr);
+              } catch (e) {}
+            }
+
+            // If nothing was removed by strict matching, try a more relaxed
+            // pass (matches that differ only by querystring, minor filename
+            // variations, or trivial HTML wrappers). This catches real-world
+            // duplicates that escape exact matching.
+            if (skipped === 0) {
+              try {
+                let relaxedRemoved = 0;
+
+                const normalizeImgSrc = (src) => {
+                  if (!src) return "";
+                  try {
+                    const url = src.split("?")[0].split("#")[0];
+                    const parts = url.split("/");
+                    let base = parts[parts.length - 1] || url;
+                    // strip common dimension tokens like -200x300 or _200x300
+                    base = base.replace(/[_-]\d+x\d+(?=\.)/g, "");
+                    return base.toLowerCase();
+                  } catch (e) {
+                    return src;
+                  }
+                };
+
+                const imgMap = new Set();
+                const imgs = Array.from(doc.body.querySelectorAll("img"));
+                for (const im of imgs) {
+                  const key =
+                    normalizeImgSrc(im.getAttribute("src") || "") ||
+                    im.getAttribute("alt") ||
+                    "";
+                  if (!key) continue;
+                  if (imgMap.has(key)) {
+                    relaxedRemoved++;
+                    if (im.parentNode) im.parentNode.removeChild(im);
+                    continue;
+                  }
+                  imgMap.add(key);
+                }
+
+                const tableMap = new Set();
+                const tables = Array.from(doc.body.querySelectorAll("table"));
+                for (const tb of tables) {
+                  const cells = tb.querySelectorAll("td,th").length;
+                  const txt = (tb.textContent || "")
+                    .replace(/\s+/g, " ")
+                    .trim()
+                    .substring(0, 300);
+                  const key = `t:${cells}:${txt}`;
+                  if (tableMap.has(key)) {
+                    relaxedRemoved++;
+                    if (tb.parentNode) tb.parentNode.removeChild(tb);
+                    continue;
+                  }
+                  tableMap.add(key);
+                }
+
+                // background-image duplicates
+                const bgMap = new Set();
+                const els = Array.from(doc.body.querySelectorAll("*[style]"));
+                for (const el of els) {
+                  const m = (el.getAttribute("style") || "").match(
+                    /background-image:\s*url\(['"]?([^'"\)]+)['"]?\)/i,
+                  );
+                  if (!m) continue;
+                  const k = normalizeImgSrc(m[1]);
+                  if (!k) continue;
+                  if (imgMap.has(k) || bgMap.has(k)) {
+                    relaxedRemoved++;
+                    if (el.parentNode) el.parentNode.removeChild(el);
+                    continue;
+                  }
+                  bgMap.add(k);
+                }
+
+                if (relaxedRemoved > 0) {
+                  console.log(
+                    `[scanWebpage:DEDUP] Relaxed dedup removed ${relaxedRemoved} elements`,
+                  );
+                  htmlToProcess = `<!doctype html>${doc.documentElement.outerHTML}`;
+                }
+              } catch (e) {
+                // ignore relaxed-pass failures
               }
             }
           } catch (e) {
-            // best-effort
+            /* best-effort only */
           }
-
-          // If instrumentation was requested, emit the per-element decisions
-          if (window.__STN_DEDUP_INSTRUMENT) {
-            try {
-              const hdr = `<<<STN-DEDUP-INSTRUMENT:${Date.now().toString(36)}:BEGIN>>>`;
-              const ftr = hdr.replace(":BEGIN", ":END>>>");
-              const report = {
-                id: hdr.slice(3, 16),
-                url: window.location.href,
-                decisions: __stn_decisions.slice(0, 200),
-              };
-              console.__stn_originalLog && console.__stn_originalLog(hdr);
-              console.__stn_originalLog &&
-                console.__stn_originalLog(JSON.stringify(report, null, 2));
-              console.__stn_originalLog && console.__stn_originalLog(ftr);
-            } catch (e) {}
-          }
-
-          // If nothing was removed by strict matching, try a more relaxed
-          // pass (matches that differ only by querystring, minor filename
-          // variations, or trivial HTML wrappers). This catches real-world
-          // duplicates that escape exact matching.
-          if (skipped === 0) {
-            try {
-              let relaxedRemoved = 0;
-
-              const normalizeImgSrc = (src) => {
-                if (!src) return "";
-                try {
-                  const url = src.split("?")[0].split("#")[0];
-                  const parts = url.split("/");
-                  let base = parts[parts.length - 1] || url;
-                  // strip common dimension tokens like -200x300 or _200x300
-                  base = base.replace(/[_-]\d+x\d+(?=\.)/g, "");
-                  return base.toLowerCase();
-                } catch (e) {
-                  return src;
-                }
-              };
-
-              const imgMap = new Set();
-              const imgs = Array.from(doc.body.querySelectorAll("img"));
-              for (const im of imgs) {
-                const key =
-                  normalizeImgSrc(im.getAttribute("src") || "") ||
-                  im.getAttribute("alt") ||
-                  "";
-                if (!key) continue;
-                if (imgMap.has(key)) {
-                  relaxedRemoved++;
-                  if (im.parentNode) im.parentNode.removeChild(im);
-                  continue;
-                }
-                imgMap.add(key);
-              }
-
-              const tableMap = new Set();
-              const tables = Array.from(doc.body.querySelectorAll("table"));
-              for (const tb of tables) {
-                const cells = tb.querySelectorAll("td,th").length;
-                const txt = (tb.textContent || "")
-                  .replace(/\s+/g, " ")
-                  .trim()
-                  .substring(0, 300);
-                const key = `t:${cells}:${txt}`;
-                if (tableMap.has(key)) {
-                  relaxedRemoved++;
-                  if (tb.parentNode) tb.parentNode.removeChild(tb);
-                  continue;
-                }
-                tableMap.add(key);
-              }
-
-              // background-image duplicates
-              const bgMap = new Set();
-              const els = Array.from(doc.body.querySelectorAll("*[style]"));
-              for (const el of els) {
-                const m = (el.getAttribute("style") || "").match(
-                  /background-image:\s*url\(['"]?([^'"\)]+)['"]?\)/i,
-                );
-                if (!m) continue;
-                const k = normalizeImgSrc(m[1]);
-                if (!k) continue;
-                if (imgMap.has(k) || bgMap.has(k)) {
-                  relaxedRemoved++;
-                  if (el.parentNode) el.parentNode.removeChild(el);
-                  continue;
-                }
-                bgMap.add(k);
-              }
-
-              if (relaxedRemoved > 0) {
-                console.log(
-                  `[scanWebpage:DEDUP] Relaxed dedup removed ${relaxedRemoved} elements`,
-                );
-                htmlToProcess = `<!doctype html>${doc.documentElement.outerHTML}`;
-              }
-            } catch (e) {
-              // ignore relaxed-pass failures
-            }
-          }
-        } catch (e) {
-          /* best-effort only */
-        }
-      })();
-    }
-  } catch (e) {}
+        })();
+      }
+    } catch (e) {}
+  } // End of if (false) - disabled dedup
 
   const r = await parseFromHtml(htmlToProcess, window.location.href);
   if (r) {
@@ -15934,6 +16051,53 @@ async function scanWebpage() {
       calloutIcon: r.calloutIcon,
       titlePreview: r.title?.substring(0, 60),
     });
+
+    // Log final content being returned to serviceWorker
+    console.warn(
+      "[scanWebpage] FINAL CONTENT being returned (length:",
+      r.content?.length,
+      ")",
+    );
+    console.warn(
+      "[scanWebpage] First 2000 chars:",
+      r.content?.substring(0, 2000),
+    );
+    console.warn(
+      "[scanWebpage] Last 500 chars:",
+      r.content?.substring(r.content.length - 500),
+    );
+
+    // Save to window for debugging
+    window.__lastScanResult = r;
+
+    // WORKAROUND: Flatten nested sections to prevent serviceWorker duplication
+    // ServiceWorker has a bug where nested <section> elements cause duplicate blocks
+    try {
+      const doc = new DOMParser().parseFromString(r.content, "text/html");
+      const sections = doc.querySelectorAll("section section");
+      let flattenedCount = 0;
+
+      sections.forEach((nestedSection) => {
+        // Move nested section's children to parent, then remove the nested section wrapper
+        const parent = nestedSection.parentElement;
+        if (parent && parent.tagName === "SECTION") {
+          while (nestedSection.firstChild) {
+            parent.insertBefore(nestedSection.firstChild, nestedSection);
+          }
+          nestedSection.remove();
+          flattenedCount++;
+        }
+      });
+
+      if (flattenedCount > 0) {
+        r.content = doc.body.innerHTML;
+        console.warn(
+          `[scanWebpage] Flattened ${flattenedCount} nested sections to prevent duplicates`,
+        );
+      }
+    } catch (e) {
+      console.warn("[scanWebpage] Could not flatten nested sections:", e);
+    }
   }
   return r || {};
 }
