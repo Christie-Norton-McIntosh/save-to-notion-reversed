@@ -11,11 +11,12 @@
     "cookies",
     "scripting",
     "contextMenus",
-    "unlimitedStorage"
+    "unlimitedStorage",
+    "tabs"
   ],
   "host_permissions": ["https://*.notion.so/*"],
   "optional_host_permissions": ["https://*.licdn.com/*", "<all_urls>"],
-  "optional_permissions": ["tabs", "webNavigation"],
+  "optional_permissions": ["webNavigation"],
   "commands": {
     "add-highlights": {
       "suggested_key": {

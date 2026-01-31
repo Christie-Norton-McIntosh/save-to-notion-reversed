@@ -167,9 +167,10 @@
 
         for (const element of allElements) {
           if (element.shadowRoot) {
-            console.debug(
-              `getData: Checking shadow root of ${element.tagName} at depth ${depth}...`,
-            );
+            // Commented out to reduce console noise - only log when found
+            // console.debug(
+            //   `getData: Checking shadow root of ${element.tagName} at depth ${depth}...`,
+            // );
 
             // Try to find the element in this shadow root
             const match = element.shadowRoot.querySelector(selector);

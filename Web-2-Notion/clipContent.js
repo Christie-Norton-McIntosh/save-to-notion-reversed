@@ -1574,8 +1574,8 @@
             );
             const selectorEntries = yield getCustomSelectorsForCurrentDomain();
             console.log(
-              "[startContentConfirmSelection] Custom selector loaded:",
-              customSelector,
+              "[startContentConfirmSelection] Custom selectors loaded:",
+              selectorEntries,
             );
             console.log(
               "[startContentConfirmSelection] Current node:",
@@ -1672,12 +1672,23 @@
               contentData.embeddedPostFormat,
             );
 
-            console.log("[clipContent] Sending pickContentAdded payload:", {
-              highlightFormat: payload.highlightFormat,
-              calloutIcon: payload.calloutIcon,
-              embeddedPostFormat: payload.embeddedPostFormat,
-              blockFormat: payload.blockFormat,
-            });
+            console.log("[clipContent] Sending pickContentAdded payload:");
+            console.log("  - Title:", payload.title);
+            console.log("  - Content length:", payload.content?.length || 0);
+            console.log(
+              "  - Text content length:",
+              payload.textContent?.length || 0,
+            );
+            console.log(
+              "  - Content preview (first 200 chars):",
+              payload.content?.substring(0, 200),
+            );
+            console.log("  - Element count:", payload.elementCount);
+            console.log(
+              "  - Embedded post format:",
+              payload.embeddedPostFormat,
+            );
+            console.log("  - Full payload keys:", Object.keys(payload));
 
             chrome.runtime.sendMessage({
               popup: {
@@ -3116,6 +3127,17 @@ z-index: 2;
       }
 
       function buildContentFromSelectors(rootElement, selectorEntries = []) {
+        console.log("[buildContentFromSelectors] === STARTING ===");
+        console.log(
+          "  Root element:",
+          rootElement?.tagName,
+          rootElement?.className,
+        );
+        console.log(
+          "  Selector entries:",
+          selectorEntries.length,
+          selectorEntries,
+        );
         const results = [];
 
         selectorEntries.forEach((entry) => {
@@ -3130,14 +3152,41 @@ z-index: 2;
         });
 
         if (results.length === 0) {
-          // REMOVED: Fallback extraction that was causing duplicates
-          // Previously, if selectors didn't match, we extracted the entire page,
-          // which often included content that overlapped with the intended selector regions.
-          // This caused duplicate content blocks in the final output.
-          console.warn(
-            "[buildContentFromSelectors] No content found for configured selectors:",
-            selectorEntries.map((e) => e.selector).join(", "),
-            "- Please check your selector configuration for this domain.",
+          if (selectorEntries.length === 0) {
+            console.log(
+              "[buildContentFromSelectors] No custom selectors configured for this domain - using default extraction",
+            );
+          } else {
+            console.warn(
+              "[buildContentFromSelectors] No content found for configured selectors:",
+              selectorEntries.map((e) => e.selector).join(", "),
+              "- Falling back to default extraction",
+            );
+          }
+
+          // Fallback: extract content from rootElement without custom selector
+          const fallbackData = extractContentData(rootElement, null);
+          if (fallbackData) {
+            console.log(
+              "[buildContentFromSelectors] ✓ Fallback extraction succeeded",
+            );
+            console.log("  - Title:", fallbackData.title);
+            console.log(
+              "  - Content length:",
+              fallbackData.content?.length || 0,
+            );
+            console.log(
+              "  - Text length:",
+              fallbackData.textContent?.length || 0,
+            );
+            return {
+              ...fallbackData,
+              embeddedPostFormat: false,
+            };
+          }
+
+          console.error(
+            "[buildContentFromSelectors] Fallback extraction also failed - no content available",
           );
           return null;
         }
@@ -3185,6 +3234,39 @@ z-index: 2;
             "[extractContentData] Trying custom selector:",
             customSelector,
           );
+
+          // Validate and clean the selector before using it
+          try {
+            // Remove invalid patterns
+            customSelector = customSelector
+              .replace(/\.\./g, ".") // Fix double dots (..)
+              .replace(/\.,/g, ",") // Fix ., patterns
+              .replace(/,\./g, ",") // Fix ,. patterns
+              .replace(/,\s*,/g, ",") // Fix multiple commas
+              .replace(/^,|,$/g, "") // Remove leading/trailing commas
+              .trim();
+
+            // Test if selector is valid by trying to create a dummy query
+            document
+              .createDocumentFragment()
+              .querySelector(customSelector.split(",")[0].trim());
+
+            console.log(
+              "[extractContentData] Cleaned selector:",
+              customSelector,
+            );
+          } catch (validationError) {
+            console.error(
+              "[extractContentData] Invalid selector after cleaning:",
+              customSelector,
+              validationError,
+            );
+            // Fall through to use article fallback
+            customSelector = null;
+          }
+        }
+
+        if (customSelector) {
           try {
             // Check if this is a comma-separated list of selectors
             const isMultipleSelectors = customSelector.includes(",");
@@ -3524,17 +3606,43 @@ z-index: 2;
         }
 
         // Fallback: extract content from the selected element itself
+        console.log(
+          "[extractContentData] Final fallback: extracting from rootElement directly",
+        );
         const text = rootElement.textContent?.trim();
-        if (text && text.length > 100) {
+        const html = rootElement.outerHTML;
+
+        // Accept any element with content (lowered threshold from 100 to 10 characters)
+        if (text && text.length > 10 && html) {
+          console.log(
+            `[extractContentData] ✓ Fallback succeeded - found ${text.length} characters of text content`,
+          );
           return {
             title: document.title || "Unknown Title",
-            content: rootElement.outerHTML,
+            content: html,
             textContent: text.replace(/\s+/g, " "),
             url: window.location.href,
             elementCount: 1,
           };
         }
 
+        // Even if text is short, try to extract HTML if available
+        if (html && html.length > 50) {
+          console.log(
+            `[extractContentData] ✓ Fallback using HTML content (${html.length} chars)`,
+          );
+          return {
+            title: document.title || "Unknown Title",
+            content: html,
+            textContent: text || "(No text content)",
+            url: window.location.href,
+            elementCount: 1,
+          };
+        }
+
+        console.error(
+          "[extractContentData] ✗ All extraction strategies failed - no valid content found",
+        );
         return null;
       }
       function continueWithFieldSelection(selectedFields) {
