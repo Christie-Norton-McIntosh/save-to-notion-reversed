@@ -1,5 +1,9 @@
 {
   "dependencies": {
-    "turndown": "^7.2.2"
+    "turndown": "^7.2.2",
+    "jsdom": "^24.0.0"
+  },
+  "scripts": {
+    "test-line-breaks": "node test/test-table-line-breaks.js"
   }
 }

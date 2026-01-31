@@ -17337,7 +17337,43 @@ function ex(e, t) {
 ((zv.tableCell = {
   filter: ["th", "td"],
   replacement: function (e, t) {
-    return Hv(e, t);
+    // Process cell content manually to preserve line breaks
+    console.debug("[TABLE CELL] Processing cell");
+    var cellHtml = t.innerHTML || "";
+    // Replace block elements with line break markers
+    var tempDiv = document.createElement("div");
+    tempDiv.innerHTML = cellHtml;
+
+    // Insert markers after block elements before getting text
+    var blockEls = tempDiv.querySelectorAll(
+      "div, p, h1, h2, h3, h4, h5, h6, section, article, header, footer, li",
+    );
+    console.debug("[TABLE CELL] Found", blockEls.length, "block elements");
+    // Insert markers BEFORE block elements to separate preceding text
+    for (var i = 0; i < blockEls.length; i++) {
+      var marker = document.createTextNode("__BLOCK_END__");
+      blockEls[i].parentNode.insertBefore(marker, blockEls[i]);
+    }
+
+    // Replace br tags with markers
+    var brEls = tempDiv.querySelectorAll("br");
+    for (var j = 0; j < brEls.length; j++) {
+      var brMarker = document.createTextNode("__BR__");
+      brEls[j].parentNode.replaceChild(brMarker, brEls[j]);
+    }
+
+    // Get text with markers
+    var text = tempDiv.textContent || "";
+    console.debug("[TABLE CELL] Text with markers:", text.substring(0, 100));
+    // Replace markers with actual newline character
+    text = text.replace(/__BLOCK_END__/g, "\n").replace(/__BR__/g, "\n");
+    // Clean up excessive spaces BUT preserve newlines
+    text = text.replace(/ {3,}/g, " ");
+    // Trim leading/trailing whitespace
+    text = text.trim();
+    console.debug("[TABLE CELL] Final text:", text.substring(0, 100));
+
+    return Hv(text, t);
   },
 }),
   (zv.tableRow = {
