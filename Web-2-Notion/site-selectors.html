@@ -23,7 +23,8 @@
         color: #333;
         margin-bottom: 30px;
       }
-      .selector-item {
+      .selector-item,
+      .format-rule-item {
         display: flex;
         gap: 10px;
         margin-bottom: 15px;
@@ -203,10 +204,177 @@
       </div>
 
       <button class="add-btn">Add Website Selector</button>
-      <button class="save-btn">Save Settings</button>
       <button class="test-btn">Test</button>
 
-      <div id="status" class="status"></div>
+      <!-- Ignore Selectors Section -->
+      <div
+        style="
+          margin-top: 40px;
+          padding-top: 30px;
+          border-top: 2px solid #e0e0e0;
+        "
+      >
+        <h2 style="color: #333; margin-bottom: 15px">
+          Ignore Selectors (Per Website)
+        </h2>
+        <p class="description">
+          Specify elements to <strong>exclude from within</strong> the captured
+          content on specific websites. These elements will be removed from the
+          content selected by your custom selectors. Useful for removing
+          navigation bars, buttons, breadcrumbs, or other unwanted elements that
+          appear inside your selected content.
+        </p>
+
+        <div class="example">
+          <strong>How it works:</strong><br />
+          <ol style="margin: 10px 0; text-align: left; line-height: 1.6">
+            <li>
+              Your <strong>Custom Selector</strong> captures content (e.g.,
+              <code>.body</code>)
+            </li>
+            <li>
+              Your <strong>Ignore Selectors</strong> remove unwanted elements
+              from within that content
+            </li>
+            <li>The cleaned content is sent to Notion</li>
+          </ol>
+          <strong>Example:</strong><br />
+          <ul style="margin: 10px 0; text-align: left">
+            <li>
+              <strong>Domain:</strong> <code>servicenow.com</code><br />
+              <strong>Custom Selector:</strong> <code>.body</code> (captures
+              main content)<br />
+              <strong>Ignore:</strong>
+              <code>nav, .button, .breadcrumb</code> (removes navigation,
+              buttons, breadcrumbs from within <code>.body</code>)
+            </li>
+            <li>
+              <strong>Domain:</strong> <code>example.com</code><br />
+              <strong>Custom Selector:</strong> <code>article</code> (captures
+              article)<br />
+              <strong>Ignore:</strong>
+              <code>.share-buttons, .author-bio, .related-posts</code> (removes
+              these from within the article)
+            </li>
+          </ul>
+          <strong>💡 Tip:</strong> Use commas to separate multiple selectors for
+          the same domain.
+        </div>
+
+        <div id="ignore-selectors-container">
+          <!-- Dynamic ignore selector items will be added here -->
+        </div>
+
+        <button class="add-btn" id="add-ignore-selector-btn">
+          Add Ignore Selector
+        </button>
+      </div>
+
+      <!-- Custom Formatting Rules Section -->
+      <div
+        style="
+          margin-top: 40px;
+          padding-top: 30px;
+          border-top: 2px solid #e0e0e0;
+        "
+      >
+        <h2 style="color: #333; margin-bottom: 15px">
+          Custom Formatting Rules
+        </h2>
+        <p class="description">
+          Configure custom formatting transformations for specific HTML
+          elements. For example, convert
+          <code>&lt;span class="ph uicontrol"&gt;</code> to
+          <strong>bold text</strong>.
+        </p>
+
+        <div
+          style="
+            background: #fff3cd;
+            padding: 12px;
+            border-left: 4px solid #ffc107;
+            margin-bottom: 15px;
+            border-radius: 4px;
+          "
+        >
+          <strong>💡 Important Notes:</strong>
+          <ul style="margin: 8px 0 0 20px; font-size: 13px; line-height: 1.6">
+            <li>
+              <strong>Inline elements</strong> (like <code>span</code>,
+              <code>a</code>): The entire element is replaced with the
+              formatting tag
+            </li>
+            <li>
+              <strong>Block → Inline</strong> (like <code>div</code> →
+              <code>em</code>): Only the child content is wrapped, preserving
+              the container structure
+            </li>
+            <li>
+              <strong>Block → Block</strong> (like <code>div</code> →
+              <code>blockquote</code>): The entire container is replaced while
+              preserving content and classes
+            </li>
+            <li>
+              <strong>Best practice:</strong> Use <code>blockquote</code> for
+              note sections, and target inner elements like
+              <code>.note__body</code> for additional formatting
+            </li>
+            <li>
+              <strong>Testing:</strong> Check the browser console for detailed
+              logs about which elements are being formatted
+            </li>
+          </ul>
+        </div>
+
+        <div class="example">
+          <strong>Example Rules:</strong><br />
+          <ul style="margin: 10px 0; text-align: left">
+            <li>
+              <strong>Selector:</strong> <code>span.ph.uicontrol</code> →
+              <strong>Replacement:</strong> <code>strong</code> (for
+              <strong>bold</strong>)
+            </li>
+            <li>
+              <strong>Selector:</strong> <code>span.ph.filepath</code> →
+              <strong>Replacement:</strong> <code>code</code> (for
+              <code>monospace</code>)
+            </li>
+            <li>
+              <strong>Selector:</strong> <code>span.keyword</code> →
+              <strong>Replacement:</strong> <code>em</code> (for
+              <em>italic</em>)
+            </li>
+            <li>
+              <strong>Selector:</strong> <code>div.note.note_note</code> →
+              <strong>Replacement:</strong> <code>blockquote</code> (for
+              emphasized block)
+            </li>
+          </ul>
+          <strong>Allowed replacement tags:</strong>
+          <ul style="margin: 5px 0; text-align: left; font-size: 13px">
+            <li>
+              <strong>Inline:</strong> <code>strong</code>, <code>em</code>,
+              <code>code</code>, <code>mark</code>, <code>u</code>,
+              <code>del</code>, <code>b</code>, <code>i</code>
+            </li>
+            <li><strong>Block:</strong> <code>blockquote</code></li>
+          </ul>
+        </div>
+
+        <div id="format-rules-container">
+          <!-- Dynamic format rule items will be added here -->
+        </div>
+
+        <button class="add-btn" id="add-format-rule-btn">
+          Add Formatting Rule
+        </button>
+
+        <div id="status" class="status"></div>
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 20px">
+          <button class="save-btn" id="save-settings-btn">Save Settings</button>
+        </div>
+      </div>
     </div>
 
     <script src="site-selectors.js"></script>

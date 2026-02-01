@@ -1,5 +1,22 @@
 # Pick Data Functionality - Comprehensive Diagnostic Analysis
 
+## Sibling Duplicate Pruning (2026-01-31)
+
+### What Changed
+
+- The extraction logic now removes later siblings with identical normalized text (tag-aware) from the DOM before parsing content for Notion.
+- This helps prevent duplicate content blocks in the Notion page.
+
+### Logging
+
+- When duplicate siblings are pruned, a `console.warn` is emitted with the count of removed elements for transparency.
+
+### Example
+
+If a page has multiple repeated elements (e.g., navigation links, repeated footers), only the first instance is kept for each unique normalized text within the same parent.
+
+---
+
 **Date**: January 25, 2026  
 **Extension ID**: gmlacalmmchpkodophohpkndbpjnllaa (Development Version)  
 **Location**: `/Users/norton-mcintosh/Documents/GitHub/save-to-notion-reversed/Web-2-Notion`

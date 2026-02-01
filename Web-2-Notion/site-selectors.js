@@ -12,6 +12,25 @@ console.log(
 // selectors schema per domain: array of { selector: string, embeddedPostFormat?: boolean }
 let selectors = {};
 
+// Ignore selectors per domain: array of selector strings
+let ignoreSelectors = {};
+
+// Format rules array: { selector: string, replacement: string, description: string }
+let formatRules = [];
+
+// Allowed replacement tags for security
+const ALLOWED_REPLACEMENTS = [
+  "strong",
+  "em",
+  "code",
+  "mark",
+  "u",
+  "del",
+  "b",
+  "i",
+  "blockquote",
+];
+
 // Helper function to normalize domain names
 function normalizeDomain(domain) {
   if (!domain) return "";
@@ -32,29 +51,47 @@ function normalizeDomain(domain) {
 }
 
 // Load existing selectors
-chrome.storage.local.get(["customSiteSelectors"], (result) => {
-  if (chrome.runtime.lastError) {
-    console.error("Error loading selectors:", chrome.runtime.lastError);
-    showStatus(
-      "Error loading settings: " + chrome.runtime.lastError.message,
-      "error",
-    );
-    selectors = {};
-  } else {
-    selectors = normalizeSelectorsSchema(result.customSiteSelectors || {});
-  }
+chrome.storage.local.get(
+  ["customSiteSelectors", "customIgnoreSelectors", "customFormatRules"],
+  (result) => {
+    if (chrome.runtime.lastError) {
+      console.error("Error loading selectors:", chrome.runtime.lastError);
+      showStatus(
+        "Error loading settings: " + chrome.runtime.lastError.message,
+        "error",
+      );
+      selectors = {};
+      ignoreSelectors = {};
+      formatRules = [];
+    } else {
+      selectors = normalizeSelectorsSchema(result.customSiteSelectors || {});
+      ignoreSelectors = normalizeIgnoreSelectorsSchema(
+        result.customIgnoreSelectors || {},
+      );
+      formatRules = result.customFormatRules || [
+        // Default rule for ServiceNow
+        {
+          selector: "span.ph.uicontrol",
+          replacement: "strong",
+          description: "UI control elements (ServiceNow)",
+        },
+      ];
+    }
 
-  // Ensure default embedded post format selector for servicenow.com
-  if (
-    !selectors["servicenow.com"] ||
-    selectors["servicenow.com"].length === 0
-  ) {
-    selectors["servicenow.com"] = [
-      { selector: ".related-links", customHeading: "Related Links" },
-    ];
-  }
-  renderSelectors();
-});
+    // Ensure default embedded post format selector for servicenow.com
+    if (
+      !selectors["servicenow.com"] ||
+      selectors["servicenow.com"].length === 0
+    ) {
+      selectors["servicenow.com"] = [
+        { selector: ".related-links", customHeading: "Related Links" },
+      ];
+    }
+    renderSelectors();
+    renderIgnoreSelectors();
+    renderFormatRules();
+  },
+);
 
 // Normalize legacy shapes (string or object) into array of objects per domain
 function normalizeSelectorsSchema(rawSelectors) {
@@ -90,6 +127,26 @@ function normalizeSelectorsSchema(rawSelectors) {
           customHeading: customHeading,
         },
       ].filter((item) => item.selector);
+    }
+  });
+  return normalized;
+}
+
+// Normalize ignore selectors schema (array of strings per domain)
+function normalizeIgnoreSelectorsSchema(rawIgnoreSelectors) {
+  const normalized = {};
+  Object.entries(rawIgnoreSelectors || {}).forEach(([domain, entry]) => {
+    if (Array.isArray(entry)) {
+      // Already an array of strings
+      normalized[domain] = entry.filter(
+        (sel) => typeof sel === "string" && sel.trim(),
+      );
+    } else if (typeof entry === "string") {
+      // Single string, split by comma
+      normalized[domain] = entry
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s);
     }
   });
   return normalized;
@@ -220,6 +277,223 @@ function updateFromInputs() {
   console.log("Selectors updated:", selectors);
 }
 
+// Ignore Selectors Functions
+function renderIgnoreSelectors() {
+  const container = document.getElementById("ignore-selectors-container");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  const entries = Object.entries(ignoreSelectors);
+
+  if (entries.length === 0) {
+    addIgnoreSelectorItem("", "");
+  } else {
+    entries.forEach(([domain, selectorList]) => {
+      // Join array of selectors with commas
+      const selectorsString = Array.isArray(selectorList)
+        ? selectorList.join(", ")
+        : selectorList;
+      addIgnoreSelectorItem(domain, selectorsString);
+    });
+  }
+}
+
+function addIgnoreSelectorItem(domain = "", selectors = "") {
+  const container = document.getElementById("ignore-selectors-container");
+  if (!container) return;
+
+  const item = document.createElement("div");
+  item.className = "ignore-selector-item";
+  item.style.display = "flex";
+  item.style.gap = "10px";
+  item.style.marginBottom = "15px";
+  item.style.alignItems = "center";
+  item.style.flexWrap = "wrap";
+  item.style.borderLeft = "4px solid #dc3545";
+  item.style.paddingLeft = "10px";
+
+  const domainInput = document.createElement("input");
+  domainInput.type = "text";
+  domainInput.placeholder = "example.com";
+  domainInput.value = domain;
+  domainInput.dataset.originalDomain = domain;
+  domainInput.style.flex = "0 0 200px";
+  domainInput.addEventListener("input", updateIgnoreSelectorsFromInputs);
+
+  const selectorInput = document.createElement("input");
+  selectorInput.type = "text";
+  selectorInput.placeholder = ".ad, .sidebar, footer";
+  selectorInput.value = selectors;
+  selectorInput.style.flex = "1";
+  selectorInput.title = "CSS selectors to ignore (comma-separated)";
+  selectorInput.addEventListener("input", updateIgnoreSelectorsFromInputs);
+
+  const removeBtn = document.createElement("button");
+  removeBtn.className = "remove-btn";
+  removeBtn.textContent = "Remove";
+  removeBtn.addEventListener("click", function () {
+    item.remove();
+    updateIgnoreSelectorsFromInputs();
+  });
+
+  item.appendChild(domainInput);
+  item.appendChild(selectorInput);
+  item.appendChild(removeBtn);
+
+  container.appendChild(item);
+}
+
+function updateIgnoreSelectorsFromInputs() {
+  ignoreSelectors = {};
+  const items = document.querySelectorAll(".ignore-selector-item");
+
+  items.forEach((item) => {
+    const inputs = item.querySelectorAll('input[type="text"]');
+    if (inputs.length >= 2) {
+      const domainInput = inputs[0];
+      const selectorInput = inputs[1];
+
+      const rawDomain = domainInput.value.trim();
+      const domain = normalizeDomain(rawDomain);
+      const selectorsString = selectorInput.value.trim();
+
+      if (domain && selectorsString) {
+        // Split by comma and trim each selector
+        const selectorList = selectorsString
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s);
+
+        if (selectorList.length > 0) {
+          ignoreSelectors[domain] = selectorList;
+        }
+
+        // Update the input to show the normalized domain
+        if (domainInput.value !== domain) {
+          domainInput.value = domain;
+        }
+      }
+    }
+  });
+
+  console.log("Ignore selectors updated:", ignoreSelectors);
+}
+
+function addIgnoreSelector() {
+  console.log("addIgnoreSelector called");
+  addIgnoreSelectorItem("", "");
+}
+
+function renderFormatRules() {
+  const container = document.getElementById("format-rules-container");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  if (formatRules.length === 0) {
+    // Add at least one empty rule
+    addFormatRuleItem("", "strong", "");
+  } else {
+    formatRules.forEach((rule) => {
+      addFormatRuleItem(
+        rule.selector || "",
+        rule.replacement || "strong",
+        rule.description || "",
+      );
+    });
+  }
+}
+
+function addFormatRuleItem(
+  selector = "",
+  replacement = "strong",
+  description = "",
+) {
+  const container = document.getElementById("format-rules-container");
+  if (!container) return;
+
+  const item = document.createElement("div");
+  item.className = "format-rule-item";
+  item.style.borderLeft = "4px solid #17a2b8";
+  item.style.paddingLeft = "10px";
+
+  const selectorInput = document.createElement("input");
+  selectorInput.type = "text";
+  selectorInput.placeholder = "span.ph.uicontrol";
+  selectorInput.value = selector;
+  selectorInput.title = "CSS selector to match elements";
+  selectorInput.addEventListener("input", updateFormatRulesFromInputs);
+
+  const replacementSelect = document.createElement("select");
+  replacementSelect.style.padding = "8px 12px";
+  replacementSelect.style.border = "1px solid #ddd";
+  replacementSelect.style.borderRadius = "4px";
+  replacementSelect.style.fontSize = "14px";
+  replacementSelect.style.minWidth = "120px";
+  replacementSelect.title = "HTML tag to replace with";
+
+  ALLOWED_REPLACEMENTS.forEach((tag) => {
+    const option = document.createElement("option");
+    option.value = tag;
+    option.textContent = `<${tag}>`;
+    if (tag === replacement) option.selected = true;
+    replacementSelect.appendChild(option);
+  });
+  replacementSelect.addEventListener("change", updateFormatRulesFromInputs);
+
+  const descInput = document.createElement("input");
+  descInput.type = "text";
+  descInput.placeholder = "Description (e.g., 'UI controls')";
+  descInput.value = description || "";
+  descInput.title = "Description of what this rule does";
+  descInput.style.maxWidth = "250px";
+  descInput.addEventListener("input", updateFormatRulesFromInputs);
+
+  const removeBtn = document.createElement("button");
+  removeBtn.className = "remove-btn";
+  removeBtn.textContent = "Remove";
+  removeBtn.addEventListener("click", function () {
+    item.remove();
+    updateFormatRulesFromInputs();
+  });
+
+  item.appendChild(selectorInput);
+  item.appendChild(replacementSelect);
+  item.appendChild(descInput);
+  item.appendChild(removeBtn);
+
+  container.appendChild(item);
+}
+
+function updateFormatRulesFromInputs() {
+  formatRules = [];
+  const items = document.querySelectorAll(
+    "#format-rules-container .format-rule-item",
+  );
+
+  items.forEach((item) => {
+    const selectorInput = item.querySelector('input[type="text"]');
+    const replacementSelect = item.querySelector("select");
+    const descInput = item.querySelectorAll('input[type="text"]')[1];
+
+    const selector = selectorInput?.value.trim();
+    const replacement = replacementSelect?.value.trim();
+    const description = descInput?.value.trim();
+
+    if (selector && replacement && ALLOWED_REPLACEMENTS.includes(replacement)) {
+      formatRules.push({ selector, replacement, description });
+    }
+  });
+
+  console.log("Format rules updated:", formatRules);
+}
+
+function addFormatRule() {
+  console.log("addFormatRule called");
+  addFormatRuleItem("", "strong", "");
+}
+
 function addSelector() {
   console.log("addSelector called");
   addSelectorItem("", "");
@@ -230,6 +504,8 @@ function saveSelectors() {
 
   // Update from current inputs first
   updateFromInputs();
+  updateIgnoreSelectorsFromInputs();
+  updateFormatRulesFromInputs();
 
   // Clean up empty entries and normalize domains
   const cleanedSelectors = {};
@@ -253,28 +529,84 @@ function saveSelectors() {
     }
   });
 
-  console.log("Saving selectors:", cleanedSelectors);
-  chrome.storage.local.set({ customSiteSelectors: cleanedSelectors }, () => {
-    if (chrome.runtime.lastError) {
-      console.error("Error saving:", chrome.runtime.lastError);
-      showStatus(
-        "Error saving settings: " + chrome.runtime.lastError.message,
-        "error",
-      );
-    } else {
-      console.log("Save successful");
-      selectors = cleanedSelectors;
+  // Clean up ignore selectors
+  const cleanedIgnoreSelectors = {};
+  Object.entries(ignoreSelectors).forEach(([domain, selectorList]) => {
+    const normalizedDomain = normalizeDomain(domain);
+    if (!normalizedDomain) return;
 
-      // Show detailed success message
-      const selectorCount = Object.keys(cleanedSelectors).length;
-      const domains = Object.keys(cleanedSelectors).join(", ");
-      showStatus(
-        `✓ Saved ${selectorCount} selector(s) for: ${domains}. Reload the webpage(s) to see changes.`,
-        "success",
-      );
-      renderSelectors();
+    const cleanedList = Array.isArray(selectorList)
+      ? selectorList.map((s) => s.trim()).filter((s) => s)
+      : [];
+
+    if (cleanedList.length > 0) {
+      cleanedIgnoreSelectors[normalizedDomain] = cleanedList;
     }
   });
+
+  // Clean up format rules
+  const cleanedFormatRules = formatRules
+    .map((rule) => ({
+      selector: (rule.selector || "").trim(),
+      replacement: (rule.replacement || "").trim(),
+      description: (rule.description || "").trim(),
+    }))
+    .filter(
+      (rule) =>
+        rule.selector &&
+        rule.replacement &&
+        ALLOWED_REPLACEMENTS.includes(rule.replacement),
+    );
+
+  console.log("Saving selectors:", cleanedSelectors);
+  console.log("Saving ignore selectors:", cleanedIgnoreSelectors);
+  console.log("Saving format rules:", cleanedFormatRules);
+
+  chrome.storage.local.set(
+    {
+      customSiteSelectors: cleanedSelectors,
+      customIgnoreSelectors: cleanedIgnoreSelectors,
+      customFormatRules: cleanedFormatRules,
+    },
+    () => {
+      if (chrome.runtime.lastError) {
+        console.error("Error saving:", chrome.runtime.lastError);
+        showStatus(
+          "Error saving settings: " + chrome.runtime.lastError.message,
+          "error",
+        );
+      } else {
+        console.log("Save successful");
+        selectors = cleanedSelectors;
+        formatRules = cleanedFormatRules;
+
+        // Show detailed success message
+        const selectorCount = Object.keys(cleanedSelectors).length;
+        const domains = Object.keys(cleanedSelectors).join(", ");
+        const ruleCount = cleanedFormatRules.length;
+        showStatus(
+          `✓ Saved ${selectorCount} selector(s) for: ${domains}. Saved ${ruleCount} formatting rule(s). Reload the webpage(s) to see changes.`,
+          "success",
+        );
+        renderSelectors();
+        renderFormatRules();
+      }
+    },
+  );
+}
+
+function showStatus(message, type) {
+  const statusEl = document.getElementById("status");
+  if (!statusEl) return;
+
+  statusEl.textContent = message;
+  statusEl.className = `status ${type}`;
+  statusEl.style.display = "block";
+
+  // Auto-hide after 5 seconds
+  setTimeout(() => {
+    statusEl.style.display = "none";
+  }, 5000);
 }
 
 function showShortcutInfo() {
@@ -357,6 +689,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const addBtn = document.querySelector(".add-btn");
   const saveBtn = document.querySelector(".save-btn");
   const testBtn = document.querySelector(".test-btn");
+  const addIgnoreSelectorBtn = document.getElementById(
+    "add-ignore-selector-btn",
+  );
+  const addFormatRuleBtn = document.getElementById("add-format-rule-btn");
 
   console.log("Buttons found:", {
     backBtn: !!backBtn,
@@ -364,6 +700,8 @@ document.addEventListener("DOMContentLoaded", function () {
     addBtn: !!addBtn,
     saveBtn: !!saveBtn,
     testBtn: !!testBtn,
+    addIgnoreSelectorBtn: !!addIgnoreSelectorBtn,
+    addFormatRuleBtn: !!addFormatRuleBtn,
   });
 
   if (backBtn) backBtn.addEventListener("click", goBackToMainInterface);
@@ -375,6 +713,18 @@ document.addEventListener("DOMContentLoaded", function () {
     console.log("Test button listener attached");
   } else {
     console.error("Test button not found!");
+  }
+  if (addIgnoreSelectorBtn) {
+    addIgnoreSelectorBtn.addEventListener("click", addIgnoreSelector);
+    console.log("Add ignore selector button listener attached");
+  } else {
+    console.error("Add ignore selector button not found!");
+  }
+  if (addFormatRuleBtn) {
+    addFormatRuleBtn.addEventListener("click", addFormatRule);
+    console.log("Add format rule button listener attached");
+  } else {
+    console.error("Add format rule button not found!");
   }
 
   console.log("Event listeners attached successfully");

@@ -17346,13 +17346,21 @@ function ex(e, t) {
 
     // Insert markers after block elements before getting text
     var blockEls = tempDiv.querySelectorAll(
-      "div, p, h1, h2, h3, h4, h5, h6, section, article, header, footer, li",
+      "div, p, h1, h2, h3, h4, h5, h6, section, article, header, footer",
     );
     console.debug("[TABLE CELL] Found", blockEls.length, "block elements");
     // Insert markers BEFORE block elements to separate preceding text
     for (var i = 0; i < blockEls.length; i++) {
       var marker = document.createTextNode("__BLOCK_END__");
       blockEls[i].parentNode.insertBefore(marker, blockEls[i]);
+    }
+
+    // Handle list items specifically - add markers after each li to preserve list structure
+    var listItems = tempDiv.querySelectorAll("li");
+    console.debug("[TABLE CELL] Found", listItems.length, "list items");
+    for (var k = 0; k < listItems.length; k++) {
+      var liMarker = document.createTextNode("__LI_END__");
+      listItems[k].appendChild(liMarker);
     }
 
     // Replace br tags with markers
@@ -17366,7 +17374,10 @@ function ex(e, t) {
     var text = tempDiv.textContent || "";
     console.debug("[TABLE CELL] Text with markers:", text.substring(0, 100));
     // Replace markers with actual newline character
-    text = text.replace(/__BLOCK_END__/g, "\n").replace(/__BR__/g, "\n");
+    text = text
+      .replace(/__BLOCK_END__/g, "\n")
+      .replace(/__BR__/g, "\n")
+      .replace(/__LI_END__/g, "\n");
     // Clean up excessive spaces BUT preserve newlines
     text = text.replace(/ {3,}/g, " ");
     // Trim leading/trailing whitespace

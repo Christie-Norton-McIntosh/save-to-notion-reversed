@@ -248,16 +248,41 @@ var defaultSiteReadableZoneMap = {
 var customSiteReadableZoneMap = null;
 
 async function loadCustomSelectors() {
-  // Always reload from storage to get the latest selectors
+  // Always reload from storage to get the latest selectors, ignore selectors, and format rules
   return new Promise((resolve) => {
-    chrome.storage.local.get(["customSiteSelectors"], (result) => {
-      customSiteReadableZoneMap = result.customSiteSelectors || {};
-      console.log(
-        "[scanWebpage] Loaded custom selectors:",
-        customSiteReadableZoneMap,
-      );
-      resolve(customSiteReadableZoneMap);
-    });
+    chrome.storage.local.get(
+      ["customSiteSelectors", "customIgnoreSelectors", "customFormatRules"],
+      (result) => {
+        customSiteReadableZoneMap = result.customSiteSelectors || {};
+
+        // Cache ignore selectors for use in content extraction
+        window.__customIgnoreSelectorsCache =
+          result.customIgnoreSelectors || {};
+
+        // Cache format rules for use in applyCustomFormatting
+        window.__customFormatRulesCache = result.customFormatRules || [
+          {
+            selector: "span.ph.uicontrol",
+            replacement: "strong",
+            description: "UI control elements (ServiceNow)",
+          },
+        ];
+
+        console.log(
+          "[scanWebpage] Loaded custom selectors:",
+          customSiteReadableZoneMap,
+        );
+        console.log(
+          "[scanWebpage] Loaded custom ignore selectors:",
+          window.__customIgnoreSelectorsCache,
+        );
+        console.log(
+          "[scanWebpage] Loaded custom format rules:",
+          window.__customFormatRulesCache,
+        );
+        resolve(customSiteReadableZoneMap);
+      },
+    );
   });
 }
 
@@ -265,6 +290,45 @@ function getHostname() {
   const hostname = window.location.hostname.replace(/^www\./, "");
   console.log("[scanWebpage] Current hostname:", hostname);
   return hostname;
+}
+
+function applyIgnoreSelectors(element, hostname) {
+  // Get ignore selectors for the current domain
+  const ignoreSelectors = window.__customIgnoreSelectorsCache || {};
+  const selectorsForDomain = ignoreSelectors[hostname];
+
+  if (!selectorsForDomain || selectorsForDomain.length === 0) {
+    return; // No ignore selectors for this domain
+  }
+
+  console.log(
+    `[scanWebpage] Applying ignore selectors for ${hostname}:`,
+    selectorsForDomain,
+  );
+
+  let removedCount = 0;
+  selectorsForDomain.forEach((selector) => {
+    try {
+      const elementsToRemove = element.querySelectorAll(selector);
+      if (elementsToRemove.length > 0) {
+        elementsToRemove.forEach((el) => {
+          el.remove();
+          removedCount++;
+        });
+      }
+    } catch (error) {
+      console.error(
+        `[scanWebpage] Invalid ignore selector "${selector}":`,
+        error,
+      );
+    }
+  });
+
+  if (removedCount > 0) {
+    console.log(
+      `[scanWebpage] ✓ Removed ${removedCount} ignored elements from captured content`,
+    );
+  }
 }
 
 async function isAKnownSite(doc) {
@@ -14570,6 +14634,113 @@ var execPostParser = (html, links) => {
     .map((it) => it.outerHTML)
     .join("");
 };
+var applyCustomFormatting = (html) => {
+  var doc = new DOMParser().parseFromString(html, "text/html");
+
+  // Get format rules from cache (loaded by loadCustomSelectors)
+  const formatRules = window.__customFormatRulesCache || [
+    {
+      selector: "span.ph.uicontrol",
+      replacement: "strong",
+      description: "UI control elements (ServiceNow)",
+    },
+  ];
+
+  console.log("[applyCustomFormatting] Using format rules:", formatRules);
+
+  let totalReplacements = 0;
+  formatRules.forEach((rule) => {
+    const elements = doc.querySelectorAll(rule.selector);
+    if (elements.length > 0) {
+      console.log(
+        `[applyCustomFormatting] Found ${elements.length} elements matching "${rule.selector}" (${rule.description})`,
+      );
+      elements.forEach((el) => {
+        // Check if this is a block-level element
+        const isBlockElement = [
+          "DIV",
+          "P",
+          "SECTION",
+          "ARTICLE",
+          "HEADER",
+          "FOOTER",
+          "NAV",
+          "ASIDE",
+          "MAIN",
+        ].includes(el.tagName);
+        const isInlineReplacement = [
+          "strong",
+          "em",
+          "code",
+          "mark",
+          "u",
+          "del",
+          "b",
+          "i",
+          "span",
+        ].includes(rule.replacement.toLowerCase());
+        const isBlockReplacement = [
+          "blockquote",
+          "div",
+          "section",
+          "aside",
+          "article",
+        ].includes(rule.replacement.toLowerCase());
+
+        if (isBlockElement && isInlineReplacement) {
+          // For block → inline: wrap the child nodes instead of replacing the container
+          console.log(
+            `[applyCustomFormatting] Wrapping children of ${el.tagName} with <${rule.replacement}> instead of replacing container`,
+          );
+          const wrapper = doc.createElement(rule.replacement);
+          // Move all child nodes into the wrapper
+          while (el.firstChild) {
+            wrapper.appendChild(el.firstChild);
+          }
+          // Put the wrapper back into the original element
+          el.appendChild(wrapper);
+          totalReplacements++;
+        } else if (isBlockElement && isBlockReplacement) {
+          // For block → block: replace the container, preserving content
+          console.log(
+            `[applyCustomFormatting] Replacing ${el.tagName} container with <${rule.replacement}>`,
+          );
+          const replacement = doc.createElement(rule.replacement);
+          replacement.innerHTML = el.innerHTML;
+          // Preserve important attributes
+          if (el.id) replacement.id = el.id;
+          if (el.title) replacement.title = el.title;
+          if (el.className) replacement.className = el.className;
+          el.parentNode.replaceChild(replacement, el);
+          totalReplacements++;
+        } else {
+          // For inline elements or inline → inline: replace as before
+          const replacement = doc.createElement(rule.replacement);
+          replacement.innerHTML = el.innerHTML;
+          // Preserve important attributes
+          if (el.id) replacement.id = el.id;
+          if (el.title) replacement.title = el.title;
+          el.parentNode.replaceChild(replacement, el);
+          totalReplacements++;
+        }
+      });
+    }
+  });
+
+  if (totalReplacements > 0) {
+    console.log(
+      `[applyCustomFormatting] ✓ Applied ${totalReplacements} custom formatting transformations`,
+    );
+  } else {
+    console.log(
+      "[applyCustomFormatting] No matching elements found for any rules",
+    );
+  }
+
+  return Array.from(doc.childNodes)
+    .map((it) => it.outerHTML)
+    .join("");
+};
 var getTimeToRead = (text, wordsPerMinute) => {
   var words = text.trim().split(/\s+/g).length;
   var minToRead = words / wordsPerMinute;
@@ -14691,6 +14862,11 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
   content = content ? execPostParser(content, links) : null;
   console.warn(
     "[parseFromHtml] After execPostParser:",
+    content?.substring(0, 500),
+  );
+  content = content ? applyCustomFormatting(content) : null;
+  console.warn(
+    "[parseFromHtml] After applyCustomFormatting:",
     content?.substring(0, 500),
   );
   content = content
@@ -15884,8 +16060,13 @@ async function scanWebpage() {
         }
       }
 
+      // Clone the element before applying ignore selectors to avoid modifying the live DOM
+      const hostname = getHostname();
+      const clonedElement = liveElement.cloneNode(true);
+      applyIgnoreSelectors(clonedElement, hostname);
+
       // Wrap in a complete HTML document structure for parsing
-      htmlToProcess = `<!DOCTYPE html><html><head></head><body>${liveElement.outerHTML}</body></html>`;
+      htmlToProcess = `<!DOCTYPE html><html><head></head><body>${clonedElement.outerHTML}</body></html>`;
     } else {
       console.log(
         "[scanWebpage] Selector not found in live DOM, using full page HTML",

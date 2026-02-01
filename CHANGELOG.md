@@ -1,6 +1,12 @@
 # Changelog
 
-All notable changes to this project are documented in this file.
+## [Unreleased]
+
+### Added
+
+- Sibling duplicate pruning: Added DOM pass to remove later siblings with identical normalized text (tag-aware) from htmlToProcess before parsing.
+- Logging: Emits `console.warn` with count of removed duplicate siblings for visibility.
+  All notable changes to this project are documented in this file.
 
 ## [5.1.1] - 2026-01-28
 
