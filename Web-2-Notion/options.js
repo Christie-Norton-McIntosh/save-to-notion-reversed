@@ -17344,15 +17344,48 @@ function ex(e, t) {
     var tempDiv = document.createElement("div");
     tempDiv.innerHTML = cellHtml;
 
+    // First, normalize the structure by wrapping orphan text nodes
+    // This ensures text nodes outside of block elements get their own line
+    console.debug(
+      "[TABLE CELL] Before wrapping:",
+      tempDiv.innerHTML.substring(0, 200),
+    );
+    function wrapOrphanTextNodes(parent) {
+      var children = Array.from(parent.childNodes);
+      var wrappedCount = 0;
+      children.forEach(function (node) {
+        if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+          // This is a text node with content - wrap it
+          var wrapper = document.createElement("p");
+          wrapper.textContent = node.textContent;
+          parent.replaceChild(wrapper, node);
+          wrappedCount++;
+        }
+      });
+      console.debug("[TABLE CELL] Wrapped", wrappedCount, "orphan text nodes");
+    }
+    wrapOrphanTextNodes(tempDiv);
+    console.debug(
+      "[TABLE CELL] After wrapping:",
+      tempDiv.innerHTML.substring(0, 200),
+    );
+
     // Insert markers after block elements before getting text
     var blockEls = tempDiv.querySelectorAll(
       "div, p, h1, h2, h3, h4, h5, h6, section, article, header, footer",
     );
     console.debug("[TABLE CELL] Found", blockEls.length, "block elements");
-    // Insert markers BEFORE block elements to separate preceding text
+    // Insert markers AFTER block elements to separate lines
     for (var i = 0; i < blockEls.length; i++) {
-      var marker = document.createTextNode("__BLOCK_END__");
-      blockEls[i].parentNode.insertBefore(marker, blockEls[i]);
+      var markerAfter = document.createTextNode("__BLOCK_END__");
+      if (blockEls[i].nextSibling) {
+        blockEls[i].parentNode.insertBefore(
+          markerAfter,
+          blockEls[i].nextSibling,
+        );
+      } else {
+        blockEls[i].parentNode.appendChild(markerAfter);
+      }
     }
 
     // Handle list items specifically - add markers after each li to preserve list structure

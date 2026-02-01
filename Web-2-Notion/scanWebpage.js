@@ -14647,6 +14647,89 @@ var applyCustomFormatting = (html) => {
   ];
 
   console.log("[applyCustomFormatting] Using format rules:", formatRules);
+  console.log("[applyCustomFormatting] Input HTML length:", html.length);
+  console.log(
+    "[applyCustomFormatting] Input HTML sample:",
+    html.substring(0, 500),
+  );
+
+  // Special handling: Unwrap problematic container elements
+  // This must happen BEFORE other rules to prevent code block interpretation
+
+  // 1. Unwrap div.itemgroup (remove wrapper, keep content)
+  const itemgroupElements = doc.querySelectorAll("div.itemgroup");
+  if (itemgroupElements.length > 0) {
+    console.log(
+      `[applyCustomFormatting] Found ${itemgroupElements.length} div.itemgroup elements to unwrap`,
+    );
+    itemgroupElements.forEach((el) => {
+      console.log(
+        `[applyCustomFormatting] Unwrapping div.itemgroup:`,
+        el.className,
+        el.textContent?.substring(0, 50),
+      );
+      // Move all children to parent, then remove the wrapper
+      const parent = el.parentNode;
+      while (el.firstChild) {
+        parent.insertBefore(el.firstChild, el);
+      }
+      parent.removeChild(el);
+    });
+  }
+
+  // 2. Unwrap div.note__body and div.note__title (blockquotes can't contain divs)
+  const noteBodyElements = doc.querySelectorAll(
+    "div.note__body, div.note__title",
+  );
+  if (noteBodyElements.length > 0) {
+    console.log(
+      `[applyCustomFormatting] Found ${noteBodyElements.length} note div elements to unwrap`,
+    );
+    noteBodyElements.forEach((el) => {
+      const parent = el.parentNode;
+      while (el.firstChild) {
+        parent.insertBefore(el.firstChild, el);
+      }
+      parent.removeChild(el);
+    });
+  }
+
+  // 3. Convert div.note to blockquote (so Turndown handles it properly)
+  const noteElements = doc.querySelectorAll("div.note");
+  if (noteElements.length > 0) {
+    console.log(
+      `[applyCustomFormatting] Converting ${noteElements.length} div.note elements to blockquote`,
+    );
+    noteElements.forEach((el) => {
+      const blockquote = doc.createElement("blockquote");
+      // Copy all attributes except class
+      Array.from(el.attributes).forEach((attr) => {
+        if (attr.name !== "class") {
+          blockquote.setAttribute(attr.name, attr.value);
+        }
+      });
+      // Move all children to blockquote
+      while (el.firstChild) {
+        blockquote.appendChild(el.firstChild);
+      }
+      // Replace div with blockquote
+      el.parentNode.replaceChild(blockquote, el);
+    });
+  }
+
+  // 4. Remove empty <p class="p"></p> wrappers that can't contain block elements
+  const emptyPWrappers = doc.querySelectorAll("p.p:empty");
+  if (emptyPWrappers.length > 0) {
+    console.log(
+      `[applyCustomFormatting] Removing ${emptyPWrappers.length} empty p.p wrappers`,
+    );
+    emptyPWrappers.forEach((el) => el.remove());
+  }
+
+  console.log(
+    `[applyCustomFormatting] After unwrapping, doc structure:`,
+    doc.body.innerHTML.substring(0, 500),
+  );
 
   let totalReplacements = 0;
   formatRules.forEach((rule) => {
@@ -14656,6 +14739,12 @@ var applyCustomFormatting = (html) => {
         `[applyCustomFormatting] Found ${elements.length} elements matching "${rule.selector}" (${rule.description})`,
       );
       elements.forEach((el) => {
+        console.log(
+          `[applyCustomFormatting] Processing element:`,
+          el.tagName,
+          el.className,
+          el.textContent?.substring(0, 100),
+        );
         // Check if this is a block-level element
         const isBlockElement = [
           "DIV",
@@ -14685,6 +14774,7 @@ var applyCustomFormatting = (html) => {
           "section",
           "aside",
           "article",
+          "p",
         ].includes(rule.replacement.toLowerCase());
 
         if (isBlockElement && isInlineReplacement) {
@@ -14736,6 +14826,41 @@ var applyCustomFormatting = (html) => {
       "[applyCustomFormatting] No matching elements found for any rules",
     );
   }
+
+  // Clean up excessive indentation that might cause code block interpretation
+  // Remove leading/trailing whitespace from block elements
+  const blockElements = doc.querySelectorAll(
+    "div, p, blockquote, section, article",
+  );
+  blockElements.forEach((el) => {
+    // Normalize whitespace in text nodes
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        // Collapse excessive whitespace (but preserve single spaces)
+        let text = node.textContent;
+        // Remove leading whitespace at start of block
+        if (
+          node.previousSibling === null ||
+          node.previousSibling.nodeName === "BR"
+        ) {
+          text = text.replace(/^\s+/, "");
+        }
+        // Remove trailing whitespace at end of block
+        if (node.nextSibling === null || node.nextSibling.nodeName === "BR") {
+          text = text.replace(/\s+$/, "");
+        }
+        // Collapse multiple spaces/tabs to single space
+        text = text.replace(/[ \t]+/g, " ");
+        node.textContent = text;
+      }
+    }
+  });
+
+  console.log(
+    "[applyCustomFormatting] Cleaned up whitespace in block elements",
+  );
 
   return Array.from(doc.childNodes)
     .map((it) => it.outerHTML)
@@ -14839,6 +14964,14 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
     "[parseFromHtml] After execPreParser:",
     content?.substring(0, 500),
   );
+
+  // Apply custom formatting BEFORE markdown conversion to fix problematic HTML structures
+  content = content ? applyCustomFormatting(content) : null;
+  console.warn(
+    "[parseFromHtml] After applyCustomFormatting (pre-markdown):",
+    content?.substring(0, 500),
+  );
+
   content = await extractWithReadability(content, bestUrl);
   console.warn(
     "[parseFromHtml] After extractWithReadability:",
@@ -14864,6 +14997,23 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
     "[parseFromHtml] After execPostParser:",
     content?.substring(0, 500),
   );
+
+  // DEBUG: Find and log the problematic "Software Counter Results" section
+  if (content && content.includes("Software Counter Results")) {
+    const startIdx = Math.max(
+      0,
+      content.indexOf("Software Counter Results") - 200,
+    );
+    const endIdx = Math.min(
+      content.length,
+      content.indexOf("Software Counter Results") + 800,
+    );
+    console.warn(
+      "[parseFromHtml] 🔍 SOFTWARE COUNTER RESULTS section (after execPostParser):",
+      JSON.stringify(content.substring(startIdx, endIdx)),
+    );
+  }
+
   content = content ? applyCustomFormatting(content) : null;
   console.warn(
     "[parseFromHtml] After applyCustomFormatting:",
@@ -14875,6 +15025,22 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
       })
     : null;
   console.warn("[parseFromHtml] After cleanify:", content?.substring(0, 500));
+
+  // DEBUG: Find and log the problematic section after cleanify
+  if (content && content.includes("Software Counter Results")) {
+    const startIdx = Math.max(
+      0,
+      content.indexOf("Software Counter Results") - 200,
+    );
+    const endIdx = Math.min(
+      content.length,
+      content.indexOf("Software Counter Results") + 800,
+    );
+    console.warn(
+      "[parseFromHtml] 🔍 SOFTWARE COUNTER RESULTS section (after cleanify):",
+      JSON.stringify(content.substring(startIdx, endIdx)),
+    );
+  }
 
   // Check for duplicate blocks in final content
   if (content) {
@@ -14915,6 +15081,73 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
   if (!content) {
     return null;
   }
+
+  // Fix indentation issues that cause code blocks in markdown
+  // Extract block-level elements from list items to prevent code block formatting
+  try {
+    const doc = new DOMParser().parseFromString(content, "text/html");
+
+    // Find all list items with block-level children (p, blockquote, div)
+    const listItems = doc.querySelectorAll("li");
+    let blocksExtracted = 0;
+
+    listItems.forEach((li) => {
+      // Find block-level elements that are direct children of the li
+      const blockElements = Array.from(li.children).filter((child) => {
+        const tagName = child.tagName.toLowerCase();
+        return tagName === "p" || tagName === "blockquote" || tagName === "div";
+      });
+
+      if (blockElements.length > 0) {
+        // Move these elements after the parent list
+        const parentList = li.closest("ol, ul");
+        if (parentList && parentList.parentNode) {
+          // Keep track of insertion point to maintain order
+          let insertionPoint = parentList.nextSibling;
+          blockElements.forEach((block) => {
+            // Clone and insert after the current insertion point
+            const cloned = block.cloneNode(true);
+            if (insertionPoint) {
+              parentList.parentNode.insertBefore(cloned, insertionPoint);
+            } else {
+              parentList.parentNode.appendChild(cloned);
+            }
+            // Update insertion point to be after the element we just inserted
+            insertionPoint = cloned.nextSibling;
+            // Remove from list item
+            li.removeChild(block);
+            blocksExtracted++;
+          });
+        }
+      }
+
+      // Also clean up whitespace in remaining text nodes
+      const walker = document.createTreeWalker(
+        li,
+        NodeFilter.SHOW_TEXT,
+        null,
+        false,
+      );
+      let textNode;
+      while ((textNode = walker.nextNode())) {
+        const original = textNode.nodeValue;
+        const trimmed = original.replace(/^\s+/gm, " ").replace(/\n\s+/g, "\n");
+        if (original !== trimmed) {
+          textNode.nodeValue = trimmed;
+        }
+      }
+    });
+
+    if (blocksExtracted > 0) {
+      content = doc.body.innerHTML;
+      console.log(
+        `[parseFromHtml] Extracted ${blocksExtracted} block elements from list items`,
+      );
+    }
+  } catch (e) {
+    console.warn("[parseFromHtml] Could not fix list structure:", e);
+  }
+
   var textContent2 = stripTags(content);
   if (textContent2.length < contentLengthThreshold) {
     return null;

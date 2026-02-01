@@ -29,6 +29,8 @@ const ALLOWED_REPLACEMENTS = [
   "b",
   "i",
   "blockquote",
+  "p",
+  "div",
 ];
 
 // Helper function to normalize domain names
@@ -186,6 +188,13 @@ function addSelectorItem(domain = "", selector = "", customHeading = "") {
   const container = document.getElementById("selectors-container");
   const item = document.createElement("div");
   item.className = "selector-item";
+  item.draggable = true;
+
+  // Add drag handle
+  const dragHandle = document.createElement("span");
+  dragHandle.className = "drag-handle";
+  dragHandle.innerHTML = "⋮⋮";
+  dragHandle.title = "Drag to reorder";
 
   // Create elements individually to avoid HTML injection issues
   const domainInput = document.createElement("input");
@@ -220,15 +229,6 @@ function addSelectorItem(domain = "", selector = "", customHeading = "") {
     updateFromInputs();
   });
 
-  const headingLabel = document.createElement("label");
-  headingLabel.textContent = "Custom Heading:";
-  headingLabel.style.display = "flex";
-  headingLabel.style.alignItems = "center";
-  headingLabel.style.gap = "6px";
-  headingLabel.style.fontSize = "12px";
-  headingLabel.style.color = "#666";
-  headingLabel.appendChild(headingInput);
-
   const removeBtn = document.createElement("button");
   removeBtn.className = "remove-btn";
   removeBtn.textContent = "Remove";
@@ -237,9 +237,10 @@ function addSelectorItem(domain = "", selector = "", customHeading = "") {
     updateFromInputs();
   });
 
+  item.appendChild(dragHandle);
   item.appendChild(domainInput);
   item.appendChild(selectorInput);
-  item.appendChild(headingLabel);
+  item.appendChild(headingInput);
   item.appendChild(removeBtn);
 
   container.appendChild(item);
@@ -305,6 +306,7 @@ function addIgnoreSelectorItem(domain = "", selectors = "") {
 
   const item = document.createElement("div");
   item.className = "ignore-selector-item";
+  item.draggable = true;
   item.style.display = "flex";
   item.style.gap = "10px";
   item.style.marginBottom = "15px";
@@ -312,6 +314,12 @@ function addIgnoreSelectorItem(domain = "", selectors = "") {
   item.style.flexWrap = "wrap";
   item.style.borderLeft = "4px solid #dc3545";
   item.style.paddingLeft = "10px";
+
+  // Add drag handle
+  const dragHandle = document.createElement("span");
+  dragHandle.className = "drag-handle";
+  dragHandle.innerHTML = "⋮⋮";
+  dragHandle.title = "Drag to reorder";
 
   const domainInput = document.createElement("input");
   domainInput.type = "text";
@@ -337,6 +345,7 @@ function addIgnoreSelectorItem(domain = "", selectors = "") {
     updateIgnoreSelectorsFromInputs();
   });
 
+  item.appendChild(dragHandle);
   item.appendChild(domainInput);
   item.appendChild(selectorInput);
   item.appendChild(removeBtn);
@@ -415,8 +424,15 @@ function addFormatRuleItem(
 
   const item = document.createElement("div");
   item.className = "format-rule-item";
+  item.draggable = true;
   item.style.borderLeft = "4px solid #17a2b8";
   item.style.paddingLeft = "10px";
+
+  // Add drag handle
+  const dragHandle = document.createElement("span");
+  dragHandle.className = "drag-handle";
+  dragHandle.innerHTML = "⋮⋮";
+  dragHandle.title = "Drag to reorder";
 
   const selectorInput = document.createElement("input");
   selectorInput.type = "text";
@@ -458,6 +474,7 @@ function addFormatRuleItem(
     updateFormatRulesFromInputs();
   });
 
+  item.appendChild(dragHandle);
   item.appendChild(selectorInput);
   item.appendChild(replacementSelect);
   item.appendChild(descInput);
@@ -728,4 +745,105 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   console.log("Event listeners attached successfully");
+
+  // Initialize drag-and-drop for all sections
+  initDragAndDrop();
 });
+
+// Drag and drop functionality
+function initDragAndDrop() {
+  const containers = [
+    document.getElementById("selectors-container"),
+    document.getElementById("ignore-selectors-container"),
+    document.getElementById("format-rules-container"),
+  ];
+
+  containers.forEach((container) => {
+    if (!container) return;
+
+    container.addEventListener("dragstart", handleDragStart);
+    container.addEventListener("dragover", handleDragOver);
+    container.addEventListener("drop", handleDrop);
+    container.addEventListener("dragend", handleDragEnd);
+  });
+}
+
+let draggedElement = null;
+
+function handleDragStart(e) {
+  if (
+    !e.target.classList.contains("selector-item") &&
+    !e.target.classList.contains("ignore-selector-item") &&
+    !e.target.classList.contains("format-rule-item")
+  ) {
+    return;
+  }
+
+  draggedElement = e.target;
+  e.target.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/html", e.target.innerHTML);
+}
+
+function handleDragOver(e) {
+  if (e.preventDefault) {
+    e.preventDefault();
+  }
+
+  e.dataTransfer.dropEffect = "move";
+
+  const afterElement = getDragAfterElement(e.currentTarget, e.clientY);
+  const dragging = document.querySelector(".dragging");
+
+  if (afterElement == null) {
+    e.currentTarget.appendChild(dragging);
+  } else {
+    e.currentTarget.insertBefore(dragging, afterElement);
+  }
+
+  return false;
+}
+
+function handleDrop(e) {
+  if (e.stopPropagation) {
+    e.stopPropagation();
+  }
+
+  // Update the underlying data based on new order
+  if (e.currentTarget.id === "selectors-container") {
+    updateFromInputs();
+  } else if (e.currentTarget.id === "ignore-selectors-container") {
+    updateIgnoreSelectorsFromInputs();
+  } else if (e.currentTarget.id === "format-rules-container") {
+    updateFormatRulesFromInputs();
+  }
+
+  return false;
+}
+
+function handleDragEnd(e) {
+  e.target.classList.remove("dragging");
+  draggedElement = null;
+}
+
+function getDragAfterElement(container, y) {
+  const draggableElements = [
+    ...container.querySelectorAll(
+      ".selector-item:not(.dragging), .ignore-selector-item:not(.dragging), .format-rule-item:not(.dragging)",
+    ),
+  ];
+
+  return draggableElements.reduce(
+    (closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+
+      if (offset < 0 && offset > closest.offset) {
+        return { offset: offset, element: child };
+      } else {
+        return closest;
+      }
+    },
+    { offset: Number.NEGATIVE_INFINITY },
+  ).element;
+}

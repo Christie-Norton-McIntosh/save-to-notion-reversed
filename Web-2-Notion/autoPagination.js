@@ -140,12 +140,284 @@
    * Start auto-pagination
    */
   /**
+   * Create and show the floating "Save & Next" button
+   */
+  function createFloatingButton() {
+    // Check if button already exists
+    if (document.getElementById("stn-auto-pagination-button")) {
+      return;
+    }
+
+    const button = document.createElement("div");
+    button.id = "stn-auto-pagination-button";
+    button.innerHTML = `
+      <div class="stn-ap-button">
+        <div class="stn-ap-icon">⚡</div>
+        <div class="stn-ap-text">Save & Next</div>
+        <div class="stn-ap-counter" id="stn-ap-counter"></div>
+        <button class="stn-ap-stop-btn" id="stn-ap-stop-btn" title="Stop Auto-Pagination">✕</button>
+      </div>
+      <div class="stn-ap-status" id="stn-ap-status"></div>
+    `;
+
+    // Add styles
+    const style = document.createElement("style");
+    style.textContent = `
+      #stn-auto-pagination-button {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 999999;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      
+      .stn-ap-button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+        user-select: none;
+      }
+      
+      .stn-ap-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.6);
+      }
+      
+      .stn-ap-button:active {
+        transform: translateY(0);
+      }
+      
+      .stn-ap-button.disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+      
+      .stn-ap-button.disabled:hover {
+        transform: none;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+      
+      .stn-ap-button.saving {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      }
+      
+      .stn-ap-icon {
+        font-size: 20px;
+      }
+      
+      .stn-ap-text {
+        font-weight: 600;
+        font-size: 14px;
+      }
+      
+      .stn-ap-counter {
+        background: rgba(255, 255, 255, 0.3);
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+      }
+      
+      .stn-ap-stop-btn {
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        color: white;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        padding: 0;
+        margin-left: 4px;
+      }
+      
+      .stn-ap-stop-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        border-color: rgba(255, 255, 255, 0.6);
+        transform: scale(1.1);
+      }
+      
+      .stn-ap-stop-btn:active {
+        transform: scale(0.95);
+      }
+      
+      .stn-ap-status {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #666;
+        text-align: center;
+        background: white;
+        padding: 6px 12px;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        display: none;
+      }
+      
+      .stn-ap-status.show {
+        display: block;
+      }
+    `;
+
+    document.head.appendChild(style);
+    document.body.appendChild(button);
+
+    // Add click handler for main button
+    const buttonEl = button.querySelector(".stn-ap-button");
+    buttonEl.addEventListener("click", handleSaveAndNext);
+
+    // Add click handler for stop button
+    const stopBtn = button.querySelector(".stn-ap-stop-btn");
+    stopBtn.addEventListener("click", async (e) => {
+      e.stopPropagation(); // Prevent triggering the main button click
+      if (confirm("Stop Auto-Pagination?")) {
+        await stopAutoPagination();
+        showButtonStatus("Auto-Pagination stopped", 3000);
+      }
+    });
+
+    // Update counter
+    updateButtonCounter();
+
+    console.log("✓ Save & Next button created");
+  }
+
+  /**
+   * Update the button counter display
+   */
+  async function updateButtonCounter() {
+    const state = await getState();
+    const counter = document.getElementById("stn-ap-counter");
+    if (counter) {
+      counter.textContent = `Page ${(state.pageCount || 0) + 1}`;
+    }
+  }
+
+  /**
+   * Show status message on the button
+   */
+  function showButtonStatus(message, duration = 2000) {
+    const status = document.getElementById("stn-ap-status");
+    if (status) {
+      status.textContent = message;
+      status.classList.add("show");
+      setTimeout(() => {
+        status.classList.remove("show");
+      }, duration);
+    }
+  }
+
+  /**
+   * Disable the button temporarily
+   */
+  function disableButton(disabled = true) {
+    const button = document.querySelector(".stn-ap-button");
+    if (button) {
+      if (disabled) {
+        button.classList.add("disabled");
+      } else {
+        button.classList.remove("disabled");
+      }
+    }
+  }
+
+  /**
+   * Handle Save & Next button click
+   */
+  async function handleSaveAndNext() {
+    const button = document.querySelector(".stn-ap-button");
+    if (button && button.classList.contains("disabled")) {
+      return; // Button is disabled, ignore click
+    }
+
+    const config = await getConfig();
+    if (!config || !config.nextButtonSelector) {
+      showButtonStatus("❌ Configure selector in settings first", 3000);
+      showStatus(
+        "Please configure next button selector in Auto-Pagination settings",
+        true,
+      );
+      return;
+    }
+
+    const state = await getState();
+
+    // Check max pages limit
+    if (config.maxPages && state.pageCount >= config.maxPages) {
+      showButtonStatus(`✓ Complete! Saved ${state.pageCount} pages`, 3000);
+      await stopAutoPagination();
+      return;
+    }
+
+    disableButton(true);
+    button.classList.add("saving");
+    showButtonStatus("💾 Save page now, then I'll click Next...", 5000);
+    showStatus("Please click 'Save Page' in the extension popup", false);
+
+    console.log("👉 Waiting for user to save the page...");
+
+    // User needs to manually click "Save Page" in popup
+    // After they do, they should click the "Save & Next" button again
+    // OR we wait and auto-proceed after a delay
+
+    const autoAdvanceDelay = config.autoAdvanceDelay || 5000;
+
+    setTimeout(async () => {
+      console.log("⏱️ Auto-advancing after delay...");
+
+      // Increment page count
+      state.pageCount = (state.pageCount || 0) + 1;
+      await setState(state);
+      await updateButtonCounter();
+
+      // Click the next button
+      const delay = config.delayBeforeNext || 1000;
+      setTimeout(() => {
+        const clicked = clickNextButton(config.nextButtonSelector);
+
+        if (!clicked) {
+          showButtonStatus("❌ Next button not found", 3000);
+          showStatus("Next button not found - check selector", true);
+          disableButton(false);
+          button.classList.remove("saving");
+        } else {
+          showButtonStatus("✓ Navigating to next page...", 2000);
+          showStatus(`Navigating to page ${state.pageCount + 1}...`, false);
+          // Button will be re-enabled on next page load
+        }
+      }, delay);
+    }, autoAdvanceDelay);
+  }
+
+  /**
+   * Remove the floating button
+   */
+  function removeFloatingButton() {
+    const button = document.getElementById("stn-auto-pagination-button");
+    if (button) {
+      button.remove();
+    }
+  }
+
+  /**
    * Start auto-pagination workflow
    */
   async function startAutoPagination() {
     const config = await getConfig();
     if (!config || !config.nextButtonSelector) {
       console.error("No auto-pagination config found");
+      showStatus("Please configure Auto-Pagination settings first", true);
       return;
     }
 
@@ -154,11 +426,42 @@
     // Update state
     const state = await getState();
     state.running = true;
-    state.pageCount = (state.pageCount || 0) + 1;
+    state.pageCount = state.pageCount || 0;
     await setState(state);
 
-    // Notify user
-    showStatus(`Auto-pagination active (Page ${state.pageCount})`);
+    // Show the floating button
+    createFloatingButton();
+
+    showStatus(`Auto-pagination active - Click "Save & Next" button to begin`);
+  }
+
+  /**
+   * Trigger the save action by simulating extension icon click
+   * This opens the popup which will save the page
+   */
+  async function triggerSaveAction() {
+    console.log("💾 Triggering save action...");
+
+    // Method 1: Try to open the extension popup programmatically
+    try {
+      // Send message to service worker to open popup
+      await chrome.runtime.sendMessage({
+        action: "openPopupAndSave",
+      });
+    } catch (e) {
+      console.debug("Could not send openPopupAndSave message:", e);
+    }
+
+    // Method 2: Trigger clipboard save (same as Ctrl+Shift+E)
+    // This is the fallback that directly saves without opening popup
+    try {
+      // Dispatch keyboard event for add-highlights command
+      await chrome.runtime.sendMessage({
+        action: "triggerSaveCommand",
+      });
+    } catch (e) {
+      console.debug("Could not trigger save command:", e);
+    }
   }
 
   /**
@@ -172,26 +475,33 @@
       return;
     }
 
-    console.log("📄 Save complete, navigating to next page...");
+    console.log("📄 Save complete, preparing to navigate to next page...");
 
     // Check max pages limit
     if (config.maxPages && state.pageCount >= config.maxPages) {
       await stopAutoPagination();
       showStatus(
         `Auto-pagination complete - saved ${state.pageCount} pages`,
-        true,
+        false,
       );
       return;
     }
 
     // Small delay before clicking next
+    const delay = config.delayBeforeNext || 2000;
+    console.log(`⏳ Waiting ${delay}ms before clicking next button...`);
+
     setTimeout(() => {
       const clicked = clickNextButton(config.nextButtonSelector);
       if (!clicked) {
         stopAutoPagination();
         showStatus("Auto-pagination stopped - no more pages", true);
+      } else {
+        // Page will navigate, and we'll need to restart automation on new page
+        console.log("✓ Clicked next button, page will navigate...");
+        showStatus(`Navigating to page ${state.pageCount + 1}...`, false);
       }
-    }, config.delayBeforeNext || 2000);
+    }, delay);
   }
 
   /**
@@ -204,6 +514,7 @@
     state.running = false;
     await setState(state);
 
+    removeFloatingButton();
     showStatus("Auto-pagination stopped", true);
   }
 
@@ -289,14 +600,30 @@
   /**
    * Check if auto-pagination should start on page load
    */
-  function checkAutoStart() {
-    const state = getState();
-    if (state.running) {
+  async function checkAutoStart() {
+    const state = await getState();
+    const config = await getConfig();
+
+    if (state.running && config) {
       console.log(
-        "📋 Auto-pagination is running, will wait for save command...",
+        `📋 Auto-pagination is running (page ${(state.pageCount || 0) + 1}), showing button...`,
       );
-      // Auto-pagination is running, wait for the save to trigger next navigation
-      // The popup will send the save command
+
+      // Wait for page to be fully loaded
+      if (document.readyState === "loading") {
+        window.addEventListener("DOMContentLoaded", () => {
+          setTimeout(() => {
+            createFloatingButton();
+            disableButton(false); // Re-enable button on new page
+          }, 500);
+        });
+      } else {
+        // Page already loaded
+        setTimeout(() => {
+          createFloatingButton();
+          disableButton(false); // Re-enable button on new page
+        }, 500);
+      }
     }
   }
 

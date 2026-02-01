@@ -80,6 +80,7 @@
         "welcome/welcome.html",
         "site-selectors.html",
         "autoPagination.html",
+        "autoPagination.js",
         "autoPaginationUI.js",
         "assets/*.js",
         "assets/*.png"

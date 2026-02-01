@@ -200,28 +200,93 @@
         color: #333;
         font-size: 18px;
       }
+
+      .header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .header-content {
+        flex: 1;
+      }
+
+      .btn-back-top {
+        background: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 10px 16px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        flex-shrink: 0;
+      }
+
+      .btn-back-top:hover {
+        background: #5a6268;
+      }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>⚡ Auto-Pagination</h1>
-      <p class="subtitle">
-        Automatically save pages and navigate to the next page
-      </p>
+      <div class="header-row">
+        <div class="header-content">
+          <h1>⚡ Auto-Pagination</h1>
+          <p class="subtitle">
+            Automatically save pages and navigate to the next page
+          </p>
+        </div>
+        <button id="backBtnTop" class="btn-back-top">
+          ← Back to Main Interface
+        </button>
+      </div>
 
       <div
         class="info-box"
         style="
-          background: #e3f2fd;
-          border-left: 4px solid #2196f3;
-          padding: 12px;
+          background: #e8f5e9;
+          border-left: 4px solid #4caf50;
+          padding: 16px;
           margin-bottom: 20px;
           border-radius: 4px;
         "
       >
-        <strong>💡 Next Steps:</strong> After saving your configuration, click
-        "← Back" below, then click the extension icon on your webpage and select
-        <strong>"Start Auto-Extract"</strong> from the Settings panel.
+        <strong style="color: #2e7d32; display: block; margin-bottom: 8px"
+          >✨ How to Use:</strong
+        >
+        <ol
+          style="
+            margin-left: 20px;
+            line-height: 1.6;
+            color: #333;
+            font-size: 13px;
+          "
+        >
+          <li>Configure the "Next Button CSS Selector" below</li>
+          <li>Click "Save Configuration"</li>
+          <li>Go back to your webpage</li>
+          <li>Send a message with the "startAutoPagination" action</li>
+          <li>A floating "Save & Next" button will appear on the page</li>
+          <li>Click the extension icon to save the page</li>
+          <li>After saving, click the "Save & Next" button</li>
+          <li>The button will automatically click the Next button</li>
+          <li>Repeat on each new page until done!</li>
+        </ol>
+        <div
+          style="
+            margin-top: 12px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 4px;
+            font-size: 12px;
+            color: #555;
+          "
+        >
+          <strong>💡 Tip:</strong> The button will persist across pages, so you
+          just keep clicking it after each save!
+        </div>
       </div>
 
       <div class="control-panel">
@@ -231,9 +296,6 @@
         </div>
         <div id="status" class="status"></div>
         <div class="button-group">
-          <button id="backBtn" class="btn-back">
-            ← Back to Main Interface
-          </button>
           <button id="resetBtn" class="btn-secondary">🔄 Reset Counter</button>
         </div>
       </div>

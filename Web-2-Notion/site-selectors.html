@@ -24,12 +24,41 @@
         margin-bottom: 30px;
       }
       .selector-item,
-      .format-rule-item {
+      .format-rule-item,
+      .ignore-selector-item {
         display: flex;
         gap: 10px;
         margin-bottom: 15px;
         align-items: center;
         flex-wrap: wrap;
+        cursor: move;
+        background: white;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+      }
+      .selector-item:hover,
+      .format-rule-item:hover,
+      .ignore-selector-item:hover {
+        background: #f8f9fa;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .selector-item.dragging,
+      .format-rule-item.dragging,
+      .ignore-selector-item.dragging {
+        opacity: 0.5;
+        background: #e9ecef;
+      }
+      .drag-handle {
+        cursor: grab;
+        color: #6c757d;
+        font-size: 18px;
+        user-select: none;
+        padding: 0 5px;
+      }
+      .drag-handle:active {
+        cursor: grabbing;
       }
       input[type="text"] {
         flex: 1;
@@ -196,6 +225,10 @@
             <strong>Multiple selectors:</strong> Use commas for multiple
             selectors (e.g., "article, .content, #main")
           </li>
+          <li>
+            <strong>Drag to reorder:</strong> Click and drag items by the ⋮⋮
+            handle to change their order
+          </li>
         </ul>
       </div>
 
@@ -300,6 +333,17 @@
           <strong>💡 Important Notes:</strong>
           <ul style="margin: 8px 0 0 20px; font-size: 13px; line-height: 1.6">
             <li>
+              <strong>⚠️ ORDER MATTERS:</strong> Rules are applied from top to
+              bottom. Place child element rules (like <code>span.ph</code>)
+              <strong>before</strong> parent element rules (like
+              <code>div.note</code>) to ensure nested elements are processed
+              correctly.
+            </li>
+            <li>
+              <strong>Drag to reorder:</strong> Click and drag rules by the ⋮⋮
+              handle to change processing order
+            </li>
+            <li>
               <strong>Inline elements</strong> (like <code>span</code>,
               <code>a</code>): The entire element is replaced with the
               formatting tag
@@ -322,6 +366,14 @@
             <li>
               <strong>Testing:</strong> Check the browser console for detailed
               logs about which elements are being formatted
+            </li>
+            <li>
+              <strong>⚠️ Class preservation:</strong> CSS classes on parent
+              containers may be lost during markdown conversion. Use structural
+              selectors like
+              <code>div:has(&gt; .note__title):has(&gt; .note__body)</code> to
+              match containers based on their child elements instead of their
+              own classes.
             </li>
           </ul>
         </div>
@@ -349,6 +401,23 @@
               <strong>Replacement:</strong> <code>blockquote</code> (for
               emphasized block)
             </li>
+            <li>
+              <strong>Selector:</strong>
+              <code>div:has(&gt; .note__title):has(&gt; .note__body)</code> →
+              <strong>Replacement:</strong> <code>blockquote</code> (matches
+              note containers by their children, not by class - use this if
+              <code>div.note</code> doesn't work)
+            </li>
+            <li>
+              <strong>Selector:</strong> <code>div.p</code> →
+              <strong>Replacement:</strong> <code>p</code> (convert div with "p"
+              class to proper paragraph tag)
+            </li>
+            <li>
+              <strong>Selector:</strong> <code>div.itemgroup.info</code> →
+              <strong>Replacement:</strong> <code>div</code> (normalize
+              container while preserving structure)
+            </li>
           </ul>
           <strong>Allowed replacement tags:</strong>
           <ul style="margin: 5px 0; text-align: left; font-size: 13px">
@@ -357,7 +426,10 @@
               <code>code</code>, <code>mark</code>, <code>u</code>,
               <code>del</code>, <code>b</code>, <code>i</code>
             </li>
-            <li><strong>Block:</strong> <code>blockquote</code></li>
+            <li>
+              <strong>Block:</strong> <code>blockquote</code>, <code>p</code>,
+              <code>div</code>
+            </li>
           </ul>
         </div>
 

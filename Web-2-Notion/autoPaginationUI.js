@@ -16,7 +16,7 @@
   const maxPagesInput = document.getElementById("maxPages");
   const statusDiv = document.getElementById("status");
   const pageCountSpan = document.getElementById("pageCount");
-  const backBtn = document.getElementById("backBtn");
+  const backBtnTop = document.getElementById("backBtnTop");
   const resetBtn = document.getElementById("resetBtn");
 
   /**
@@ -126,9 +126,9 @@
   });
 
   /**
-   * Back button - close window and notify user
+   * Back button - close this tab and try to open main popup
    */
-  backBtn.addEventListener("click", async () => {
+  backBtnTop.addEventListener("click", async () => {
     // Close the configuration tab
     const tab = await chrome.tabs.getCurrent();
     if (tab?.id) {
@@ -137,9 +137,13 @@
       window.close();
     }
 
-    // Note: We can't programmatically open the popup, but closing this tab
-    // will return the user to their original webpage where they can click
-    // the extension icon to access Settings and start auto-extraction
+    // Try to open the main extension popup
+    try {
+      chrome.action?.openPopup?.();
+    } catch (e) {
+      // If popup opening fails, that's okay - the options page will just close
+      console.log("Could not open main interface popup");
+    }
   });
 
   /**

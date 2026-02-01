@@ -4,9 +4,17 @@
 
 ### Added
 
-- Sibling duplicate pruning: Added DOM pass to remove later siblings with identical normalized text (tag-aware) from htmlToProcess before parsing.
-- Logging: Emits `console.warn` with count of removed duplicate siblings for visibility.
-  All notable changes to this project are documented in this file.
+- **Sibling Duplicate Pruning**: Added DOM pass to remove later siblings with identical normalized text (tag-aware) from htmlToProcess before parsing
+  - Emits `console.warn` with count of removed duplicate siblings for visibility
+  - Prevents redundant content from appearing in saved pages
+
+### Fixed
+
+- **📋 Table Cell List Formatting**: Lists within table cells now preserve line breaks between items
+  - Added `__LI_END__` marker handling for list items in both HTML-to-Markdown conversion (`options.js`) and popup processing (`main.js`)
+  - Removed automatic comma-join conversion that was replacing list items with comma-separated text
+  - List items in table cells now display on separate lines in Notion instead of comma-separated inline text
+  - Applies to all three table cell processing paths: sanitizeCell, manual processing, and fallback handling
 
 ## [5.1.1] - 2026-01-28
 
