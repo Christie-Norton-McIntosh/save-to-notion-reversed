@@ -163,7 +163,8 @@ function processQueuedBase64ImagesForTest(userInputMap, imageUploads) {
       <tr><td id="c3">Line1<br/>Line2</td></tr>
       <tr><td id="c4"><a href="#"><img src="data:image/png;base64,AAA" alt="ic"><span>Explore</span></a></td></tr>
       <tr><td id="c5"><a href="#"><img src="data:image/png;base64,BBB" alt="pic"></a></td></tr>
-  <tr><td id="c6"><img class="image ft-responsive-image" id="devops-config-landing-page__image_jz1_r24_vtb" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFUAAABPCAYAAACauImn..." alt="Explore" data-ft-container-id="MlbQAgTiiiMOLOw9T36wJg" data-ft-resource-id="mT2sXVHWMQJq43Rxfs~l6A-MlbQAgTiiiMOLOw9T36wJg"></td></tr>
+      <!-- regression: anchor contains text before+after image and image has http/src (alt may be empty) -->
+      <tr><td id="c6"><a href="#"><span class="ph">Explore</span><span class="image decorative"></span><img alt="" class="image decorative ft-responsive-image" id="dex-landing__image_nh2_dvw_b1c" src="https://www.servicenow.com/docs/api/khub/maps/MlbQAgTiiiMOLOw9T36wJg/resources/g3XGXJfxR8CwcDhAFVQ2YQ-MlbQAgTiiiMOLOw9T36wJg/content?Ft-Calling-App=ft/turnkey-portal" data-ft-container-id="MlbQAgTiiiMOLOw9T36wJg" data-ft-resource-id="g3XGXJfxR8CwcDhAFVQ2YQ-MlbQAgTiiiMOLOw9T36wJg"><span class="ph">Leverage the system for monitoring and remediation objectives</span>.</a></td></tr>
     </table>`;
 
   // Run sanitize & marker storage
@@ -198,7 +199,7 @@ function processQueuedBase64ImagesForTest(userInputMap, imageUploads) {
   }
 
   // Base64 images should be queued and then convertible to imageUploads
-  if (!window.__base64ImageArray || window.__base64ImageArray.length < 3) {
+  if (!window.__base64ImageArray || window.__base64ImageArray.length < 2) {
     console.error(
       "❌ base64 images were not queued as expected",
       window.__base64ImageArray,
@@ -237,12 +238,16 @@ function processQueuedBase64ImagesForTest(userInputMap, imageUploads) {
     process.exit(1);
   }
 
-  // New: ensure the edge-case data: image (complex attributes) was queued
-  if (!window.__base64ImageArray.some((i) => i.alt === "Explore")) {
-    console.error(
-      "❌ expected data: image with alt 'Explore' to be queued",
-      window.__base64ImageArray,
-    );
+  // New: ensure the edge-case row (c6) preserved the anchor text AND
+  // that any base64 images are queued. The c6 image uses an http src
+  // and an empty alt; we must preserve the surrounding span text.
+  if (!window.__TABLE_CELL_CONTENT_MAP__ || !window.__TABLE_CELL_CONTENT_MAP__["c6"]) {
+    console.error("❌ expected cell c6 to appear in TABLE_CELL_CONTENT_MAP__", window.__TABLE_CELL_CONTENT_MAP__);
+    process.exit(1);
+  }
+  const c6 = window.__TABLE_CELL_CONTENT_MAP__["c6"];
+  if (!/Explore/.test(c6) || !/Leverage the system/.test(c6)) {
+    console.error("❌ expected c6 to preserve text around the image; got:", JSON.stringify(c6));
     process.exit(1);
   }
 
