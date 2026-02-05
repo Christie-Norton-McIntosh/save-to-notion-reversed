@@ -4,10 +4,8 @@
 
 - popup: automatically convert queued data: (base64) images discovered in-page into imageUpload entries so images found inside tables are uploaded end-to-end (fixes images lost when saving paginated pages). Implemented marker→placeholder→upload wiring and exposed a test hook. ([#][link-to-pr])
 - popup: preserve list and block-level line breaks inside table cells (fixes multiple table line-break regressions). Added robust Turndown safeguards and unit + e2e tests.
-
   - Files: `popup/static/js/main.js`, `test/test-table-line-breaks.js`, `test/test-e2e-table-image-and-linebreaks.js`, `test/test-base64-image-to-imageUpload.js`
   - Behavior: data: images in table cells are now queued and automatically converted to image uploads; lists, paragraphs and <br> in table cells preserve line breaks in the resulting Notion page.
-
 
 ### Added
 

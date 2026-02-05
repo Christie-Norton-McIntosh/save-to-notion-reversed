@@ -37,11 +37,20 @@
   }
 
   /**
-   * Save configuration to chrome.storage.local
+   * Save configuration to chrome.storage.local and localStorage (as backup)
    */
   async function saveConfig(config) {
     try {
+      // Save to chrome.storage.local
       await chrome.storage.local.set({ [AUTO_PAGINATION_KEY]: config });
+
+      // Also save to localStorage as backup for when extension context is invalidated
+      try {
+        localStorage.setItem(AUTO_PAGINATION_KEY, JSON.stringify(config));
+      } catch (localError) {
+        console.warn("Could not save to localStorage:", localError);
+      }
+
       showStatus("Configuration saved successfully!", "info");
     } catch (e) {
       console.error("Error saving config:", e);
@@ -155,7 +164,10 @@
     }
 
     try {
-      await sendToActiveTab("resetPagination");
+      // Reset state directly in storage (don't rely on content script)
+      await chrome.storage.local.set({
+        [AUTO_PAGINATION_STATE_KEY]: { running: false, pageCount: 0 },
+      });
       showStatus("Counter reset", "info");
       updateUI();
     } catch (e) {

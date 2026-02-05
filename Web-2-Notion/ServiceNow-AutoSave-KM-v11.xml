@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Keyboard Maestro Macros</key>
+  <array>
+    <dict>
+      <key>Name</key>
+      <string>ServiceNow — Auto Save (Chrome, coordinates)</string>
+      <key>Note</key>
+      <string>Uses the page-level JS API exposed by the Tampermonkey userscript (window.__stn_signalSave / __stn_getStatus / __stn_nextPage). Replace the placeholder coordinates after import.</string>
+      <key>UUID</key>
+      <string>F3A2C8E6-PLACEHOLDER-0000-000000000001</string>
+      <key>Actions</key>
+      <array>
+        <!-- 1) Signal page script to show KM indicator -->
+        <dict>
+          <key>MacroActionType</key>
+          <string>ExecuteJavaScriptForFrontBrowser</string>
+          <key>JavaScript</key>
+          <string>window.__stn_signalSave();</string>
+        </dict>
+
+        <!-- 2) Wait until indicator appears -->
+        <dict>
+          <key>MacroActionType</key>
+          <string>PauseUntil</string>
+          <key>JavaScript</key>
+          <string>return document.querySelector('#km-save-indicator') !== null;</string>
+          <key>TimeoutSeconds</key>
+          <integer>10</integer>
+        </dict>
+
+        <!-- 3) Activate Chrome -->
+        <dict>
+          <key>MacroActionType</key>
+          <string>ActivateApplication</string>
+          <key>Application</key>
+          <string>Google Chrome</string>
+        </dict>
+
+        <!-- 4) Small pause for UI -->
+        <dict>
+          <key>MacroActionType</key>
+          <string>Pause</string>
+          <key>Seconds</key>
+          <real>0.5</real>
+        </dict>
+
+        <!-- 5) Trigger extension with keystroke (Option+Shift+E) instead of clicking the toolbar icon -->
+        <dict>
+          <key>MacroActionType</key>
+          <string>TypeKeystroke</string>
+          <key>Keystroke</key>
+          <string>E</string>
+          <key>Modifiers</key>
+          <array>
+            <string>Option</string>
+            <string>Shift</string>
+          </array>
+        </dict>
+
+        <!-- 6) Pause for popup to appear -->
+        <dict>
+          <key>MacroActionType</key>
+          <string>Pause</string>
+          <key>Seconds</key>
+          <real>0.6</real>
+        </dict>
+
+        <!-- 6.1) Wait up to 5s for the Save button image to appear in the popup -->
+        <dict>
+          <key>MacroActionType</key>
+          <string>PauseUntil</string>
+          <key>JavaScript</key>
+          <string>return (function(){ try { return !!document.querySelector('body'); } catch(e){return false;} })();</string>
+          <key>TimeoutSeconds</key>
+          <integer>5</integer>
+        </dict>
+
+        <!-- 7) Click Save button in extension popup — prefer image-recognition, fallback to coordinates -->
+        <!-- Add the provided Save button image to the macro's Resources and name it: save-button.png -->
+        <dict>
+          <key>MacroActionType</key>
+          <string>IfThenElse</string>
+          <key>Condition</key>
+          <dict>
+            <key>ConditionType</key>
+            <string>FoundImage</string>
+            <key>ImageName</key>
+            <string>save-button.png</string>
+            <key>SearchArea</key>
+            <string>BrowserWindow</string>
+          </dict>
+          <key>ThenActions</key>
+          <array>
+            <dict>
+              <key>MacroActionType</key>
+              <string>ClickFoundImage</string>
+              <key>ImageName</key>
+              <string>save-button.png</string>
+              <key>SearchArea</key>
+              <string>Screen</string>
+            </dict>
+          </array>
+          <key>ElseActions</key>
+          <array>
+            <dict>
+              <key>MacroActionType</key>
+              <string>MoveAndClick</string>
+              <key>X</key>
+              <integer>SAVE_BTN_X</integer>
+              <key>Y</key>
+              <integer>SAVE_BTN_Y</integer>
+              <key>Button</key>
+              <string>Left</string>
+            </dict>
+          </array>
+        </dict>
+
+        <!-- 8) Wait for indicator to be removed (save complete) -->
+        <dict>
+          <key>MacroActionType</key>
+          <string>PauseUntil</string>
+          <key>JavaScript</key>
+          <string>return document.querySelector('#km-save-indicator') === null;</string>
+          <key>TimeoutSeconds</key>
+          <integer>30</integer>
+        </dict>
+
+        <!-- 9) Tell page to navigate next (optional) -->
+        <dict>
+          <key>MacroActionType</key>
+          <string>ExecuteJavaScriptForFrontBrowser</string>
+          <key>JavaScript</key>
+          <string>window.__stn_nextPage();</string>
+        </dict>
+
+        <!-- 10) Short pause before allowing next cycle -->
+        <dict>
+          <key>MacroActionType</key>
+          <string>Pause</string>
+          <key>Seconds</key>
+          <real>1.0</real>
+        </dict>
+
+      </array>
+      <key>Availability</key>
+      <dict>
+        <key>AvailableWhen</key>
+        <string>AvailableToAllApplications</string>
+      </dict>
+    </dict>
+  </array>
+</dict>
+</plist>

@@ -14668,8 +14668,20 @@ var applyCustomFormatting = (html) => {
         el.className,
         el.textContent?.substring(0, 50),
       );
-      // Move all children to parent, then remove the wrapper
+
+      // Mark ALL child elements so we can track itemgroup content later
+      const childElements = el.querySelectorAll("*");
+      childElements.forEach((child) => {
+        child.setAttribute("data-from-itemgroup", "true");
+      });
+
+      // Mark the parent to indicate it contained itemgroup content
       const parent = el.parentNode;
+      if (parent.nodeType === Node.ELEMENT_NODE) {
+        parent.setAttribute("data-had-itemgroup", "true");
+      }
+
+      // Move all children to parent, then remove the wrapper
       while (el.firstChild) {
         parent.insertBefore(el.firstChild, el);
       }
@@ -14677,30 +14689,44 @@ var applyCustomFormatting = (html) => {
     });
   }
 
-  // 2. Unwrap div.note__body and div.note__title (blockquotes can't contain divs)
-  const noteBodyElements = doc.querySelectorAll(
-    "div.note__body, div.note__title",
+  // 2. Insert line breaks after note__title to separate title from body
+  // DON'T unwrap note__title or note__body - let custom formatting rules handle them
+  // (note__body may have italicized text or other special formatting)
+  const noteTitleElements = doc.querySelectorAll(
+    "div.note__title, span.note__title",
   );
-  if (noteBodyElements.length > 0) {
+  if (noteTitleElements.length > 0) {
     console.log(
-      `[applyCustomFormatting] Found ${noteBodyElements.length} note div elements to unwrap`,
+      `[applyCustomFormatting] Found ${noteTitleElements.length} note title elements, adding <br> after each`,
     );
-    noteBodyElements.forEach((el) => {
-      const parent = el.parentNode;
-      while (el.firstChild) {
-        parent.insertBefore(el.firstChild, el);
+    noteTitleElements.forEach((el) => {
+      // Insert a line break right after this element
+      const br = doc.createElement("br");
+      if (el.nextSibling) {
+        el.parentNode.insertBefore(br, el.nextSibling);
+      } else {
+        el.parentNode.appendChild(br);
       }
-      parent.removeChild(el);
+      console.log(
+        "[applyCustomFormatting] Inserted <br> after note title:",
+        el.outerHTML,
+      );
     });
   }
 
   // 3. Convert div.note to blockquote (so Turndown handles it properly)
-  const noteElements = doc.querySelectorAll("div.note");
+  // Note: ServiceNow uses class="note note note_note" with duplicate "note" classes
+  const noteElements = doc.querySelectorAll(
+    'div.note, div[class*="note_note"]',
+  );
   if (noteElements.length > 0) {
     console.log(
       `[applyCustomFormatting] Converting ${noteElements.length} div.note elements to blockquote`,
     );
     noteElements.forEach((el) => {
+      // Skip if already converted
+      if (el.tagName.toLowerCase() === "blockquote") return;
+
       const blockquote = doc.createElement("blockquote");
       // Copy all attributes except class
       Array.from(el.attributes).forEach((attr) => {
@@ -14714,6 +14740,7 @@ var applyCustomFormatting = (html) => {
       }
       // Replace div with blockquote
       el.parentNode.replaceChild(blockquote, el);
+      console.log("[applyCustomFormatting] Converted div.note to blockquote");
     });
   }
 
@@ -14778,17 +14805,17 @@ var applyCustomFormatting = (html) => {
         ].includes(rule.replacement.toLowerCase());
 
         if (isBlockElement && isInlineReplacement) {
-          // For block → inline: wrap the child nodes instead of replacing the container
+          // For block → inline: unwrap the block and replace with inline element
           console.log(
-            `[applyCustomFormatting] Wrapping children of ${el.tagName} with <${rule.replacement}> instead of replacing container`,
+            `[applyCustomFormatting] Replacing ${el.tagName}.${el.className} with <${rule.replacement}> (unwrapping block)`,
           );
           const wrapper = doc.createElement(rule.replacement);
           // Move all child nodes into the wrapper
           while (el.firstChild) {
             wrapper.appendChild(el.firstChild);
           }
-          // Put the wrapper back into the original element
-          el.appendChild(wrapper);
+          // Replace the original element with the wrapper
+          el.parentNode.replaceChild(wrapper, el);
           totalReplacements++;
         } else if (isBlockElement && isBlockReplacement) {
           // For block → block: replace the container, preserving content
@@ -14838,6 +14865,16 @@ var applyCustomFormatting = (html) => {
     let node;
     while ((node = walker.nextNode())) {
       if (node.nodeType === Node.TEXT_NODE) {
+        // Skip text nodes inside inline elements like abbr, code, etc.
+        // These need to preserve their exact spacing
+        const parent = node.parentElement;
+        if (
+          parent &&
+          (parent.tagName === "ABBR" || parent.tagName === "CODE")
+        ) {
+          continue;
+        }
+
         // Collapse excessive whitespace (but preserve single spaces)
         let text = node.textContent;
         // Remove leading whitespace at start of block
@@ -15083,41 +15120,109 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
   }
 
   // Fix indentation issues that cause code blocks in markdown
-  // Extract block-level elements from list items to prevent code block formatting
+  // Split list items with block-level children into multiple list items
+  // Only process list items that have BOTH inline content AND block elements (ServiceNow pattern)
   try {
     const doc = new DOMParser().parseFromString(content, "text/html");
 
     // Find all list items with block-level children (p, blockquote, div)
     const listItems = doc.querySelectorAll("li");
-    let blocksExtracted = 0;
+    let itemsSplit = 0;
 
     listItems.forEach((li) => {
+      // ONLY process list items that came from itemgroup content (marked earlier)
+      // Check if this li itself or any of its children have the itemgroup marker
+      const hadItemgroup =
+        li.hasAttribute("data-had-itemgroup") ||
+        li.closest("[data-had-itemgroup]") ||
+        li.querySelector("[data-from-itemgroup]");
+
+      if (!hadItemgroup) {
+        return;
+      }
+
+      // Skip if this li is inside a table (don't process table content)
+      if (li.closest("table")) {
+        return;
+      }
+
       // Find block-level elements that are direct children of the li
+      // AND that came from itemgroup (have the marker)
       const blockElements = Array.from(li.children).filter((child) => {
         const tagName = child.tagName.toLowerCase();
-        return tagName === "p" || tagName === "blockquote" || tagName === "div";
+        const isBlockLevel =
+          tagName === "p" || tagName === "blockquote" || tagName === "div";
+        const fromItemgroup =
+          child.hasAttribute("data-from-itemgroup") ||
+          child.querySelector("[data-from-itemgroup]");
+        return isBlockLevel && fromItemgroup;
       });
 
-      if (blockElements.length > 0) {
-        // Move these elements after the parent list
-        const parentList = li.closest("ol, ul");
-        if (parentList && parentList.parentNode) {
-          // Keep track of insertion point to maintain order
-          let insertionPoint = parentList.nextSibling;
-          blockElements.forEach((block) => {
-            // Clone and insert after the current insertion point
-            const cloned = block.cloneNode(true);
-            if (insertionPoint) {
-              parentList.parentNode.insertBefore(cloned, insertionPoint);
-            } else {
-              parentList.parentNode.appendChild(cloned);
-            }
-            // Update insertion point to be after the element we just inserted
-            insertionPoint = cloned.nextSibling;
-            // Remove from list item
-            li.removeChild(block);
-            blocksExtracted++;
-          });
+      // Check if there's also inline content (text nodes or inline elements like span)
+      const hasInlineContent = Array.from(li.childNodes).some((node) => {
+        if (
+          node.nodeType === Node.TEXT_NODE &&
+          node.textContent.trim() !== ""
+        ) {
+          return true;
+        }
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const tag = node.tagName.toLowerCase();
+          return (
+            tag === "span" ||
+            tag === "strong" ||
+            tag === "em" ||
+            tag === "a" ||
+            tag === "code"
+          );
+        }
+        return false;
+      });
+
+      // Only split if we have BOTH inline content AND block elements
+      // This is the ServiceNow pattern that causes code blocks
+      if (blockElements.length > 0 && hasInlineContent) {
+        console.log(
+          `[parseFromHtml] Found ${blockElements.length} itemgroup block elements in li with inline content`,
+        );
+
+        // Create a nested unordered list to hold the block elements as child items
+        // Using <ul> instead of matching parent type to avoid numbered sub-lists
+        const nestedList = doc.createElement("ul");
+
+        // Process each block element
+        blockElements.forEach((block, index) => {
+          // Skip if this block contains a table (tables should stay in their context)
+          if (block.querySelector("table")) {
+            console.log(
+              `[parseFromHtml] Skipping block element containing table`,
+            );
+            return;
+          }
+
+          // Create a new li for this block's content
+          const newLi = doc.createElement("li");
+
+          // Move the block's children (unwrap the block container)
+          while (block.firstChild) {
+            newLi.appendChild(block.firstChild);
+          }
+
+          // Add to nested list
+          nestedList.appendChild(newLi);
+
+          // Remove the block from original li
+          li.removeChild(block);
+          itemsSplit++;
+
+          console.log(
+            `[parseFromHtml] Moved block element to nested list item`,
+          );
+        });
+
+        // Append the nested list to the original li (making them children)
+        if (nestedList.children.length > 0) {
+          li.appendChild(nestedList);
         }
       }
 
@@ -15138,10 +15243,10 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
       }
     });
 
-    if (blocksExtracted > 0) {
+    if (itemsSplit > 0) {
       content = doc.body.innerHTML;
       console.log(
-        `[parseFromHtml] Extracted ${blocksExtracted} block elements from list items`,
+        `[parseFromHtml] Split ${itemsSplit} block elements into separate list items`,
       );
     }
   } catch (e) {

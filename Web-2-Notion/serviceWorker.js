@@ -4250,6 +4250,7 @@ async function cc(e, t) {
 }
 async function lc(e, t) {
   const n = t == null ? void 0 : t.url;
+  if (e == "save-page") return Bt(t);
   if (e == "take-full-page-screenshot")
     return Mt("takeScreenshot", t == null ? void 0 : t.id, n);
   if (e == "take-custom-area-screenshot")

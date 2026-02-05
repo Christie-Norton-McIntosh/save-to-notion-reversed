@@ -4,6 +4,9 @@
     "jsdom": "^24.0.0"
   },
   "scripts": {
-    "test-line-breaks": "node test/test-table-line-breaks.js"
+    "test": "npm run test:base64 && npm run test:e2e && npm run test:line-breaks",
+    "test:base64": "node test/test-base64-image-to-imageUpload.js",
+    "test:e2e": "node test/test-e2e-table-image-and-linebreaks.js",
+    "test:line-breaks": "node test/test-table-line-breaks.js"
   }
 }
