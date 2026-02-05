@@ -113,9 +113,14 @@ function testTableCellConversion() {
     // More robust detection of multi-block cells: count block elements
     const blockEls = cellClone.querySelectorAll("div, p, li").length;
     const hasBR = (cellClone.querySelectorAll("br") || []).length > 0;
-    const firstBlockText = (cellClone.querySelector("div, p, li") || {}).textContent;
+    const firstBlockText = (cellClone.querySelector("div, p, li") || {})
+      .textContent;
     const hasMultipleBlocks =
-      blockEls > 1 || hasBR || (blockEls === 1 && firstBlockText && firstBlockText.trim() !== cellClone.textContent.trim());
+      blockEls > 1 ||
+      hasBR ||
+      (blockEls === 1 &&
+        firstBlockText &&
+        firstBlockText.trim() !== cellClone.textContent.trim());
 
     if (hasMultipleBlocks && !hasLineBreaks) {
       console.log(`❌ Test ${index + 1} FAILED`);
