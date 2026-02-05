@@ -241,13 +241,22 @@ function processQueuedBase64ImagesForTest(userInputMap, imageUploads) {
   // New: ensure the edge-case row (c6) preserved the anchor text AND
   // that any base64 images are queued. The c6 image uses an http src
   // and an empty alt; we must preserve the surrounding span text.
-  if (!window.__TABLE_CELL_CONTENT_MAP__ || !window.__TABLE_CELL_CONTENT_MAP__["c6"]) {
-    console.error("❌ expected cell c6 to appear in TABLE_CELL_CONTENT_MAP__", window.__TABLE_CELL_CONTENT_MAP__);
+  if (
+    !window.__TABLE_CELL_CONTENT_MAP__ ||
+    !window.__TABLE_CELL_CONTENT_MAP__["c6"]
+  ) {
+    console.error(
+      "❌ expected cell c6 to appear in TABLE_CELL_CONTENT_MAP__",
+      window.__TABLE_CELL_CONTENT_MAP__,
+    );
     process.exit(1);
   }
   const c6 = window.__TABLE_CELL_CONTENT_MAP__["c6"];
   if (!/Explore/.test(c6) || !/Leverage the system/.test(c6)) {
-    console.error("❌ expected c6 to preserve text around the image; got:", JSON.stringify(c6));
+    console.error(
+      "❌ expected c6 to preserve text around the image; got:",
+      JSON.stringify(c6),
+    );
     process.exit(1);
   }
 
