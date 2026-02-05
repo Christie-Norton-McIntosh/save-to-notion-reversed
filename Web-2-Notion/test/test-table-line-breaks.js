@@ -110,10 +110,16 @@ function testTableCellConversion() {
     // Check if the result has line breaks
     const hasLineBreaks = text.includes("\n");
     const originalText = cell.textContent.trim();
-    // More robust detection of multi-block cells: count block elements
+
+    // More robust detection of multi-block cells:
+    // - count common block-level containers (div, p, li)
+    // - treat explicit <br> as a block separator
+    // - if there's exactly one block element, compare its text to the
+    //   full cell text to detect embedded extra content
     const blockEls = cellClone.querySelectorAll("div, p, li").length;
     const hasBR = (cellClone.querySelectorAll("br") || []).length > 0;
-    const firstBlockText = (cellClone.querySelector("div, p, li") || {}).textContent;
+    const firstBlock = cellClone.querySelector("div, p, li");
+    const firstBlockText = firstBlock && firstBlock.textContent;
     const hasMultipleBlocks =
       blockEls > 1 || hasBR || (blockEls === 1 && firstBlockText && firstBlockText.trim() !== cellClone.textContent.trim());
 

@@ -1,0 +1,36 @@
+name: jsdom — Turndown / table tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, "feat/**", "fix/**", "copilot/**"]
+
+jobs:
+  jsdom-tests:
+    name: Run jsdom Turndown + table tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Cache node modules (Web-2-Notion)
+        uses: actions/cache@v4
+        with:
+          path: Web-2-Notion/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('Web-2-Notion/package.json') }}
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+        working-directory: Web-2-Notion
+
+      - name: Run jsdom Turndown & table tests
+        run: npm test
+        working-directory: Web-2-Notion

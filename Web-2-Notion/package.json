@@ -4,6 +4,7 @@
     "jsdom": "^24.0.0"
   },
   "scripts": {
-    "test-line-breaks": "node test/test-table-line-breaks.js"
+    "test-line-breaks": "node test/test-table-line-breaks.js",
+    "test": "npm run test-line-breaks"
   }
 }
