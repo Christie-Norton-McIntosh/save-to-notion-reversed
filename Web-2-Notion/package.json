@@ -8,6 +8,7 @@
     "test-base64-image": "node test/test-base64-image-to-imageUpload.js",
     "test-e2e": "node test/test-e2e-table-image-and-linebreaks.js",
     "test-marker-recovery": "node test/test-final-payload-marker-recovery.js",
-    "test": "npm run test-line-breaks && npm run test-base64-image && npm run test-e2e && npm run test-marker-recovery"
+    "test-image-src": "node test/test-broadened-image-src-detection.js",
+    "test": "npm run test-line-breaks && npm run test-base64-image && npm run test-e2e && npm run test-marker-recovery && npm run test-image-src"
   }
 }
