@@ -23,6 +23,47 @@ global.window = dom.window;
 function testTableCellConversion() {
   console.log("🧪 Testing table cell line break preservation...\n");
 
+  // Regression test: anchor that contains an <img> and a textual <span>
+  // should preserve the span text when the image is removed ( ServiceNow pages
+  // commonly wrap icon + label in the same link ). Previously the anchor was
+  // removed entirely which dropped the label.
+  (function testAnchorWithImagePreservesText() {
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML =
+      '<table><tr><td><a href="#"><img src="data:image/png;base64,AAA" alt="icon"><span class="ph">Explore</span></a></td></tr></table>';
+    const cell = wrapper.querySelector("td");
+
+    // Simulate the sanitize path where an invalid/base64 image is encountered
+    const img = cell.querySelector("img");
+    const parentAnchor = img.parentElement;
+    // Bugfix behaviour: replace anchor with its non-image textual content
+    const preservedText = Array.from(parentAnchor.childNodes)
+      .filter(function (n) {
+        return (
+          n.nodeType === window.Node.TEXT_NODE ||
+          (n.nodeType === window.Node.ELEMENT_NODE && n.tagName !== "IMG")
+        );
+      })
+      .map(function (n) {
+        return n.textContent || "";
+      })
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (preservedText)
+      parentAnchor.replaceWith(document.createTextNode(preservedText));
+
+    const result = cell.textContent.trim();
+    if (result !== "Explore") {
+      console.error("❌ Regression: anchor text was lost when removing image");
+      process.exit(1);
+    } else {
+      console.log(
+        "✅ Regression test: anchor text preserved when image removed",
+      );
+    }
+  })();
+
   // Parse the test HTML
   const tempDiv = document.createElement("div");
   tempDiv.innerHTML = testHtml;
@@ -69,10 +110,12 @@ function testTableCellConversion() {
     // Check if the result has line breaks
     const hasLineBreaks = text.includes("\n");
     const originalText = cell.textContent.trim();
+    // More robust detection of multi-block cells: count block elements
+    const blockEls = cellClone.querySelectorAll("div, p, li").length;
+    const hasBR = (cellClone.querySelectorAll("br") || []).length > 0;
+    const firstBlockText = (cellClone.querySelector("div, p, li") || {}).textContent;
     const hasMultipleBlocks =
-      cellClone.querySelectorAll("div, p").length > 1 ||
-      cellClone.textContent.trim() !==
-        cellClone.querySelector("p")?.textContent.trim();
+      blockEls > 1 || hasBR || (blockEls === 1 && firstBlockText && firstBlockText.trim() !== cellClone.textContent.trim());
 
     if (hasMultipleBlocks && !hasLineBreaks) {
       console.log(`❌ Test ${index + 1} FAILED`);

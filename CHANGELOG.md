@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+- popup: automatically convert queued data: (base64) images discovered in-page into imageUpload entries so images found inside tables are uploaded end-to-end (fixes images lost when saving paginated pages). Implemented marker→placeholder→upload wiring and exposed a test hook. ([#][link-to-pr])
+- popup: preserve list and block-level line breaks inside table cells (fixes multiple table line-break regressions). Added robust Turndown safeguards and unit + e2e tests.
+
+  - Files: `popup/static/js/main.js`, `test/test-table-line-breaks.js`, `test/test-e2e-table-image-and-linebreaks.js`, `test/test-base64-image-to-imageUpload.js`
+  - Behavior: data: images in table cells are now queued and automatically converted to image uploads; lists, paragraphs and <br> in table cells preserve line breaks in the resulting Notion page.
+
+
 ### Added
 
 - **Sibling Duplicate Pruning**: Added DOM pass to remove later siblings with identical normalized text (tag-aware) from htmlToProcess before parsing
@@ -10,7 +17,15 @@
 
 ### Fixed
 
-- **📋 Table Cell List Formatting**: Lists within table cells now preserve line breaks between items
+- **� ServiceNow Content Formatting**: Fixed ServiceNow documentation pages with notes and paragraphs being converted to code blocks in Notion
+  - Unwraps problematic container divs (`div.itemgroup`, `div.note__body`, `div.note__title`)
+  - Converts `div.note` elements to proper `<blockquote>` tags for semantic HTML
+  - Extracts block-level elements (`<p>`, `<blockquote>`, `<div>`) from inside list items to prevent markdown indentation issues
+  - Maintains correct element order when extracting from lists
+  - Notes now render as blockquotes and paragraphs render as normal text in Notion
+  - Applies to all ServiceNow documentation with nested note/itemgroup structures
+
+- **�📋 Table Cell List Formatting**: Lists within table cells now preserve line breaks between items
   - Added `__LI_END__` marker handling for list items in both HTML-to-Markdown conversion (`options.js`) and popup processing (`main.js`)
   - Removed automatic comma-join conversion that was replacing list items with comma-separated text
   - List items in table cells now display on separate lines in Notion instead of comma-separated inline text
