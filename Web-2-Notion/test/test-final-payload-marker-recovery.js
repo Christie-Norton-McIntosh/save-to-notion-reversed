@@ -84,7 +84,9 @@ console.log("✅ final-payload marker recovery behaved as expected");
   // the simulated page fetcher directly (unit-test shim).
   let recovered = false;
   if (typeof window.__stn_attemptRecoverMapsFromPage === "function") {
-    recovered = await window.__stn_attemptRecoverMapsFromPage({ timeoutMs: 200 });
+    recovered = await window.__stn_attemptRecoverMapsFromPage({
+      timeoutMs: 200,
+    });
   } else if (typeof window.__stn_pageMapFetcher === "function") {
     const res = await window.__stn_pageMapFetcher();
     if (res && res.table) {

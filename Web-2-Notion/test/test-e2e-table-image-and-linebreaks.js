@@ -163,11 +163,12 @@ function processQueuedBase64ImagesForTest(userInputMap, imageUploads) {
       <tr><td id="c3">Line1<br/>Line2</td></tr>
       <tr><td id="c4"><a href="#"><img src="data:image/png;base64,AAA" alt="ic"><span>Explore</span></a></td></tr>
       <tr><td id="c5"><a href="#"><img src="data:image/png;base64,BBB" alt="pic"></a></td></tr>
+  <tr><td id="c6"><img class="image ft-responsive-image" id="devops-config-landing-page__image_jz1_r24_vtb" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFUAAABPCAYAAACauImn..." alt="Explore" data-ft-container-id="MlbQAgTiiiMOLOw9T36wJg" data-ft-resource-id="mT2sXVHWMQJq43Rxfs~l6A-MlbQAgTiiiMOLOw9T36wJg"></td></tr>
     </table>`;
 
   // Run sanitize & marker storage
   const tests = [];
-  ["c1", "c2", "c3", "c4", "c5"].forEach((id) => {
+  ["c1", "c2", "c3", "c4", "c5", "c6"].forEach((id) => {
     const cell = wrapper.querySelector("#" + id);
     tests.push(simulateSanitizeCellAndQueue(cell, id));
   });
@@ -197,7 +198,7 @@ function processQueuedBase64ImagesForTest(userInputMap, imageUploads) {
   }
 
   // Base64 images should be queued and then convertible to imageUploads
-  if (!window.__base64ImageArray || window.__base64ImageArray.length < 2) {
+  if (!window.__base64ImageArray || window.__base64ImageArray.length < 3) {
     console.error(
       "❌ base64 images were not queued as expected",
       window.__base64ImageArray,
@@ -233,6 +234,15 @@ function processQueuedBase64ImagesForTest(userInputMap, imageUploads) {
   const pid = Object.keys(window.__TABLE_BASE64_IMAGE_MAP__)[1];
   if (!mapping[pid]) {
     console.error("❌ queued base64 placeholder was not converted to uploadId");
+    process.exit(1);
+  }
+
+  // New: ensure the edge-case data: image (complex attributes) was queued
+  if (!window.__base64ImageArray.some((i) => i.alt === "Explore")) {
+    console.error(
+      "❌ expected data: image with alt 'Explore' to be queued",
+      window.__base64ImageArray,
+    );
     process.exit(1);
   }
 
