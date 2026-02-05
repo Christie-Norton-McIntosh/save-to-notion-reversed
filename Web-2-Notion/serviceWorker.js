@@ -7993,7 +7993,31 @@ class gl {
                   a.push({ path: ["format", "page_icon"], value: C.imgUrl }));
           }));
       let v = this.schema[b];
-      if (!v) continue;
+      if (!v) {
+        // Property not found in collection schema — warn the developer/user.
+        console.warn(
+          `updateRow: property '${b}' not present in parent collection schema; it will be ignored by Notion API.`,
+        );
+        continue;
+      }
+
+      // Lightweight type sanity-checks to catch common agent errors (e.g. number-as-string)
+      try {
+        if (
+          v.type === "number" &&
+          typeof n[b] === "string" &&
+          isNaN(Number(n[b]))
+        )
+          console.warn(
+            `updateRow: property '${b}' expected number but received non-numeric string.`,
+          );
+        if (v.type === "select" && Array.isArray(n[b]))
+          console.warn(
+            `updateRow: property '${b}' is a select but an array was provided — did you mean multi_select?`,
+          );
+      } catch (e) {
+        console.debug("updateRow: property-type sanity check failed", e);
+      }
       let T = ["properties", v.id],
         E = hr(n[b], v);
       a.push({ path: T, value: E });
@@ -8166,23 +8190,110 @@ class pl {
     );
   }
   async updateDataRecord(t, n, o) {
-    return (
-      await this._submitTransaction([
-        ...(o || []),
-        ...(n == null
-          ? void 0
-          : n.map((i) =>
-              this._buildOperation({
-                id: t,
-                command: "set",
-                table: "block",
-                path: i.path,
-                args: i.value,
-              }),
-            )),
-      ]),
-      t
-    );
+    // Sanitize operations before submitting to Notion (prevent accidental writes of
+    // read-only properties, ensure date formats, and chunk large block batches so
+    // we never send more than Notion's 100-block-per-request limit). See
+    // `Notion API for Agent` guidelines in the repository for rationale.
+    const MAX_BLOCKS_PER_REQUEST = typeof qo === "number" ? qo : 100;
+
+    const isReadOnlyProp = (propName) =>
+      [
+        "created_time",
+        "created_by",
+        "last_edited_time",
+        "last_edited_by",
+        "formula",
+        "rollup",
+      ].includes(propName);
+
+    const sanitizeOp = (op) => {
+      try {
+        // filter out attempts to write read-only properties
+        if (
+          Array.isArray(op.path) &&
+          op.path.length >= 2 &&
+          op.path[0] === "properties"
+        ) {
+          const propName = op.path[1];
+          if (isReadOnlyProp(propName)) {
+            console.warn(
+              "updateDataRecord: removing write to read-only property",
+              propName,
+            );
+            return null;
+          }
+        }
+
+        // normalize simple date-like values to YYYY-MM-DD when possible
+        if (op.args && typeof op.args == "object") {
+          const maybeDate = (v) => {
+            // accept Date, ISO string, or object with start/end
+            if (!v) return v;
+            if (v instanceof Date) return we(v);
+            if (typeof v === "string") {
+              const d = new Date(v);
+              if (!isNaN(d.getTime())) return we(d);
+            }
+            if (
+              typeof v === "object" &&
+              (v.start || v.end) &&
+              (typeof v.start === "string" || v.start instanceof Date)
+            ) {
+              return {
+                start: maybeDate(v.start) || null,
+                end: maybeDate(v.end) || null,
+              };
+            }
+            return v;
+          };
+
+          // walk shallow args and normalize date-like fields
+          for (const k of Object.keys(op.args)) {
+            const val = op.args[k];
+            const normalized = maybeDate(val);
+            if (normalized !== val) op.args[k] = normalized;
+          }
+        }
+
+        return op;
+      } catch (err) {
+        console.warn("updateDataRecord: sanitizeOp failed", err, op);
+        return op;
+      }
+    };
+
+    const ops = [...(o || [])];
+    if (n != null) {
+      for (const i of n) {
+        const built = this._buildOperation({
+          id: t,
+          command: "set",
+          table: "block",
+          path: i.path,
+          args: i.value,
+        });
+        const sanitized = sanitizeOp(built);
+        sanitized && ops.push(sanitized);
+      }
+    }
+
+    // Submit in batches so we respect the Notion limit (100 blocks / request).
+    // Also helps surface partial failures more clearly.
+    const chunkArray = (arr, size) => {
+      const out = [];
+      for (let i = 0; i < arr.length; i += size)
+        out.push(arr.slice(i, i + size));
+      return out;
+    };
+
+    // Count only block-creation-type operations when chunking. Conservatively
+    // include every op because different op types still contribute to payload
+    const batches = chunkArray(ops, MAX_BLOCKS_PER_REQUEST);
+    for (const batch of batches) {
+      await this._submitTransaction(batch);
+    }
+
+    return t;
   }
   async getCollectionLocally(t, n, o, i) {
     let a = new gl(t, "", n, this, i);

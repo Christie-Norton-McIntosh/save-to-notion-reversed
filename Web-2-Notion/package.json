@@ -4,6 +4,9 @@
     "jsdom": "^24.0.0"
   },
   "scripts": {
-    "test-line-breaks": "node test/test-table-line-breaks.js"
+    "test-line-breaks": "node test/test-table-line-breaks.js",
+    "test-inline-images": "node test/test-inline-images.js",
+    "test-notion-utils": "node test/test-notion-api-utils.js",
+    "test": "npm run test-line-breaks && npm run test-inline-images && npm run test-notion-utils"
   }
 }
