@@ -99,7 +99,7 @@ Example structure:
 - This is safer than manual XML generation
 - Example JXA snippet:
 
-```jsx
+```javascript
 const app = Application("Keyboard Maestro Engine");
 const editor = Application("Keyboard Maestro");
 
