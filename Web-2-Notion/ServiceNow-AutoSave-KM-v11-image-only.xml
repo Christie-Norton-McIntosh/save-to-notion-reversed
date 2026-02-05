@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Keyboard Maestro Macros</key>
+  <array>
+    <dict>
+      <key>Name</key>
+      <string>ServiceNow — Auto Save (Chrome, IMAGE-ONLY)</string>
+      <key>Note</key>
+      <string>Image-only variant: uses the Save-button image (save-button.png) and the keystroke Option+Shift+E to open the extension popup. Import image into the macro's Images resources before running.</string>
+      <key>UUID</key>
+      <string>F3A2C8E6-PLACEHOLDER-IMAGE-0000-0002</string>
+      <key>Actions</key>
+      <array>
+        <!-- 1) Signal page script to show KM indicator -->
+        <dict>
+          <key>MacroActionType</key>
+          <string>ExecuteJavaScriptForFrontBrowser</string>
+          <key>JavaScript</key>
+          <string>window.__stn_signalSave();</string>
+        </dict>
+
+        <!-- 2) Wait until indicator appears -->
+        <dict>
+          <key>MacroActionType</key>
+          <string>PauseUntil</string>
+          <key>JavaScript</key>
+          <string>return document.querySelector('#km-save-indicator') !== null;</string>
+          <key>TimeoutSeconds</key>
+          <integer>10</integer>
+        </dict>
+
+        <!-- 3) Activate Chrome -->
+        <dict>
+          <key>MacroActionType</key>
+          <string>ActivateApplication</string>
+          <key>Application</key>
+          <string>Google Chrome</string>
+        </dict>
+
+        <!-- 4) Small pause for UI -->
+        <dict>
+          <key>MacroActionType</key>
+          <string>Pause</string>
+          <key>Seconds</key>
+          <real>0.45</real>
+        </dict>
+
+        <!-- 5) Open extension popup via keystroke Option+Shift+E -->
+        <dict>
+          <key>MacroActionType</key>
+          <string>TypeKeystroke</string>
+          <key>Keystroke</key>
+          <string>E</string>
+          <key>Modifiers</key>
+          <array>
+            <string>Option</string>
+            <string>Shift</string>
+          </array>
+        </dict>
+
+        <!-- 6) Pause briefly for popup DOM -->
+        <dict>
+          <key>MacroActionType</key>
+          <string>Pause</string>
+          <key>Seconds</key>
+          <real>0.6</real>
+        </dict>
+
+        <!-- 7) Click Save button by image (REQUIRED: add save-button.png to Images resources) -->
+        <dict>
+          <key>MacroActionType</key>
+          <string>ClickFoundImage</string>
+          <key>ImageName</key>
+          <string>save-button.png</string>
+          <key>SearchArea</key>
+          <string>Screen</string>
+          <key>IfNotFound</key>
+          <string>FailMacro</string>
++        </dict>
++
++        <!-- 8) Wait for indicator to be removed (save complete) -->
++        <dict>
++          <key>MacroActionType</key>
++          <string>PauseUntil</string>
++          <key>JavaScript</key>
++          <string>return document.querySelector('#km-save-indicator') === null;</string>
++          <key>TimeoutSeconds</key>
++          <integer>30</integer>
+         </dict>
+
+-        <!-- 8) Wait for indicator to be removed (save complete) -->
+-        <dict>
+-          <key>MacroActionType</key>
+-          <string>PauseUntil</string>
+-          <key>JavaScript</key>
+-          <string>return document.querySelector('#km-save-indicator') === null;</string>
+-          <key>TimeoutSeconds</key>
+-          <integer>30</integer>
+-        </dict>
+-
+-        <!-- 9) Tell page to navigate next (optional) -->
++        <!-- 9) Tell page to navigate next (optional) -->
+         <dict>
+           <key>MacroActionType</key>
+           <string>ExecuteJavaScriptForFrontBrowser</string>
+           <key>JavaScript</key>
+           <string>window.__stn_nextPage();</string>
+         </dict>
+
+         <!-- 10) Short pause before allowing next cycle -->
+         <dict>
+           <key>MacroActionType</key>
+           <string>Pause</string>
+           <key>Seconds</key>
+           <real>1.0</real>
+         </dict>
+
+      </array>
+      <key>Availability</key>
+      <dict>
+        <key>AvailableWhen</key>
+        <string>AvailableToAllApplications</string>
+      </dict>
+    </dict>
+  </array>
+</dict>
+</plist>

@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <array>
+    <dict>
+      <!-- Macro Group metadata -->
+      <key>Name</key>
+      <string>Web-2-Notion — ServiceNow automation</string>
+      <key>UID</key>
+      <string>6A3B9E2C-5F4A-4D2A-9C1E-000000000001</string>
+      <key>CreationDate</key>
+      <real>791300000.0</real>
+      <key>Macros</key>
+      <array>
+        <dict>
+          <!-- Macro: ServiceNow — Auto Save (image+fallback) -->
+          <key>Name</key>
+          <string>ServiceNow — Auto Save (image+fallback)</string>
+          <key>UID</key>
+          <string>F3A2C8E6-9B1A-4C3D-A7F0-000000000011</string>
+          <key>IsActive</key>
+          <true/>
+          <key>CreationDate</key>
+          <real>791300100.0</real>
+          <key>Triggers</key>
+          <array/>
+          <key>Actions</key>
+          <array>
+            <!-- Execute: window.__stn_signalSave() -->
+            <dict>
+              <key>MacroActionType</key>
+              <string>ExecuteJavaScriptForFrontBrowser</string>
+              <key>JavaScript</key>
+              <string>window.__stn_signalSave();</string>
+            </dict>
+
+            <!-- Pause until indicator appears -->
+            <dict>
+              <key>MacroActionType</key>
+              <string>PauseUntil</string>
+              <key>JavaScript</key>
+              <string>return document.querySelector('#km-save-indicator') !== null;</string>
+              <key>TimeoutSeconds</key>
+              <integer>10</integer>
+            </dict>
+
+            <!-- Activate Chrome -->
+            <dict>
+              <key>MacroActionType</key>
+              <string>ActivateApplication</string>
+              <key>Application</key>
+              <string>Google Chrome</string>
+            </dict>
+
+            <!-- Short pause -->
+            <dict>
+              <key>MacroActionType</key>
+              <string>Pause</string>
+              <key>Seconds</key>
+              <real>0.5</real>
+            </dict>
+
+            <!-- Send Option+Shift+E to open extension popup -->
+            <dict>
+              <key>MacroActionType</key>
+              <string>TypeKeystroke</string>
+              <key>Keystroke</key>
+              <string>E</string>
+              <key>Modifiers</key>
+              <array>
+                <string>Option</string>
+                <string>Shift</string>
+              </array>
+            </dict>
+
+            <!-- Wait briefly for popup DOM -->
+            <dict>
+              <key>MacroActionType</key>
+              <string>Pause</string>
+              <key>Seconds</key>
+              <real>0.6</real>
+            </dict>
+
+            <!-- If Save image found -> click it; else fallback to coordinates -->
+            <dict>
+              <key>MacroActionType</key>
+              <string>IfThenElse</string>
+              <key>Condition</key>
+              <dict>
+                <key>ConditionType</key>
+                <string>FoundImage</string>
+                <key>ImageName</key>
+                <string>save-button.png</string>
+                <key>SearchArea</key>
+                <string>BrowserWindow</string>
+              </dict>
+              <key>ThenActions</key>
+              <array>
+                <dict>
+                  <key>MacroActionType</key>
+                  <string>ClickFoundImage</string>
+                  <key>ImageName</key>
+                  <string>save-button.png</string>
+                  <key>SearchArea</key>
+                  <string>Screen</string>
+                </dict>
+              </array>
+              <key>ElseActions</key>
+              <array>
+                <dict>
+                  <key>MacroActionType</key>
+                  <string>MoveAndClick</string>
+                  <key>X</key>
+                  <integer>SAVE_BTN_X</integer>
+                  <key>Y</key>
+                  <integer>SAVE_BTN_Y</integer>
+                  <key>Button</key>
+                  <string>Left</string>
+                </dict>
+              </array>
+            </dict>
+
+            <!-- Wait for indicator removed (save complete) -->
+            <dict>
+              <key>MacroActionType</key>
+              <string>PauseUntil</string>
+              <key>JavaScript</key>
+              <string>return document.querySelector('#km-save-indicator') === null;</string>
+              <key>TimeoutSeconds</key>
+              <integer>30</integer>
+            </dict>
+
+            <!-- Tell page to go to next page -->
+            <dict>
+              <key>MacroActionType</key>
+              <string>ExecuteJavaScriptForFrontBrowser</string>
+              <key>JavaScript</key>
+              <string>window.__stn_nextPage();</string>
+            </dict>
+
+            <!-- Final short pause -->
+            <dict>
+              <key>MacroActionType</key>
+              <string>Pause</string>
+              <key>Seconds</key>
+              <real>1.0</real>
+            </dict>
+          </array>
+
+          <!-- Macro-level metadata -->
+          <key>Enabled</key>
+          <true/>
+          <key>IsEditable</key>
+          <true/>
+          <key>Tags</key>
+          <array/>
+        </dict>
+      </array>
+      <!-- Macro Group-level settings -->
+      <key>AvailableWhere</key>
+      <string>AvailableToAllApplications</string>
+    </dict>
+  </array>
+      <key>Images</key>
+      <array>
+        <dict>
+          <key>Name</key>
+          <string>save-button.png</string>
+          <key>Data</key>
+          <data>__KM_IMAGE_SAVE_BUTTON_BASE64__</data>
+        </dict>
+      </array>
+    </dict>
+  </array>
+</plist>

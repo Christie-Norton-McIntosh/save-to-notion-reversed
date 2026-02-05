@@ -18,12 +18,12 @@
   "optional_host_permissions": ["https://*.licdn.com/*", "<all_urls>"],
   "optional_permissions": ["webNavigation"],
   "commands": {
-    "add-highlights": {
+    "save-page": {
       "suggested_key": {
         "default": "Ctrl+Shift+E",
         "mac": "Command+Shift+E"
       },
-      "description": "Add highlights to your Notion Page"
+      "description": "Save current page to Notion"
     },
     "take-full-page-screenshot": {
       "suggested_key": {

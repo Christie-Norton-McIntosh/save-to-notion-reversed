@@ -18,6 +18,20 @@
   const AUTO_PAGINATION_KEY = "__stn_auto_pagination";
   const AUTO_PAGINATION_STATE_KEY = "__stn_auto_pagination_state";
 
+  // Listen for save complete messages from popup
+  if (
+    typeof chrome !== "undefined" &&
+    chrome.runtime &&
+    chrome.runtime.onMessage
+  ) {
+    chrome.runtime.onMessage.addListener((message) => {
+      if (message.action === "saveComplete") {
+        console.debug("[Auto-Pagination] Save completed, dispatching event");
+        document.dispatchEvent(new CustomEvent("notionSaveComplete"));
+      }
+    });
+  }
+
   /**
    * Find element in shadow DOMs (reusing pattern from getCustomCssData.js)
    */
@@ -59,40 +73,105 @@
 
   /**
    * Get auto-pagination config from chrome.storage.local
+   * Falls back to localStorage if extension context is invalidated
    */
   async function getConfig() {
+    // Check if chrome API is available before using it
+    if (
+      typeof chrome !== "undefined" &&
+      chrome.storage &&
+      chrome.storage.local
+    ) {
+      try {
+        const result = await chrome.storage.local.get(AUTO_PAGINATION_KEY);
+        return result[AUTO_PAGINATION_KEY] || null;
+      } catch (e) {
+        console.warn(
+          "chrome.storage.local failed, falling back to localStorage:",
+          e,
+        );
+      }
+    } else {
+      console.log("chrome.storage.local not available, using localStorage");
+    }
+
+    // Fallback to localStorage
     try {
-      const result = await chrome.storage.local.get(AUTO_PAGINATION_KEY);
-      return result[AUTO_PAGINATION_KEY] || null;
-    } catch (e) {
-      console.error("Error reading auto-pagination config:", e);
+      const stored = localStorage.getItem(AUTO_PAGINATION_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch (parseError) {
+      console.error("Error parsing localStorage config:", parseError);
       return null;
     }
   }
 
   /**
    * Get auto-pagination state from chrome.storage.local
+   * Falls back to localStorage if extension context is invalidated
    */
   async function getState() {
+    // Check if chrome API is available before using it
+    if (
+      typeof chrome !== "undefined" &&
+      chrome.storage &&
+      chrome.storage.local
+    ) {
+      try {
+        const result = await chrome.storage.local.get(
+          AUTO_PAGINATION_STATE_KEY,
+        );
+        return (
+          result[AUTO_PAGINATION_STATE_KEY] || { running: false, pageCount: 0 }
+        );
+      } catch (e) {
+        console.warn(
+          "chrome.storage.local failed, falling back to localStorage:",
+          e,
+        );
+      }
+    } else {
+      console.log("chrome.storage.local not available, using localStorage");
+    }
+
+    // Fallback to localStorage
     try {
-      const result = await chrome.storage.local.get(AUTO_PAGINATION_STATE_KEY);
-      return (
-        result[AUTO_PAGINATION_STATE_KEY] || { running: false, pageCount: 0 }
-      );
-    } catch (e) {
-      console.error("Error reading auto-pagination state:", e);
+      const stored = localStorage.getItem(AUTO_PAGINATION_STATE_KEY);
+      return stored ? JSON.parse(stored) : { running: false, pageCount: 0 };
+    } catch (parseError) {
+      console.error("Error parsing localStorage state:", parseError);
       return { running: false, pageCount: 0 };
     }
   }
 
   /**
    * Save auto-pagination state to chrome.storage.local
+   * Also saves to localStorage as backup
    */
   async function setState(state) {
+    // Always save to localStorage first
     try {
-      await chrome.storage.local.set({ [AUTO_PAGINATION_STATE_KEY]: state });
+      localStorage.setItem(AUTO_PAGINATION_STATE_KEY, JSON.stringify(state));
+      console.log("✓ State saved to localStorage:", state);
     } catch (e) {
-      console.error("Error saving auto-pagination state:", e);
+      console.error("Error saving to localStorage:", e);
+    }
+
+    // Try to save to chrome.storage.local if available
+    if (
+      typeof chrome !== "undefined" &&
+      chrome.storage &&
+      chrome.storage.local
+    ) {
+      try {
+        await chrome.storage.local.set({ [AUTO_PAGINATION_STATE_KEY]: state });
+        console.log("✓ State saved to chrome.storage.local");
+      } catch (e) {
+        console.warn("Could not save to chrome.storage.local:", e);
+      }
+    } else {
+      console.log(
+        "chrome.storage.local not available, using localStorage only",
+      );
     }
   }
 
@@ -144,7 +223,17 @@
    */
   function createFloatingButton() {
     // Check if button already exists
-    if (document.getElementById("stn-auto-pagination-button")) {
+    const existingButton = document.getElementById(
+      "stn-auto-pagination-button",
+    );
+    if (existingButton) {
+      console.log("Button already exists, re-enabling it");
+      // Button exists from previous page, just re-enable it
+      const buttonEl = existingButton.querySelector(".stn-ap-button");
+      if (buttonEl) {
+        buttonEl.classList.remove("disabled");
+        buttonEl.classList.remove("saving");
+      }
       return;
     }
 
@@ -366,6 +455,9 @@
     showStatus("Please click 'Save Page' in the extension popup", false);
 
     console.log("👉 Waiting for user to save the page...");
+    console.log(
+      `⏱️  Will auto-advance in ${config.autoAdvanceDelay || 5000}ms`,
+    );
 
     // User needs to manually click "Save Page" in popup
     // After they do, they should click the "Save & Next" button again
@@ -375,23 +467,32 @@
 
     setTimeout(async () => {
       console.log("⏱️ Auto-advancing after delay...");
+      console.log("Current state before increment:", state);
 
       // Increment page count
       state.pageCount = (state.pageCount || 0) + 1;
       await setState(state);
+      console.log("State after increment:", state);
+
       await updateButtonCounter();
+      console.log("Button counter updated");
 
       // Click the next button
       const delay = config.delayBeforeNext || 1000;
+      console.log(`Waiting ${delay}ms before clicking next button...`);
+
       setTimeout(() => {
+        console.log("Attempting to click next button now...");
         const clicked = clickNextButton(config.nextButtonSelector);
 
         if (!clicked) {
+          console.error("❌ Failed to click next button!");
           showButtonStatus("❌ Next button not found", 3000);
           showStatus("Next button not found - check selector", true);
           disableButton(false);
           button.classList.remove("saving");
         } else {
+          console.log("✅ Successfully clicked next button!");
           showButtonStatus("✓ Navigating to next page...", 2000);
           showStatus(`Navigating to page ${state.pageCount + 1}...`, false);
           // Button will be re-enabled on next page load
@@ -441,6 +542,16 @@
    */
   async function triggerSaveAction() {
     console.log("💾 Triggering save action...");
+
+    // Check if chrome runtime is available
+    if (
+      typeof chrome === "undefined" ||
+      !chrome.runtime ||
+      !chrome.runtime.sendMessage
+    ) {
+      console.warn("Chrome runtime not available - cannot trigger save action");
+      return;
+    }
 
     // Method 1: Try to open the extension popup programmatically
     try {
@@ -560,42 +671,52 @@
   /**
    * Listen for messages from popup/service worker
    */
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === "startAutoPagination") {
-      startAutoPagination().then(() => {
-        sendResponse({ success: true });
-      });
-      return true;
-    }
+  if (
+    typeof chrome !== "undefined" &&
+    chrome.runtime &&
+    chrome.runtime.onMessage
+  ) {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.action === "startAutoPagination") {
+        startAutoPagination().then(() => {
+          sendResponse({ success: true });
+        });
+        return true;
+      }
 
-    if (message.action === "stopAutoPagination") {
-      stopAutoPagination().then(() => {
-        sendResponse({ success: true });
-      });
-      return true;
-    }
+      if (message.action === "stopAutoPagination") {
+        stopAutoPagination().then(() => {
+          sendResponse({ success: true });
+        });
+        return true;
+      }
 
-    if (message.action === "resetPagination") {
-      resetPagination().then(() => {
-        sendResponse({ success: true });
-      });
-      return true;
-    }
+      if (message.action === "resetPagination") {
+        resetPagination().then(() => {
+          sendResponse({ success: true });
+        });
+        return true;
+      }
 
-    if (message.action === "getAutoPaginationState") {
-      getState().then((state) => {
-        sendResponse(state);
-      });
-      return true;
-    }
+      if (message.action === "getAutoPaginationState") {
+        getState().then((state) => {
+          sendResponse(state);
+        });
+        return true;
+      }
 
-    if (message.action === "saveComplete") {
-      handleSaveComplete().then(() => {
-        sendResponse({ success: true });
-      });
-      return true;
-    }
-  });
+      if (message.action === "saveComplete") {
+        handleSaveComplete().then(() => {
+          sendResponse({ success: true });
+        });
+        return true;
+      }
+    });
+  } else {
+    console.warn(
+      "chrome.runtime.onMessage not available - message listening disabled",
+    );
+  }
 
   /**
    * Check if auto-pagination should start on page load
@@ -614,14 +735,38 @@
         window.addEventListener("DOMContentLoaded", () => {
           setTimeout(() => {
             createFloatingButton();
-            disableButton(false); // Re-enable button on new page
+            // Use requestAnimationFrame to ensure button is in DOM before enabling
+            requestAnimationFrame(() => {
+              disableButton(false); // Re-enable button on new page
+              console.log("✓ Button re-enabled on new page");
+
+              // Auto-trigger the button if we're in the middle of auto-pagination
+              if (state.pageCount > 0) {
+                console.log("🤖 Auto-triggering Save & Next on new page...");
+                setTimeout(() => {
+                  handleSaveAndNext();
+                }, 1000); // Give page a moment to settle
+              }
+            });
           }, 500);
         });
       } else {
         // Page already loaded
         setTimeout(() => {
           createFloatingButton();
-          disableButton(false); // Re-enable button on new page
+          // Use requestAnimationFrame to ensure button is in DOM before enabling
+          requestAnimationFrame(() => {
+            disableButton(false); // Re-enable button on new page
+            console.log("✓ Button re-enabled on new page");
+
+            // Auto-trigger the button if we're in the middle of auto-pagination
+            if (state.pageCount > 0) {
+              console.log("🤖 Auto-triggering Save & Next on new page...");
+              setTimeout(() => {
+                handleSaveAndNext();
+              }, 1000); // Give page a moment to settle
+            }
+          });
         }, 500);
       }
     }

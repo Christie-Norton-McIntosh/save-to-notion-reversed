@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ServiceNow Formatting Test Page</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .test-section {
+        background: white;
+        padding: 20px;
+        margin: 20px 0;
+        border: 2px solid #ddd;
+        border-radius: 5px;
+      }
+      .test-section h2 {
+        color: #0066cc;
+        border-bottom: 2px solid #0066cc;
+        padding-bottom: 10px;
+      }
+      .expected {
+        background: #e8f4f8;
+        padding: 10px;
+        margin: 10px 0;
+        border-left: 4px solid #0066cc;
+      }
+      .itemgroup {
+        margin: 10px 0;
+      }
+      .note {
+        background: #fff8dc;
+        padding: 10px;
+        margin: 10px 0;
+        border-left: 4px solid #ffa500;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ServiceNow Content Extraction - Regression Tests</h1>
+    <p>
+      This page contains test cases for ServiceNow documentation formatting
+      issues.
+    </p>
+
+    <div
+      style="
+        background: #fff3cd;
+        padding: 15px;
+        margin: 20px 0;
+        border: 2px solid #ffc107;
+        border-radius: 5px;
+      "
+    >
+      <h3 style="color: #856404; margin-top: 0">
+        ⚠️ Required Custom Formatting Rules
+      </h3>
+      <p>
+        For these tests to pass, you must have the following custom formatting
+        rules configured in the extension:
+      </p>
+      <ul>
+        <li>
+          <code>.note__title</code> → <code>strong</code> (converts note titles
+          to bold)
+        </li>
+        <li>
+          <code>.note__body</code> → <code>em</code> (converts note body to
+          italics)
+        </li>
+        <li>
+          <code>span.ph.uicontrol</code> → <code>strong</code> (converts UI
+          controls to bold)
+        </li>
+      </ul>
+      <p style="margin-bottom: 0">
+        <strong>Note:</strong> Make sure <code>span.ph</code> and
+        <code>span.menucascade</code> are NOT in your custom ignore selectors,
+        or menu cascade content will disappear.
+      </p>
+    </div>
+
+    <!-- Test 1: Basic itemgroup with note -->
+    <div class="test-section">
+      <h2>Test 1: Itemgroup with Note (Basic)</h2>
+      <div class="expected">
+        <strong>Expected Result:</strong>
+        <ul>
+          <li>List item text should appear normally</li>
+          <li>Paragraph should be indented/bulleted below</li>
+          <li>
+            Note should be a blockquote, indented/bulleted below with line break
+            after "Note:"
+          </li>
+          <li>No code blocks should appear</li>
+        </ul>
+      </div>
+
+      <ol class="ol steps">
+        <li class="li step stepexpand">
+          <span class="ph cmd">Click <strong>Count Licenses</strong>.</span>
+          <div class="itemgroup info">
+            <div class="p">
+              The licenses are listed under
+              <strong>Software Counter Results</strong>. The licenses display as
+              0, but you are not out of compliance because you have an
+              enterprise license with an enterprise contract. Once an enterprise
+              contract is associated with software, all users are entitled when
+              the licenses are counted.
+            </div>
+            <div class="note note note_note">
+              <span class="note__title">Note:</span>
+              <div class="note__body">
+                In the Software Licenses list, enterprise licenses display
+                <strong>0</strong> in the <strong>Rights</strong> column. The
+                concept of rights is not used with enterprise licenses.
+              </div>
+            </div>
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <!-- Test 2: Menu cascade with proper spacing -->
+    <div class="test-section">
+      <h2>Test 2: Menu Cascade Spacing</h2>
+      <div class="expected">
+        <strong>Expected Result:</strong><br />
+        Should render as: <strong>Asset</strong> &gt;
+        <strong>Software</strong> &gt;
+        <strong>Asset License Entitlements</strong><br />
+        (With spaces around the &gt; symbols)<br />
+        <em
+          >Note: If content after "Navigate to" is missing, check your custom
+          ignore selectors - span.ph or span.menucascade may be ignored.</em
+        >
+      </div>
+
+      <p>
+        Navigate to
+        <span class="ph menucascade"
+          ><span class="ph uicontrol">Asset</span
+          ><abbr title="and then"> &gt; </abbr
+          ><span class="ph uicontrol">Software</span
+          ><abbr title="and then"> &gt; </abbr
+          ><span class="ph uicontrol">Asset License Entitlements</span></span
+        >.
+      </p>
+    </div>
+
+    <!-- Test 3: Table within itemgroup -->
+    <div class="test-section">
+      <h2>Test 3: Table Inside Itemgroup</h2>
+      <div class="expected">
+        <strong>Expected Result:</strong>
+        <ul>
+          <li>Table should remain intact and visible</li>
+          <li>Table should not be split or moved</li>
+          <li>All table content should be preserved</li>
+        </ul>
+      </div>
+
+      <ol class="ol steps">
+        <li class="li step stepexpand">
+          <span class="ph cmd">Fill in the form.</span>
+          <div class="itemgroup info">
+            <table class="table frame-all">
+              <caption>
+                <span class="table--title-label">Table 1. </span
+                ><span class="title">License entitlement</span>
+              </caption>
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Display name</td>
+                  <td>Name used in record lists.</td>
+                </tr>
+                <tr>
+                  <td>Assigned to</td>
+                  <td>User of the entitlement token.</td>
+                </tr>
+                <tr>
+                  <td>Licensed by</td>
+                  <td>License granting this token.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <!-- Test 4: Multiple itemgroups -->
+    <div class="test-section">
+      <h2>Test 4: Multiple Itemgroups in Same List</h2>
+      <div class="expected">
+        <strong>Expected Result:</strong>
+        <ul>
+          <li>All list items should maintain correct order</li>
+          <li>Each itemgroup should be processed independently</li>
+          <li>No content should be lost or reordered</li>
+        </ul>
+      </div>
+
+      <ol class="ol steps">
+        <li class="li step stepexpand">
+          <span class="ph cmd">First step.</span>
+          <div class="itemgroup stepresult">
+            <div class="p">Result of first step.</div>
+          </div>
+        </li>
+        <li class="li step stepexpand">
+          <span class="ph cmd">Second step.</span>
+          <div class="itemgroup info">
+            <div class="p">Information about second step.</div>
+            <div class="note note note_note">
+              <span class="note__title">Note:</span>
+              <div class="note__body">Important note for second step.</div>
+            </div>
+          </div>
+        </li>
+        <li class="li step stepexpand">
+          <span class="ph cmd">Third step.</span>
+          <div class="itemgroup info">
+            <div class="p">Information about third step.</div>
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <!-- Test 5: Note with line break -->
+    <div class="test-section">
+      <h2>Test 5: Note Title/Body Separation</h2>
+      <div class="expected">
+        <strong>Expected Result:</strong><br />
+        Note should render as a blockquote with a line break after "Note:":<br />
+        <em>(The title and body should be on separate lines)</em>
+      </div>
+
+      <div class="note note note_note">
+        <span class="note__title">Note:</span>
+        <div class="note__body">
+          These features support IT service management processes related to
+          software assets.
+        </div>
+      </div>
+    </div>
+
+    <!-- Test 6: Complex nested structure -->
+    <div class="test-section">
+      <h2>Test 6: Complex Nested Structure</h2>
+      <div class="expected">
+        <strong>Expected Result:</strong>
+        <ul>
+          <li>Main list item text</li>
+          <li>
+            Nested list with:
+            <ul>
+              <li>First paragraph (indented)</li>
+              <li>Second paragraph (indented)</li>
+              <li>Note blockquote (indented)</li>
+            </ul>
+          </li>
+          <li>No code blocks</li>
+        </ul>
+      </div>
+
+      <ol class="ol steps">
+        <li class="li step stepexpand">
+          <span class="ph cmd"
+            >Navigate to
+            <span class="ph menucascade"
+              ><span class="ph uicontrol">All</span
+              ><abbr title="and then"> &gt; </abbr
+              ><span class="ph uicontrol">Contract</span
+              ><abbr title="and then"> &gt; </abbr
+              ><span class="ph uicontrol">Software Licenses</span></span
+            >.</span
+          >
+          <div class="itemgroup info">
+            <div class="p">
+              Enterprise licenses are typically for large customers and provide
+              some flexibility, an agreed upon discount price, and a mechanism
+              for easy administration.
+            </div>
+            <div class="p">
+              Use the Contract Management application to set a software license
+              as enterprise or subscription for the legacy Software Asset
+              Management plugin.
+            </div>
+            <div class="note note note_note">
+              <span class="note__title">Note:</span>
+              <div class="note__body">
+                These features support IT service management processes related
+                to software assets. They are not financial systems and have
+                limited support for financial data or processes.
+              </div>
+            </div>
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <div
+      style="
+        background: #d4edda;
+        padding: 20px;
+        margin: 20px 0;
+        border: 2px solid #28a745;
+        border-radius: 5px;
+      "
+    >
+      <h3 style="color: #155724; margin-top: 0">Testing Instructions</h3>
+      <ol>
+        <li>Open this page in Chrome</li>
+        <li>Use the Web-2-Notion extension to save the page</li>
+        <li>
+          Verify in Notion that:
+          <ul>
+            <li>
+              ✅ No code blocks appear (paragraphs and notes should be formatted
+              text)
+            </li>
+            <li>✅ Menu cascades have proper spacing: "Item > Item > Item"</li>
+            <li>✅ Notes have line breaks between title and body</li>
+            <li>✅ Tables remain intact and in correct position</li>
+            <li>✅ List items maintain proper hierarchy and indentation</li>
+            <li>✅ Content appears in correct order</li>
+          </ul>
+        </li>
+      </ol>
+    </div>
+  </body>
+</html>
