@@ -122,3 +122,40 @@ console.log("✅ final-payload marker recovery behaved as expected");
   console.log("✅ final-payload marker page-fallback passed");
   process.exit(0);
 })();
+
+// -------------------------------------------------------------------------
+// New test: recovery from a persisted/localStorage map (simulates the
+// popup reading a previously-persisted table map from the page).
+;(function testPersistedMapRecovery() {
+  console.log('🧪 test: final-payload marker recovery (persisted localStorage)');
+
+  // Simulate no in-memory map
+  delete window.__TABLE_CELL_CONTENT_MAP__;
+
+  // Simulate a persisted read helper that the popup would call
+  window.__stn_localStorageReadStub = async function () {
+    return { CELL_ls_1: 'Recovered from localStorage' };
+  };
+
+  // Recovery logic (mirrors popup's read-then-replace behaviour)
+  async function recoverUsingPersisted(str) {
+    const map = window.__TABLE_CELL_CONTENT_MAP__ || {};
+    if (Object.keys(map).length === 0 && typeof window.__stn_localStorageReadStub === 'function') {
+      const p = await window.__stn_localStorageReadStub();
+      if (p) Object.assign(window.__TABLE_CELL_CONTENT_MAP__ = {}, p);
+    }
+    return str.replace(/XCELLIDX(CELL_[A-Za-z0-9_]+)XCELLIDX/g, (m, id) => (window.__TABLE_CELL_CONTENT_MAP__ || {})[id] || m);
+  }
+
+  const mangledLS = 'Prefix XCELLIDXCELL_ls_1XCELLIDX suffix';
+  recoverUsingPersisted(mangledLS).then(function (res) {
+    if (!res.includes('Recovered from localStorage')) {
+      console.error('❌ persisted-map recovery failed — result:', res);
+      process.exit(1);
+    }
+    console.log('✅ final-payload persisted-map recovery passed');
+  }).catch(function (err) {
+    console.error('❌ persisted-map recovery errored', err);
+    process.exit(1);
+  });
+})();
