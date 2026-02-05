@@ -248,3 +248,154 @@ function processQueuedBase64ImagesForTest(userInputMap, imageUploads) {
   console.log("✅ E2E: table line-breaks + images passed");
   process.exit(0);
 })();
+
+/*
+ * Regression test: real-world ServiceNow table markup (from user report).
+ * Ensures:
+ *  - empty table cells don't crash conversion
+ *  - inline text + <p>wrapped image preserve the inline text
+ *  - data: (base64) images are queued and removed from the cell text
+ */
+(function () {
+  console.log('\n🧪 Regression: ServiceNow "Open incidents" table markup');
+  const html = `
+<div class="body conbody"><p class="shortdesc">View the current information about open incidents as a list, or as a heatmap or pivot table organized by breakdown.</p>
+    <div class="p">
+      <div class="note important note_important"><span class="note__title">Important:</span> <div class="note__body">
+        <p class="p">Starting in <span class="ph">Xanadu</span> release, the Open Incidents Reports dashboard is deprecated. Users can use <a class="xref ft-internal-link" href="https://www.servicenow.com/docs/r/MlbQAgTiiiMOLOw9T36wJg/vFp4O3cbdP5t1T8elq1y6A" title="Dashboard providing a view into process metrics related to Open and Closed incidents." data-ft-click-interceptor="ft-internal-link">Incident management dashboard</a> to view the current information about open incidents as a list, or as a heatmap or pivot table organized by breakdown.</p>
+      </div></div>
+    </div>
+    <figure class="fig fignone" id="open-incidents-reports-dashboard__fig_n1f_y2p_blb"><figcaption><span class="fig--title-label">Figure 1. </span>Tabs of the Open Incidents Reports dashboard</figcaption>
+         
+         
+      <a href="#"><img class="image ft-zoomable-image ft-responsive-image" alt="Animated gif" src="https://example.com/img.png"></a>
+    </figure>
+    <section class="section" id="open-incidents-reports-dashboard__section_upb_qj4_2fb"><h2 class="title sectiontitle">End user and roles</h2>
+         
+      <div class="p">
+        <table class="table frame-all" id="open-incidents-reports-dashboard__table_ov2_tj4_2fb"><caption></caption><colgroup><col style="width:33.333%"><col style="width:33.333%"><col style="width:33.333%"></colgroup><thead class="thead">
+              <tr class="row">
+                <th class="entry">End user and goal</th>
+                <th class="entry">Required role</th>
+                <th class="entry">Benefits</th>
+              </tr>
+            </thead><tbody class="tbody">
+              <tr class="row">
+                <td class="entry"></td>
+                <td class="entry"></td>
+                <td class="entry"></td>
+              </tr>
+            </tbody></table>
+      </div>
+    </section>
+    <section class="section" id="open-incidents-reports-dashboard__section_t5q_fl4_2fb"><h2 class="title sectiontitle">Data visualizations</h2>
+         
+      <div class="p">
+            
+        <table class="table frame-all" id="open-incidents-reports-dashboard__table_xvt_hl4_2fb"><caption></caption><colgroup><col style="width:33.333%"><col style="width:33.333%"><col style="width:33.333%"></colgroup><thead class="thead">
+              <tr class="row">
+                <th class="entry">Title</th>
+                <th class="entry">Type</th>
+                <th class="entry">Description</th>
+              </tr>
+            </thead><tbody class="tbody">
+              <tr class="row">
+                <td class="entry">Open Incidents List</td>
+                <td class="entry">List <p class="p"><span class="image icon"><a href="#"><img class="image icon" alt="list icon" src="https://example.com/list.png"></a></span></p></td>
+                <td class="entry">List of all incident records for open incidents</td>
+              </tr>
+              <tr class="row">
+                <td class="entry">Open Incidents Heatmap</td>
+                <td class="entry">Heatmap <p class="p"><a href="#"><img class="image icon" src="data:image/png;base64,AAA" alt="Heatmap icon"></a></p></td>
+                <td class="entry">Heatmap that lets you explore the number of open incidents by combinations of state, assignment group, category, priority, and age.</td>
+              </tr>
+            </tbody></table>
+      </div>
+    </section>
+  </div>`;
+
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = html;
+
+  // Process both tables
+  const tables = wrapper.querySelectorAll('table');
+  if (tables.length < 2) {
+   console.error('❌ expected two tables in fixture');
+   process.exit(1);
+  }
+
+  // First table: empty cells should yield empty strings and not throw
+  const t1 = tables[0];
+  const emptyCell = t1.querySelector('tbody td');
+  const r1 = simulateSanitizeCellAndQueue(emptyCell, 'svc_empty_1');
+  if (!window.__TABLE_CELL_CONTENT_MAP__['svc_empty_1'] || window.__TABLE_CELL_CONTENT_MAP__['svc_empty_1'].trim() !== '') {
+   console.error('❌ empty table cell produced non-empty output:', JSON.stringify(window.__TABLE_CELL_CONTENT_MAP__['svc_empty_1']));
+   process.exit(1);
+  }
+
+  // Second table: ensure inline text + <p>wrapped image preserves inline text
+  const t2 = wrapper.querySelector('#open-incidents-reports-dashboard__table_xvt_hl4_2fb');
+  const rows = Array.from(t2.querySelectorAll('tbody tr'));
+  const row1 = rows[0];
+  const typeCell1 = row1.cells[1];
+  simulateSanitizeCellAndQueue(typeCell1, 'svc_type_1');
+  if (!window.__TABLE_CELL_CONTENT_MAP__['svc_type_1'].includes('List')) {
+   console.error('❌ "List" label lost from type cell');
+   process.exit(1);
+  }
+
+  // Row with heatmap: data: image should be queued and removed from text
+  const row2 = rows[1];
+  const typeCell2 = row2.cells[1];
+  simulateSanitizeCellAndQueue(typeCell2, 'svc_type_2');
+  if (!window.__TABLE_CELL_CONTENT_MAP__['svc_type_2'].includes('Heatmap')) {
+   console.error('❌ "Heatmap" label lost from type cell');
+   process.exit(1);
+  }
+  if (!window.__base64ImageArray || window.__base64ImageArray.length === 0) {
+   console.error('❌ expected data: image to be queued, but __base64ImageArray is', window.__base64ImageArray);
+   process.exit(1);
+  }
+  // Reconstruct the markdown the popup would produce for the second table
+  const header = Array.from(t2.querySelectorAll('thead tr th')).map(h => h.textContent.trim());
+  const headerLine = '| ' + header.join(' | ') + ' |';
+
+  const bodyLines = rows.map((tr, rIdx) => {
+    const cells = Array.from(tr.cells).map((cell, cIdx) => {
+      const key = rIdx === 0 && cIdx === 1 ? 'svc_type_1' : rIdx === 1 && cIdx === 1 ? 'svc_type_2' : null;
+      if (key && window.__TABLE_CELL_CONTENT_MAP__ && window.__TABLE_CELL_CONTENT_MAP__[key]) {
+        return window.__TABLE_CELL_CONTENT_MAP__[key].replace(/\n/g, ' ');
+      }
+      return (cell.textContent || '').trim();
+    });
+    return '| ' + cells.join(' | ') + ' |';
+  });
+
+  const tableMarkdown = [headerLine].concat(bodyLines).join('\n');
+
+  if (!tableMarkdown.includes('| Title | Type | Description |')) {
+    console.error('❌ generated markdown header is incorrect:\n', tableMarkdown);
+    process.exit(1);
+  }
+
+  if (!tableMarkdown.includes('Open Incidents List') || !tableMarkdown.includes('List of all incident records')) {
+    console.error('❌ expected visible text missing from generated markdown:\n', tableMarkdown);
+    process.exit(1);
+  }
+
+  // Ensure base64 image was queued and is referenced by a placeholder (not leaked as data: URL)
+  const b64Map = window.__TABLE_BASE64_IMAGE_MAP__ || {};
+  const hasPlaceholder = Object.keys(b64Map).some((pid) => pid.indexOf('BASE64_IMG_') === 0);
+  if (!hasPlaceholder) {
+    console.error('❌ expected BASE64 placeholder in TABLE_BASE64_IMAGE_MAP__');
+    process.exit(1);
+  }
+
+  if (tableMarkdown.indexOf('data:image/png;base64') !== -1) {
+    console.error('❌ data: URL leaked into generated markdown');
+    process.exit(1);
+  }
+
+  console.log('✅ Regression: ServiceNow table fixture handled correctly (markdown + placeholders verified)');
+  process.exit(0);
+})();
