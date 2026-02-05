@@ -121,7 +121,11 @@ function testTableCellConversion() {
     const firstBlock = cellClone.querySelector("div, p, li");
     const firstBlockText = firstBlock && firstBlock.textContent;
     const hasMultipleBlocks =
-      blockEls > 1 || hasBR || (blockEls === 1 && firstBlockText && firstBlockText.trim() !== cellClone.textContent.trim());
+      blockEls > 1 ||
+      hasBR ||
+      (blockEls === 1 &&
+        firstBlockText &&
+        firstBlockText.trim() !== cellClone.textContent.trim());
 
     if (hasMultipleBlocks && !hasLineBreaks) {
       console.log(`❌ Test ${index + 1} FAILED`);
