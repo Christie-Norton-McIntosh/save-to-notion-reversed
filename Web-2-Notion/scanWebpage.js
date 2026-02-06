@@ -12019,8 +12019,28 @@ var stripMultiLinebreaks = (str) => {
     })
     .join("\n");
 };
+// ⚠️ REGRESSION TEST: test/test-scanwebpage-abbr-spacing.js (v5.0.4)
+// This function must preserve spaces around special characters in inline elements
+// Example: <abbr title="and then"> &gt; </abbr> must keep spaces around >
 var stripMultispaces = (str) => {
-  return str.replace(WS_REGEXP, " ").trim();
+  // Protect spaces in specific inline elements (e.g., <abbr> &gt; </abbr>)
+  // by temporarily replacing them with placeholders
+  var protected = str.replace(
+    /<(abbr|span|em|strong|b|i|code)[^>]*>\s*([^<]*?)\s*<\/\1>/gi,
+    function (match, tag, content) {
+      // If content contains special chars like > with spaces, protect them
+      if (/\s+[<>&|]\s+/.test(content)) {
+        return match.replace(/\s+/g, "\u00A0"); // Replace spaces with non-breaking spaces
+      }
+      return match;
+    },
+  );
+
+  // Now do the regular multi-space stripping
+  var result = protected.replace(WS_REGEXP, " ").trim();
+
+  // Restore non-breaking spaces to regular spaces
+  return result.replace(/\u00A0/g, " ");
 };
 var cleanify = (inputHtml, opts) => {
   var doc = new DOMParser().parseFromString(inputHtml, "text/html");
@@ -14827,8 +14847,10 @@ var applyCustomFormatting = (html) => {
     );
   }
 
+  // ⚠️ REGRESSION TEST: test/test-applyCustomFormatting-abbr-spacing.js (v5.0.5)
   // Clean up excessive indentation that might cause code block interpretation
   // Remove leading/trailing whitespace from block elements
+  // CRITICAL: Must preserve spaces in inline elements with special characters!
   const blockElements = doc.querySelectorAll(
     "div, p, blockquote, section, article",
   );
@@ -14838,6 +14860,26 @@ var applyCustomFormatting = (html) => {
     let node;
     while ((node = walker.nextNode())) {
       if (node.nodeType === Node.TEXT_NODE) {
+        // Skip text nodes inside inline elements with special characters
+        // These need to preserve their spacing (e.g., abbr with >, span with |)
+        const parent = node.parentElement;
+        if (parent) {
+          const inlineElements = [
+            "ABBR",
+            "SPAN",
+            "EM",
+            "STRONG",
+            "B",
+            "I",
+            "CODE",
+          ];
+          const isInInlineElement = inlineElements.includes(parent.tagName);
+          const hasSpecialChars = /[<>&|]/.test(node.textContent);
+          if (isInInlineElement && hasSpecialChars) {
+            continue; // Skip whitespace normalization for this text node
+          }
+        }
+
         // Collapse excessive whitespace (but preserve single spaces)
         let text = node.textContent;
         // Remove leading whitespace at start of block

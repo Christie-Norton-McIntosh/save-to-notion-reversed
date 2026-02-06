@@ -9811,7 +9811,7 @@ const Mp =
       : r.MAX_ITEMS) || 512;
 async function jp(e) {
   return new Promise((t) => {
-    chrome.storage.local.get([e], function (n) {
+    chrome.storage.sync.get([e], function (n) {
       t(n[e]);
     });
   });
@@ -9834,7 +9834,7 @@ function zp(e, t) {
 async function Up(e, t) {
   return new Promise((n) => {
     !(function r(e, t, n) {
-      chrome.storage.local.get([e, `${e}_1`], async function (r) {
+      chrome.storage.sync.get([e, `${e}_1`], async function (r) {
         let o;
         if (null != r[`${e}_1`]) {
           for (
@@ -9861,7 +9861,7 @@ async function Up(e, t) {
 }
 async function Hp(e) {
   return new Promise((t) => {
-    chrome.storage.local.get(null, function (n) {
+    chrome.storage.sync.get(null, function (n) {
       const r = Object.keys(n)
         .filter(
           (t) =>
@@ -9891,7 +9891,7 @@ async function Wp(e, t = null) {
           (a[o] = r),
           (s = s.substr(Mp - o.length - 2)),
           i++);
-      (chrome.storage.local.set(a, n), chrome.storage.local.remove(Np(e, i)));
+      (chrome.storage.sync.set(a, n), chrome.storage.sync.remove(Np(e, i)));
     })(e, t, () => {
       n();
     });
@@ -9900,7 +9900,7 @@ async function Wp(e, t = null) {
 async function Vp(e) {
   new Promise((t) => {
     !(function n(e, t) {
-      chrome.storage.local.get([e, `${e}_1`], async function (n) {
+      chrome.storage.sync.get([e, `${e}_1`], async function (n) {
         var r = [];
         if ((null != n[e] && r.push(e), null != n[`${e}_1`])) {
           r.push(`${e}_1`);
@@ -9913,7 +9913,7 @@ async function Vp(e) {
           )
             r.push(`${e}_${t}`);
         }
-        chrome.storage.local.remove(r, () => {
+        chrome.storage.sync.remove(r, () => {
           t();
         });
       });
