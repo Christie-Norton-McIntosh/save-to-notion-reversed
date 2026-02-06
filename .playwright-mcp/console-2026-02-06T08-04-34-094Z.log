@@ -1,0 +1,56 @@
+[    4505ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://sync.search.spotxchange.com/partner?adv_id=6409&uid=aXOZqwAAAIwrSwN-&img=1:0
+[    4827ms] [ERROR] Attestation check for Attribution Reporting on https://www.facebook.com failed. @ https://www.servicenow.com/docs/r/it-service-management/service-operations-workspace/start-conference-call-telephony.html:0
+[    5037ms] [ERROR] Attestation check for Attribution Reporting on https://ad.doubleclick.net failed. @ https://www.servicenow.com/docs/r/it-service-management/service-operations-workspace/start-conference-call-telephony.html:0
+[    5245ms] TypeError: Cannot read properties of undefined (reading 'id')
+    at https://www.servicenow.com/docs/scripts/chunk-UNATLI4T.cache.js:9:2087
+[    5190ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://www.servicenow.com/docs/api/messages/en-US/fluid-topics/customfeedbackcomponent:0
+[    5191ms] [ERROR] er: GET https://www.servicenow.com/docs/api/messages/en-US/fluid-topics/customfeedbackcomponent -> 404 - : {"timestamp":"2026-02-06T08:04:39.250+00:00","status":404,"error":"Not Found","message":"Message context \"customfeedbackcomponent\" does not exist.","path":"/api/messages/en-US/fluid-topics/customfeedbackcomponent"}
+    at rr (https://www.servicenow.com/docs/scripts/fluidtopics.min.js?v=2416e688:1:32916) @ https://s2.go-mpulse.net/boomerang/RL5JW-PHDQ7-UYYZD-J2FGS-FE4LN:9
+[    5199ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://www.servicenow.com/docs/internal/api/webapp/designer/custom/READER/default/e814ab50-e99b-4df0-940a-f12582013b75?draft=false&v=cc2f13ee085c642fcc3cd7ca21a7391f:0
+[    5199ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://www.servicenow.com/docs/api/messages/en-US/fluid-topics/mobile:0
+[    5199ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://www.servicenow.com/docs/internal/api/webapp/designed/reader/topic/2ce4de90-4097-45ab-b4d1-4527755274b9?v=c90c08721791ef817fa4670a89d1b60d:0
+[    5201ms] [ERROR] er: GET https://www.servicenow.com/docs/api/messages/en-US/fluid-topics/mobile -> 404 - : {"timestamp":"2026-02-06T08:04:39.254+00:00","status":404,"error":"Not Found","message":"Message context \"mobile\" does not exist.","path":"/api/messages/en-US/fluid-topics/mobile"}
+    at rr (https://www.servicenow.com/docs/scripts/fluidtopics.min.js?v=2416e688:1:32916) @ https://s2.go-mpulse.net/boomerang/RL5JW-PHDQ7-UYYZD-J2FGS-FE4LN:9
+[    5337ms] er: GET https://www.servicenow.com/docs/internal/api/webapp/designer/custom/READER/default/e814ab50-e99b-4df0-940a-f12582013b75?draft=false&v=cc2f13ee085c642fcc3cd7ca21a7391f -> 404 - : {"timestamp":"2026-02-06T08:04:39.254+00:00","status":404,"error":"Not Found","message":"404 NOT_FOUND","path":"/internal/api/webapp/designer/custom/READER/default/e814ab50-e99b-4df0-940a-f12582013b75"}
+    at rr (https://www.servicenow.com/docs/scripts/fluidtopics.min.js?v=2416e688:1:32916)
+[    5337ms] er: GET https://www.servicenow.com/docs/internal/api/webapp/designed/reader/topic/2ce4de90-4097-45ab-b4d1-4527755274b9?v=c90c08721791ef817fa4670a89d1b60d -> 404 - : {"timestamp":"2026-02-06T08:04:39.255+00:00","status":404,"error":"Not Found","message":"404 NOT_FOUND","path":"/internal/api/webapp/designed/reader/topic/2ce4de90-4097-45ab-b4d1-4527755274b9"}
+    at rr (https://www.servicenow.com/docs/scripts/fluidtopics.min.js?v=2416e688:1:32916)
+[    5275ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://www.servicenow.com/docs/api/messages/en-US/custom/server:0
+[    5277ms] [ERROR] er: GET https://www.servicenow.com/docs/api/messages/en-US/custom/server -> 404 - : {"timestamp":"2026-02-06T08:04:39.338+00:00","status":404,"error":"Not Found","message":"Message context \"server\" does not exist.","path":"/api/messages/en-US/custom/server"}
+    at rr (https://www.servicenow.com/docs/scripts/fluidtopics.min.js?v=2416e688:1:32916) @ https://s2.go-mpulse.net/boomerang/RL5JW-PHDQ7-UYYZD-J2FGS-FE4LN:9
+[    5964ms] TypeError: Cannot read properties of undefined (reading 'displayName')
+    at window.CustomComponentsScript.f9ecf597-903c-497c-b803-89abbfc7e867-a295144f-f411-41a6-9c98-c6043df4e1ee (https://www.servicenow.com/docs/internal/api/webapp/designer/custom/SHARED/f9ecf597-903c-497c-b803-89abbfc7e867/a295144f-f411-41a6-9c98-c6043df4e1ee/HEADER/js?draft=false&v=cc2f13ee085c642fcc3cd7ca21a7391f:11:62)
+    at O.runUserScript (https://www.servicenow.com/docs/scripts/chunk-EA3RAIV7.cache.js:12:2813)
+    at O.runScript (https://www.servicenow.com/docs/scripts/chunk-EA3RAIV7.cache.js:12:1883)
+    at O.updateScript (https://www.servicenow.com/docs/scripts/chunk-EA3RAIV7.cache.js:12:1807)
+[    5965ms] TypeError: Cannot read properties of undefined (reading 'displayName')
+    at window.CustomComponentsScript.f9ecf597-903c-497c-b803-89abbfc7e867-a295144f-f411-41a6-9c98-c6043df4e1ee (https://www.servicenow.com/docs/internal/api/webapp/designer/custom/SHARED/f9ecf597-903c-497c-b803-89abbfc7e867/a295144f-f411-41a6-9c98-c6043df4e1ee/HEADER/js?draft=false&v=cc2f13ee085c642fcc3cd7ca21a7391f:11:62)
+    at O.runUserScript (https://www.servicenow.com/docs/scripts/chunk-EA3RAIV7.cache.js:12:2813)
+    at O.runScript (https://www.servicenow.com/docs/scripts/chunk-EA3RAIV7.cache.js:12:1883)
+    at O.updateScript (https://www.servicenow.com/docs/scripts/chunk-EA3RAIV7.cache.js:12:1807)
+[    5732ms] [ERROR] [NAAS shared nav custom component] TypeError: java.lang.NullPointerException
+    at GXg.JXg [as uj] (fluidtopicsclient-0.js:7074:29737)
+    at GXg.yf [as zj] (fluidtopicsclient-0.js:7070:6141)
+    at GXg.qf (fluidtopicsclient-0.js:3438:38)
+    at GXg.Bf (fluidtopicsclient-0.js:1627:18)
+    at GXg.Df (fluidtopicsclient-0.js:1628:18)
+    at new GXg (fluidtopicsclient-0.js:1640:19)
+    at _nh (fluidtopicsclient-0.js:4447:39)
+    at bqo (fluidtopicsclient-0.js:5394:50)
+    at cqo.kqo [as Fx] (fluidtopicsclient-0.js:7080:6598)
+    at Object.setUiLocale (fluidtopicsclient-0.js:6704:173)
+    at window.CustomComponentsScript.29116617-da4c-4fa5-993d-09f329a936df-8c1ef22c-e9c0-4bdf-b2a6-eb2935a015e9 (https://www.servicenow.com/docs/internal/api/webapp/designer/custom/SHARED/29116617-da4c-4fa5-993d-09f329a936df/8c1ef22c-e9c0-4bdf-b2a6-eb2935a015e9/HEADER/js?draft=false&v=cc2f13ee085c642fcc3cd7ca21a7391f:511:45) @ https://s2.go-mpulse.net/boomerang/RL5JW-PHDQ7-UYYZD-J2FGS-FE4LN:9
+[    5996ms] [ERROR] Failed to load file: Error: Module '147' is not available (weak dependency)
+    at https://www.servicenow.com/nas/csi/header/v3/headerV3CSR.bundle.js:2:49994 @ https://s2.go-mpulse.net/boomerang/RL5JW-PHDQ7-UYYZD-J2FGS-FE4LN:9
+[    5996ms] [ERROR] Failed to load file: Error: Module '147' is not available (weak dependency)
+    at https://www.servicenow.com/nas/csi/header/v3/headerV3CSR.bundle.js:2:49994 @ https://s2.go-mpulse.net/boomerang/RL5JW-PHDQ7-UYYZD-J2FGS-FE4LN:9
+[    5996ms] [ERROR] Failed to load file: Error: Module '147' is not available (weak dependency)
+    at https://www.servicenow.com/nas/csi/header/v3/headerV3CSR.bundle.js:2:49994 @ https://s2.go-mpulse.net/boomerang/RL5JW-PHDQ7-UYYZD-J2FGS-FE4LN:9
+[    5996ms] [ERROR] Failed to load file: Error: Module '147' is not available (weak dependency)
+    at https://www.servicenow.com/nas/csi/header/v3/headerV3CSR.bundle.js:2:49994 @ https://s2.go-mpulse.net/boomerang/RL5JW-PHDQ7-UYYZD-J2FGS-FE4LN:9
+[    8037ms] [WARNING] The resource https://www.servicenow.com/etc.clientlibs/ds/clientlibs/clientlib-arc-commons/resources/fonts/fa-light-300.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://www.servicenow.com/docs/fluidtopicsclient-hostframe.html:0
+[    8037ms] [WARNING] The resource https://www.servicenow.com/etc.clientlibs/ds/clientlibs/clientlib-arc-commons/resources/fonts/ServiceNowSans-Regular.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://www.servicenow.com/docs/fluidtopicsclient-hostframe.html:0
+[    8037ms] [WARNING] The resource https://www.servicenow.com/etc.clientlibs/ds/clientlibs/clientlib-arc-commons/resources/fonts/ServiceNowSans-Light.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://www.servicenow.com/docs/fluidtopicsclient-hostframe.html:0
+[    8037ms] [WARNING] The resource https://www.servicenow.com/etc.clientlibs/ds/clientlibs/clientlib-arc-commons/resources/fonts/ServiceNowSans-Medium.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://www.servicenow.com/docs/fluidtopicsclient-hostframe.html:0
+[    8037ms] [WARNING] The resource https://www.servicenow.com/etc.clientlibs/ds/clientlibs/clientlib-arc-commons/resources/fonts/ServiceNowSans-Book.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://www.servicenow.com/docs/fluidtopicsclient-hostframe.html:0
+[   48184ms] [ERROR] Attestation check for Attribution Reporting on https://ad.doubleclick.net failed. @ https://www.servicenow.com/docs/r/it-service-management/service-operations-workspace/start-conference-call-telephony.html:0
