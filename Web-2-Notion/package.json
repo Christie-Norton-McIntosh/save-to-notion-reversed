@@ -19,6 +19,7 @@
     "test-abbr-spacing-stripMultispaces": "node test/test-scanwebpage-abbr-spacing.js",
     "test-abbr-spacing-applyCustomFormatting": "node test/test-applyCustomFormatting-abbr-spacing.js",
     "test-abbr-spacing": "npm run test-abbr-spacing-stripMultispaces && npm run test-abbr-spacing-applyCustomFormatting",
-    "test": "npm run test-line-breaks && npm run test-table-edge-cases && npm run test-table-edge-more && npm run test-inline-images && npm run test-gt-spacing && npm run test-notion-utils && npm run test-abbr-spacing"
+    "test-itemgroup-unwrap": "node test/test-itemgroup-unwrap.js",
+    "test": "npm run test-line-breaks && npm run test-table-edge-cases && npm run test-table-edge-more && npm run test-inline-images && npm run test-gt-spacing && npm run test-notion-utils && npm run test-abbr-spacing && npm run test-itemgroup-unwrap"
   }
 }

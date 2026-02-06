@@ -14688,12 +14688,18 @@ var applyCustomFormatting = (html) => {
         el.className,
         el.textContent?.substring(0, 50),
       );
-      // Move all children to parent, then remove the wrapper
+      // Use DocumentFragment and replaceChild for atomic operation
+      // This prevents children from being flattened to wrong nesting level
       const parent = el.parentNode;
+      const fragment = doc.createDocumentFragment();
+      
+      // Move all children to fragment
       while (el.firstChild) {
-        parent.insertBefore(el.firstChild, el);
+        fragment.appendChild(el.firstChild);
       }
-      parent.removeChild(el);
+      
+      // Replace element with its children atomically
+      parent.replaceChild(fragment, el);
     });
   }
 
@@ -14706,11 +14712,18 @@ var applyCustomFormatting = (html) => {
       `[applyCustomFormatting] Found ${noteBodyElements.length} note div elements to unwrap`,
     );
     noteBodyElements.forEach((el) => {
+      // Use DocumentFragment and replaceChild for atomic operation
+      // This prevents children from being flattened to wrong nesting level
       const parent = el.parentNode;
+      const fragment = doc.createDocumentFragment();
+      
+      // Move all children to fragment
       while (el.firstChild) {
-        parent.insertBefore(el.firstChild, el);
+        fragment.appendChild(el.firstChild);
       }
-      parent.removeChild(el);
+      
+      // Replace element with its children atomically
+      parent.replaceChild(fragment, el);
     });
   }
 
