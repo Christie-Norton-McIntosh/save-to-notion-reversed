@@ -307,11 +307,25 @@ function applyIgnoreSelectors(element, hostname) {
   );
 
   let removedCount = 0;
-  selectorsForDomain.forEach((selector) => {
+  selectorsForDomain.forEach((entry) => {
+    // Handle both string format (legacy) and object format {selector, note}
+    const selector = typeof entry === "string" ? entry : entry.selector;
+    if (!selector) return;
+
     try {
       const elementsToRemove = element.querySelectorAll(selector);
       if (elementsToRemove.length > 0) {
+        console.log(
+          `[scanWebpage] Found ${elementsToRemove.length} elements matching "${selector}"`,
+        );
         elementsToRemove.forEach((el) => {
+          // Log what's being removed and its context
+          const parent = el.parentElement;
+          const parentTag = parent ? parent.tagName.toLowerCase() : "none";
+          const parentClass = parent ? parent.className : "";
+          console.log(
+            `[scanWebpage] Removing <${el.tagName.toLowerCase()}> from <${parentTag} class="${parentClass}">`,
+          );
           el.remove();
           removedCount++;
         });

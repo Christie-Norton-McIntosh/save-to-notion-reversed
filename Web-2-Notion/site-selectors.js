@@ -70,6 +70,12 @@ chrome.storage.local.get(
       ignoreSelectors = normalizeIgnoreSelectorsSchema(
         result.customIgnoreSelectors || {},
       );
+      console.log(
+        "[Page Load] Loaded ignore selectors from storage:",
+        result.customIgnoreSelectors,
+      );
+      console.log("[Page Load] After normalization:", ignoreSelectors);
+
       formatRules = result.customFormatRules || [
         // Default rule for ServiceNow
         {
@@ -139,16 +145,30 @@ function normalizeIgnoreSelectorsSchema(rawIgnoreSelectors) {
   const normalized = {};
   Object.entries(rawIgnoreSelectors || {}).forEach(([domain, entry]) => {
     if (Array.isArray(entry)) {
-      // Already an array of strings
-      normalized[domain] = entry.filter(
-        (sel) => typeof sel === "string" && sel.trim(),
-      );
+      // Array can contain strings or objects {selector, note}
+      normalized[domain] = entry
+        .map((item) => {
+          if (typeof item === "string") {
+            return { selector: item.trim(), note: "" };
+          } else if (item && typeof item === "object" && item.selector) {
+            return {
+              selector: (item.selector || "").trim(),
+              note: (item.note || "").trim(),
+            };
+          }
+          return null;
+        })
+        .filter((item) => item && item.selector);
     } else if (typeof entry === "string") {
       // Single string, split by comma
-      normalized[domain] = entry
+      const selectors = entry
         .split(",")
         .map((s) => s.trim())
         .filter((s) => s);
+      normalized[domain] = selectors.map((sel) => ({
+        selector: sel,
+        note: "",
+      }));
     }
   });
   return normalized;
@@ -291,6 +311,11 @@ function renderIgnoreSelectors() {
     addIgnoreSelectorItem("", "", "");
   } else {
     entries.forEach(([domain, selectorList]) => {
+      console.log(
+        `[renderIgnoreSelectors] Processing domain="${domain}", selectorList=`,
+        selectorList,
+      );
+
       // Join array of selectors with commas and extract note
       let selectorsString = "";
       let note = "";
@@ -302,8 +327,14 @@ function renderIgnoreSelectors() {
           selectorList.length > 0 && typeof selectorList[0] === "object"
             ? selectorList[0].note || ""
             : "";
+        console.log(
+          `[renderIgnoreSelectors] Array mode: selectorsString="${selectorsString}", note="${note}"`,
+        );
       } else {
         selectorsString = selectorList;
+        console.log(
+          `[renderIgnoreSelectors] String mode: selectorsString="${selectorsString}"`,
+        );
       }
       addIgnoreSelectorItem(domain, selectorsString, note);
     });
@@ -376,8 +407,14 @@ function updateIgnoreSelectorsFromInputs() {
   ignoreSelectors = {};
   const items = document.querySelectorAll(".ignore-selector-item");
 
-  items.forEach((item) => {
+  console.log("[updateIgnoreSelectorsFromInputs] Found", items.length, "items");
+
+  items.forEach((item, index) => {
     const inputs = item.querySelectorAll('input[type="text"]');
+    console.log(
+      `[updateIgnoreSelectorsFromInputs] Item ${index}: found ${inputs.length} inputs`,
+    );
+
     if (inputs.length >= 3) {
       const domainInput = inputs[0];
       const selectorInput = inputs[1];
@@ -388,6 +425,10 @@ function updateIgnoreSelectorsFromInputs() {
       const selectorsString = selectorInput.value.trim();
       const note = noteInput.value.trim();
 
+      console.log(
+        `[updateIgnoreSelectorsFromInputs] Item ${index}: domain="${domain}", selectors="${selectorsString}", note="${note}"`,
+      );
+
       if (domain && selectorsString) {
         // Split by comma and trim each selector
         const selectorList = selectorsString
@@ -396,10 +437,18 @@ function updateIgnoreSelectorsFromInputs() {
           .filter((s) => s);
 
         if (selectorList.length > 0) {
-          ignoreSelectors[domain] = selectorList.map((sel) => ({
-            selector: sel,
-            note,
-          }));
+          // If domain already exists, append to it instead of overwriting
+          if (!ignoreSelectors[domain]) {
+            ignoreSelectors[domain] = [];
+          }
+
+          // Add new selectors to this domain
+          selectorList.forEach((sel) => {
+            ignoreSelectors[domain].push({
+              selector: sel,
+              note,
+            });
+          });
         }
 
         // Update the input to show the normalized domain
@@ -591,8 +640,19 @@ function saveSelectors() {
           .filter((entry) => entry.selector)
       : [];
 
-    if (cleanedList.length > 0) {
-      cleanedIgnoreSelectors[normalizedDomain] = cleanedList;
+    // Deduplicate selectors (same selector string)
+    const seen = new Set();
+    const dedupedList = cleanedList.filter((entry) => {
+      const key = entry.selector.toLowerCase();
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+
+    if (dedupedList.length > 0) {
+      cleanedIgnoreSelectors[normalizedDomain] = dedupedList;
     }
   });
 
@@ -629,18 +689,31 @@ function saveSelectors() {
         );
       } else {
         console.log("Save successful");
+        console.log("Verifying what was saved - reading back from storage...");
+
+        // Verify by reading back immediately
+        chrome.storage.local.get(["customIgnoreSelectors"], (verification) => {
+          console.log(
+            "Verification - ignore selectors in storage:",
+            verification.customIgnoreSelectors,
+          );
+        });
+
         selectors = cleanedSelectors;
+        ignoreSelectors = cleanedIgnoreSelectors;
         formatRules = cleanedFormatRules;
 
         // Show detailed success message
         const selectorCount = Object.keys(cleanedSelectors).length;
+        const ignoreCount = Object.keys(cleanedIgnoreSelectors).length;
         const domains = Object.keys(cleanedSelectors).join(", ");
         const ruleCount = cleanedFormatRules.length;
         showStatus(
-          `✓ Saved ${selectorCount} selector(s) for: ${domains}. Saved ${ruleCount} formatting rule(s). Reload the webpage(s) to see changes.`,
+          `✓ Saved ${selectorCount} selector(s) for: ${domains}. Saved ${ignoreCount} ignore selector(s). Saved ${ruleCount} formatting rule(s). Reload the webpage(s) to see changes.`,
           "success",
         );
         renderSelectors();
+        renderIgnoreSelectors();
         renderFormatRules();
       }
     },
