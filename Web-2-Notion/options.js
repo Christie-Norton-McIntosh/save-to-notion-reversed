@@ -14174,6 +14174,23 @@ const $h = {
         spaceId: e.spaceId,
       }),
         console.log("[data/notion] savePage:done", e.pageId));
+      try {
+        chrome.storage.local.set(
+          {
+            __stn_last_save: {
+              pageId: e.pageId,
+              status: "done",
+              ts: Date.now(),
+            },
+          },
+          function () {},
+        );
+      } catch (err) {}
+      try {
+        chrome.runtime.sendMessage({
+          popup: { name: "savePage:done", args: { pageId: e.pageId } },
+        });
+      } catch (err) {}
     },
     async addSchemaPropertyOption(e, t) {
       const n = new zh({ userId: e.userId, spaceId: e.spaceId });
@@ -17372,19 +17389,48 @@ function ex(e, t) {
 
     // Insert markers after block elements before getting text
     var blockEls = tempDiv.querySelectorAll(
-      "div, p, h1, h2, h3, h4, h5, h6, section, article, header, footer",
+      "div, p, pre, blockquote, h1, h2, h3, h4, h5, h6, section, article, header, footer",
     );
     console.debug("[TABLE CELL] Found", blockEls.length, "block elements");
-    // Insert markers AFTER block elements to separate lines
+    // Insert markers to separate inline content from block elements and to
+    // mark block boundaries. Also insert TD separators for nested tables so
+    // column boundaries aren't collapsed when using textContent.
     for (var i = 0; i < blockEls.length; i++) {
+      var blk = blockEls[i];
+      var prev = blk.previousSibling;
+      var needsLeading =
+        prev &&
+        ((prev.nodeType === 3 && /\S/.test(prev.textContent)) ||
+          (prev.nodeType === 1 &&
+            /^(CODE|SPAN|A|STRONG|EM|I|B|U)$/.test(prev.nodeName)));
+      if (needsLeading) {
+        var leading = document.createTextNode("__BLOCK_END__");
+        blk.parentNode.insertBefore(leading, blk);
+      }
+
       var markerAfter = document.createTextNode("__BLOCK_END__");
-      if (blockEls[i].nextSibling) {
-        blockEls[i].parentNode.insertBefore(
-          markerAfter,
-          blockEls[i].nextSibling,
-        );
+      if (blk.nextSibling) {
+        blk.parentNode.insertBefore(markerAfter, blk.nextSibling);
       } else {
-        blockEls[i].parentNode.appendChild(markerAfter);
+        blk.parentNode.appendChild(markerAfter);
+      }
+    }
+
+    // Insert separators between adjacent TD/TH in the same TR for nested tables
+    var innerTables = tempDiv.querySelectorAll("table");
+    for (var ti = 0; ti < innerTables.length; ti++) {
+      var trs = innerTables[ti].querySelectorAll("tr");
+      for (var ri = 0; ri < trs.length; ri++) {
+        var tchildren = Array.from(trs[ri].children).filter(function (c) {
+          return /^(TD|TH)$/.test(c.nodeName);
+        });
+        for (var ci = 0; ci < tchildren.length - 1; ci++) {
+          var tdsep = document.createTextNode("__TDSEP__");
+          tchildren[ci].parentNode.insertBefore(
+            tdsep,
+            tchildren[ci].nextSibling,
+          );
+        }
       }
     }
 
@@ -17406,11 +17452,14 @@ function ex(e, t) {
     // Get text with markers
     var text = tempDiv.textContent || "";
     console.debug("[TABLE CELL] Text with markers:", text.substring(0, 100));
-    // Replace markers with actual newline character
+    // Replace markers with actual newline character — preserve any
+    // surrounding whitespace so intentionally-significant spaces
+    // (e.g. "  >  ") are not collapsed by the replacement.
     text = text
-      .replace(/__BLOCK_END__/g, "\n")
+      .replace(/(\s*)__BLOCK_END__(\s*)/g, "$1\n$2")
       .replace(/__BR__/g, "\n")
-      .replace(/__LI_END__/g, "\n");
+      .replace(/__LI_END__/g, "\n")
+      .replace(/__TDSEP__/g, " | ");
     // Clean up excessive spaces BUT preserve newlines
     text = text.replace(/ {3,}/g, " ");
     // Trim leading/trailing whitespace
