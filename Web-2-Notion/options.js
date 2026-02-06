@@ -47,31 +47,29 @@ function P(e, t, n) {
   return A(e, a, r, o, null);
 }
 function A(e, t, n, r, o) {
-  var i = {
-    type: e,
-    props: t,
-    key: n,
-    ref: r,
-    __k: null,
-    __: null,
-    __b: 0,
-    __e: null,
-    __d: void 0,
-    __c: null,
-    constructor: void 0,
-    __v: null == o ? ++p : o,
-    __i: -1,
-    __u: 0,
-  };
-  return (null == o && null != u.vnode && u.vnode(i), i);
-}
-function E() {
-  return { current: null };
-}
-function O(e) {
-  return e.children;
-}
-function T(e, t) {
+                    if (alt) {
+                      if (parentAnchor) {
+                        // Keep the anchor element but replace the <img>
+                        // with a wrapper that contains a hidden/preserved
+                        // IMG (so later extraction finds it) and the
+                        // textual placeholder used in markdown.
+                        var preservedImg = img.cloneNode(true);
+                        preservedImg.setAttribute("data-stn-preserve", "1");
+                        var preservedSrc =
+                          preservedImg.getAttribute("src") || preservedImg.src || "";
+                        if (preservedSrc) preservedImg.setAttribute("src", preservedSrc);
+                        preservedImg.style.cssText = "width:0;height:0;border:0;opacity:0;position:relative;left:0;";
+
+                        var wrapper = document.createElement("span");
+                        wrapper.className = "stn-inline-image";
+                        wrapper.appendChild(preservedImg);
+                        wrapper.appendChild(document.createTextNode("[" + alt + "]"));
+
+                        img.replaceWith(wrapper);
+                      } else {
+                        var replacement = document.createTextNode("[" + alt + "]");
+                        img.replaceWith(replacement);
+                      }
   ((this.props = e), (this.context = t));
 }
 function F(e, t) {
@@ -9813,7 +9811,7 @@ const Mp =
       : r.MAX_ITEMS) || 512;
 async function jp(e) {
   return new Promise((t) => {
-    chrome.storage.local.get([e], function (n) {
+    chrome.storage.sync.get([e], function (n) {
       t(n[e]);
     });
   });
@@ -9836,7 +9834,7 @@ function zp(e, t) {
 async function Up(e, t) {
   return new Promise((n) => {
     !(function r(e, t, n) {
-      chrome.storage.local.get([e, `${e}_1`], async function (r) {
+      chrome.storage.sync.get([e, `${e}_1`], async function (r) {
         let o;
         if (null != r[`${e}_1`]) {
           for (
@@ -9863,7 +9861,7 @@ async function Up(e, t) {
 }
 async function Hp(e) {
   return new Promise((t) => {
-    chrome.storage.local.get(null, function (n) {
+    chrome.storage.sync.get(null, function (n) {
       const r = Object.keys(n)
         .filter(
           (t) =>
@@ -9893,7 +9891,7 @@ async function Wp(e, t = null) {
           (a[o] = r),
           (s = s.substr(Mp - o.length - 2)),
           i++);
-      (chrome.storage.local.set(a, n), chrome.storage.local.remove(Np(e, i)));
+      (chrome.storage.sync.set(a, n), chrome.storage.sync.remove(Np(e, i)));
     })(e, t, () => {
       n();
     });
@@ -9902,7 +9900,7 @@ async function Wp(e, t = null) {
 async function Vp(e) {
   new Promise((t) => {
     !(function n(e, t) {
-      chrome.storage.local.get([e, `${e}_1`], async function (n) {
+      chrome.storage.sync.get([e, `${e}_1`], async function (n) {
         var r = [];
         if ((null != n[e] && r.push(e), null != n[`${e}_1`])) {
           r.push(`${e}_1`);
@@ -9915,7 +9913,7 @@ async function Vp(e) {
           )
             r.push(`${e}_${t}`);
         }
-        chrome.storage.local.remove(r, () => {
+        chrome.storage.sync.remove(r, () => {
           t();
         });
       });
@@ -14174,6 +14172,23 @@ const $h = {
         spaceId: e.spaceId,
       }),
         console.log("[data/notion] savePage:done", e.pageId));
+      try {
+        chrome.storage.local.set(
+          {
+            __stn_last_save: {
+              pageId: e.pageId,
+              status: "done",
+              ts: Date.now(),
+            },
+          },
+          function () {},
+        );
+      } catch (err) {}
+      try {
+        chrome.runtime.sendMessage({
+          popup: { name: "savePage:done", args: { pageId: e.pageId } },
+        });
+      } catch (err) {}
     },
     async addSchemaPropertyOption(e, t) {
       const n = new zh({ userId: e.userId, spaceId: e.spaceId });
@@ -16833,12 +16848,12 @@ function Wv(e) {
               console.debug(
                 `[tableWithoutHeading] Src is base64, trying anchor href: ${anchorHref?.substring(0, 70)}...`,
               );
-              // Only use anchor if it points to an actual image URL, not a viewer page
+              // Use anchor href even if it's a viewer page - better than no link at all
+              // ServiceNow's /viewer/attachment/ URLs are valid image sources
               if (
                 anchorHref &&
-                !anchorHref.includes("/viewer/attachment/") &&
-                (anchorHref.includes("/resources/") ||
-                  anchorHref.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i))
+                (anchorHref.startsWith("http://") ||
+                  anchorHref.startsWith("https://"))
               ) {
                 src = anchorHref;
                 console.debug(
@@ -16854,12 +16869,45 @@ function Wv(e) {
             if (isValidUrl) {
               const titlePart = title ? ` "${title}"` : "";
               extractedImages.push(`![${alt}](${src}${titlePart})`);
-              // Replace with alt text if available, otherwise just remove
+              
+              // Replace with text placeholder in cell
+              // Preserve textual siblings when image is in anchor
               if (alt) {
-                const replacement = document.createTextNode(`[${alt}]`);
                 if (parentAnchor) {
-                  parentAnchor.replaceWith(replacement);
+                  // Preserve the original anchor element but replace the
+                  // <img> with a small wrapper that contains both a
+                  // hidden/trackable IMG (so later extraction can find
+                  // it) and the textual placeholder used in markdown.
+                  // This keeps the image as a child of the original
+                  // anchor (so callers can use anchor.href) while
+                  // still producing the expected "[alt]" text for
+                  // downstream markdown conversion.
+                  const preservedImg = img.cloneNode(true);
+                  preservedImg.setAttribute("data-stn-preserve", "1");
+                  // Keep a discoverable src so later collectors pick it up
+                  const preservedSrc =
+                    preservedImg.getAttribute("src") ||
+                    preservedImg.src ||
+                    "";
+                  if (preservedSrc)
+                    preservedImg.setAttribute("src", preservedSrc);
+                  // Hide the preserved image in the text-to-markdown flow
+                  preservedImg.style.cssText =
+                    "width:0;height:0;border:0;opacity:0;position:relative;left:0;";
+
+                  const wrapper = document.createElement("span");
+                  wrapper.className = "stn-inline-image";
+                  wrapper.appendChild(preservedImg);
+                  wrapper.appendChild(
+                    document.createTextNode("[" + alt + "]"),
+                  );
+
+                  // Replace only the image node so the anchor element
+                  // remains in the DOM with the wrapper as its child.
+                  img.replaceWith(wrapper);
                 } else {
+                  // Just replace the image with the textual placeholder
+                  const replacement = document.createTextNode(`[${alt}]`);
                   img.replaceWith(replacement);
                 }
               } else {
@@ -17070,12 +17118,45 @@ function Wv(e) {
             if (isValidUrl) {
               const titlePart = title ? ` "${title}"` : "";
               extractedImages.push(`![${alt}](${src}${titlePart})`);
-              // Replace with alt text if available, otherwise just remove
+              
+              // Replace with text placeholder in cell
+              // Preserve textual siblings when image is in anchor
               if (alt) {
-                const replacement = document.createTextNode(`[${alt}]`);
                 if (parentAnchor) {
-                  parentAnchor.replaceWith(replacement);
+                  // Preserve the original anchor element but replace the
+                  // <img> with a small wrapper that contains both a
+                  // hidden/trackable IMG (so later extraction can find
+                  // it) and the textual placeholder used in markdown.
+                  // This keeps the image as a child of the original
+                  // anchor (so callers can use anchor.href) while
+                  // still producing the expected "[alt]" text for
+                  // downstream markdown conversion.
+                  const preservedImg = img.cloneNode(true);
+                  preservedImg.setAttribute("data-stn-preserve", "1");
+                  // Keep a discoverable src so later collectors pick it up
+                  const preservedSrc =
+                    preservedImg.getAttribute("src") ||
+                    preservedImg.src ||
+                    "";
+                  if (preservedSrc)
+                    preservedImg.setAttribute("src", preservedSrc);
+                  // Hide the preserved image in the text-to-markdown flow
+                  preservedImg.style.cssText =
+                    "width:0;height:0;border:0;opacity:0;position:relative;left:0;";
+
+                  const wrapper = document.createElement("span");
+                  wrapper.className = "stn-inline-image";
+                  wrapper.appendChild(preservedImg);
+                  wrapper.appendChild(
+                    document.createTextNode("[" + alt + "]"),
+                  );
+
+                  // Replace only the image node so the anchor element
+                  // remains in the DOM with the wrapper as its child.
+                  img.replaceWith(wrapper);
                 } else {
+                  // Just replace the image with the textual placeholder
+                  const replacement = document.createTextNode(`[${alt}]`);
                   img.replaceWith(replacement);
                 }
               } else {
@@ -17372,19 +17453,48 @@ function ex(e, t) {
 
     // Insert markers after block elements before getting text
     var blockEls = tempDiv.querySelectorAll(
-      "div, p, h1, h2, h3, h4, h5, h6, section, article, header, footer",
+      "div, p, pre, blockquote, h1, h2, h3, h4, h5, h6, section, article, header, footer",
     );
     console.debug("[TABLE CELL] Found", blockEls.length, "block elements");
-    // Insert markers AFTER block elements to separate lines
+    // Insert markers to separate inline content from block elements and to
+    // mark block boundaries. Also insert TD separators for nested tables so
+    // column boundaries aren't collapsed when using textContent.
     for (var i = 0; i < blockEls.length; i++) {
+      var blk = blockEls[i];
+      var prev = blk.previousSibling;
+      var needsLeading =
+        prev &&
+        ((prev.nodeType === 3 && /\S/.test(prev.textContent)) ||
+          (prev.nodeType === 1 &&
+            /^(CODE|SPAN|A|STRONG|EM|I|B|U)$/.test(prev.nodeName)));
+      if (needsLeading) {
+        var leading = document.createTextNode("__BLOCK_END__");
+        blk.parentNode.insertBefore(leading, blk);
+      }
+
       var markerAfter = document.createTextNode("__BLOCK_END__");
-      if (blockEls[i].nextSibling) {
-        blockEls[i].parentNode.insertBefore(
-          markerAfter,
-          blockEls[i].nextSibling,
-        );
+      if (blk.nextSibling) {
+        blk.parentNode.insertBefore(markerAfter, blk.nextSibling);
       } else {
-        blockEls[i].parentNode.appendChild(markerAfter);
+        blk.parentNode.appendChild(markerAfter);
+      }
+    }
+
+    // Insert separators between adjacent TD/TH in the same TR for nested tables
+    var innerTables = tempDiv.querySelectorAll("table");
+    for (var ti = 0; ti < innerTables.length; ti++) {
+      var trs = innerTables[ti].querySelectorAll("tr");
+      for (var ri = 0; ri < trs.length; ri++) {
+        var tchildren = Array.from(trs[ri].children).filter(function (c) {
+          return /^(TD|TH)$/.test(c.nodeName);
+        });
+        for (var ci = 0; ci < tchildren.length - 1; ci++) {
+          var tdsep = document.createTextNode("__TDSEP__");
+          tchildren[ci].parentNode.insertBefore(
+            tdsep,
+            tchildren[ci].nextSibling,
+          );
+        }
       }
     }
 
@@ -17406,11 +17516,14 @@ function ex(e, t) {
     // Get text with markers
     var text = tempDiv.textContent || "";
     console.debug("[TABLE CELL] Text with markers:", text.substring(0, 100));
-    // Replace markers with actual newline character
+    // Replace markers with actual newline character — preserve any
+    // surrounding whitespace so intentionally-significant spaces
+    // (e.g. "  >  ") are not collapsed by the replacement.
     text = text
-      .replace(/__BLOCK_END__/g, "\n")
+      .replace(/(\s*)__BLOCK_END__(\s*)/g, "$1\n$2")
       .replace(/__BR__/g, "\n")
-      .replace(/__LI_END__/g, "\n");
+      .replace(/__LI_END__/g, "\n")
+      .replace(/__TDSEP__/g, " | ");
     // Clean up excessive spaces BUT preserve newlines
     text = text.replace(/ {3,}/g, " ");
     // Trim leading/trailing whitespace

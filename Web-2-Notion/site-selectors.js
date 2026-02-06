@@ -288,19 +288,29 @@ function renderIgnoreSelectors() {
   const entries = Object.entries(ignoreSelectors);
 
   if (entries.length === 0) {
-    addIgnoreSelectorItem("", "");
+    addIgnoreSelectorItem("", "", "");
   } else {
     entries.forEach(([domain, selectorList]) => {
-      // Join array of selectors with commas
-      const selectorsString = Array.isArray(selectorList)
-        ? selectorList.join(", ")
-        : selectorList;
-      addIgnoreSelectorItem(domain, selectorsString);
+      // Join array of selectors with commas and extract note
+      let selectorsString = "";
+      let note = "";
+      if (Array.isArray(selectorList)) {
+        selectorsString = selectorList
+          .map((entry) => (typeof entry === "string" ? entry : entry.selector))
+          .join(", ");
+        note =
+          selectorList.length > 0 && typeof selectorList[0] === "object"
+            ? selectorList[0].note || ""
+            : "";
+      } else {
+        selectorsString = selectorList;
+      }
+      addIgnoreSelectorItem(domain, selectorsString, note);
     });
   }
 }
 
-function addIgnoreSelectorItem(domain = "", selectors = "") {
+function addIgnoreSelectorItem(domain = "", selectors = "", note = "") {
   const container = document.getElementById("ignore-selectors-container");
   if (!container) return;
 
@@ -337,6 +347,14 @@ function addIgnoreSelectorItem(domain = "", selectors = "") {
   selectorInput.title = "CSS selectors to ignore (comma-separated)";
   selectorInput.addEventListener("input", updateIgnoreSelectorsFromInputs);
 
+  const noteInput = document.createElement("input");
+  noteInput.type = "text";
+  noteInput.placeholder = "Note (optional)";
+  noteInput.value = note || "";
+  noteInput.title = "Description or note for this ignore selector";
+  noteInput.style.maxWidth = "250px";
+  noteInput.addEventListener("input", updateIgnoreSelectorsFromInputs);
+
   const removeBtn = document.createElement("button");
   removeBtn.className = "remove-btn";
   removeBtn.textContent = "Remove";
@@ -348,6 +366,7 @@ function addIgnoreSelectorItem(domain = "", selectors = "") {
   item.appendChild(dragHandle);
   item.appendChild(domainInput);
   item.appendChild(selectorInput);
+  item.appendChild(noteInput);
   item.appendChild(removeBtn);
 
   container.appendChild(item);
@@ -359,13 +378,15 @@ function updateIgnoreSelectorsFromInputs() {
 
   items.forEach((item) => {
     const inputs = item.querySelectorAll('input[type="text"]');
-    if (inputs.length >= 2) {
+    if (inputs.length >= 3) {
       const domainInput = inputs[0];
       const selectorInput = inputs[1];
+      const noteInput = inputs[2];
 
       const rawDomain = domainInput.value.trim();
       const domain = normalizeDomain(rawDomain);
       const selectorsString = selectorInput.value.trim();
+      const note = noteInput.value.trim();
 
       if (domain && selectorsString) {
         // Split by comma and trim each selector
@@ -375,7 +396,10 @@ function updateIgnoreSelectorsFromInputs() {
           .filter((s) => s);
 
         if (selectorList.length > 0) {
-          ignoreSelectors[domain] = selectorList;
+          ignoreSelectors[domain] = selectorList.map((sel) => ({
+            selector: sel,
+            note,
+          }));
         }
 
         // Update the input to show the normalized domain
@@ -553,7 +577,18 @@ function saveSelectors() {
     if (!normalizedDomain) return;
 
     const cleanedList = Array.isArray(selectorList)
-      ? selectorList.map((s) => s.trim()).filter((s) => s)
+      ? selectorList
+          .map((entry) => {
+            if (typeof entry === "string") {
+              return { selector: entry.trim(), note: "" };
+            } else {
+              return {
+                selector: (entry.selector || "").trim(),
+                note: (entry.note || "").trim(),
+              };
+            }
+          })
+          .filter((entry) => entry.selector)
       : [];
 
     if (cleanedList.length > 0) {

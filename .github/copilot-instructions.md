@@ -4,6 +4,8 @@
 
 This repository is a Chrome extension for saving web content to Notion. It consists of multiple directories, each representing a build or variant of the extension. The main working directory is `Web-2-Notion`, with a secondary, read-only reference directory `ldmmifpegigmeammaeckplhnjbbpccmm`.
 
+Incrementally update the Version for all changes made to the extension, following semantic versioning principles. The Version is defined in the `manifest.json` file within the `Web-2-Notion` directory and should be updated with each change to reflect the nature of the update (e.g., patch, minor, major).
+
 ## Architecture & Data Flow
 
 - **Content Scripts** (`clipContent.js`, `getCustomCssData.js`, etc.): Injected into web pages to extract, process, and send data. Use localStorage for cross-context communication.
@@ -49,6 +51,8 @@ This repository is a Chrome extension for saving web content to Notion. It consi
 - For new data extraction logic, ensure fallback and shadow DOM support.
 
 ---
+
+Notion is not compatable with markdown images. all image must be downloaded and then re-uploaded directly to Notion.
 
 The Chrome extension manifest has a limit of 4 keyboard shortcuts in the commands section
 

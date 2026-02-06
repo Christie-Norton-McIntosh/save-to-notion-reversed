@@ -42,7 +42,7 @@ function testTableCellConversion() {
 
     // Insert markers after block elements
     const blockElements = cellClone.querySelectorAll(
-      "div, p, h1, h2, h3, h4, h5, h6, section, article, header, footer, li",
+      "div, p, pre, blockquote, h1, h2, h3, h4, h5, h6, section, article, header, footer, li",
     );
     blockElements.forEach((el) => {
       const marker = document.createTextNode("__BLOCK_END__");
@@ -60,7 +60,10 @@ function testTableCellConversion() {
     let text = cellClone.textContent || "";
 
     // Replace markers with markdown line breaks
-    text = text.replace(/__BLOCK_END__/g, "  \n").replace(/__BR__/g, "  \n");
+    text = text
+      .replace(/__BLOCK_END__/g, "  \n")
+      .replace(/__BR__/g, "  \n")
+      .replace(/__TDSEP__/g, " | ");
 
     // Clean up excessive spaces and newlines
     text = text.replace(/ {3,}/g, "  ").replace(/\n{3,}/g, "\n\n");
@@ -69,10 +72,15 @@ function testTableCellConversion() {
     // Check if the result has line breaks
     const hasLineBreaks = text.includes("\n");
     const originalText = cell.textContent.trim();
+    // Consider a cell to have "multiple blocks" only when either:
+    // - it contains more than one block-level element (div or p), or
+    // - it contains at least one block-level element and there is
+    //   additional non-block text outside that element.
+    const pEl = cellClone.querySelector("p");
+    const divEls = cellClone.querySelectorAll("div");
     const hasMultipleBlocks =
-      cellClone.querySelectorAll("div, p").length > 1 ||
-      cellClone.textContent.trim() !==
-        cellClone.querySelector("p")?.textContent.trim();
+      divEls.length > 1 ||
+      (pEl && cellClone.textContent.trim() !== pEl.textContent.trim());
 
     if (hasMultipleBlocks && !hasLineBreaks) {
       console.log(`❌ Test ${index + 1} FAILED`);

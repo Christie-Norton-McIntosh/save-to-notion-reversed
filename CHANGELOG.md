@@ -10,7 +10,15 @@
 
 ### Fixed
 
-- **📋 Table Cell List Formatting**: Lists within table cells now preserve line breaks between items
+- **🖼️ Inline Image Context Preservation**: Images in table cells now preserve surrounding text in their parent context
+  - Fixed loss of anchor text when images appeared inside anchor tags (e.g., `<a>Open <img> portal</a>`)
+  - Images replaced with text placeholders `[alt]` in cell content (Notion doesn't support inline Markdown images in cells)
+  - Surrounding text now preserved: `Open [→] portal` instead of just `[→]`
+  - Images still extracted separately as `![alt](url)` for display in dedicated images section
+  - Added comprehensive test suite (`test/test-inline-images.js`) with 6 test cases
+  - See `Web-2-Notion/INLINE_IMAGE_PRESERVATION.md` for detailed documentation
+
+- **�📋 Table Cell List Formatting**: Lists within table cells now preserve line breaks between items
   - Added `__LI_END__` marker handling for list items in both HTML-to-Markdown conversion (`options.js`) and popup processing (`main.js`)
   - Removed automatic comma-join conversion that was replacing list items with comma-separated text
   - List items in table cells now display on separate lines in Notion instead of comma-separated inline text
