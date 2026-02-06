@@ -316,27 +316,22 @@ function renderIgnoreSelectors() {
         selectorList,
       );
 
-      // Join array of selectors with commas and extract note
-      let selectorsString = "";
-      let note = "";
+      // Create one item per selector (matching renderSelectors pattern)
       if (Array.isArray(selectorList)) {
-        selectorsString = selectorList
-          .map((entry) => (typeof entry === "string" ? entry : entry.selector))
-          .join(", ");
-        note =
-          selectorList.length > 0 && typeof selectorList[0] === "object"
-            ? selectorList[0].note || ""
-            : "";
-        console.log(
-          `[renderIgnoreSelectors] Array mode: selectorsString="${selectorsString}", note="${note}"`,
-        );
+        if (selectorList.length === 0) {
+          addIgnoreSelectorItem(domain, "", "");
+        } else {
+          selectorList.forEach((entry) => {
+            const selector =
+              typeof entry === "string" ? entry : entry.selector || "";
+            const note = typeof entry === "object" ? entry.note || "" : "";
+            addIgnoreSelectorItem(domain, selector, note);
+          });
+        }
       } else {
-        selectorsString = selectorList;
-        console.log(
-          `[renderIgnoreSelectors] String mode: selectorsString="${selectorsString}"`,
-        );
+        // Legacy string format
+        addIgnoreSelectorItem(domain, selectorList, "");
       }
-      addIgnoreSelectorItem(domain, selectorsString, note);
     });
   }
 }
