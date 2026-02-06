@@ -47,31 +47,29 @@ function P(e, t, n) {
   return A(e, a, r, o, null);
 }
 function A(e, t, n, r, o) {
-  var i = {
-    type: e,
-    props: t,
-    key: n,
-    ref: r,
-    __k: null,
-    __: null,
-    __b: 0,
-    __e: null,
-    __d: void 0,
-    __c: null,
-    constructor: void 0,
-    __v: null == o ? ++p : o,
-    __i: -1,
-    __u: 0,
-  };
-  return (null == o && null != u.vnode && u.vnode(i), i);
-}
-function E() {
-  return { current: null };
-}
-function O(e) {
-  return e.children;
-}
-function T(e, t) {
+                    if (alt) {
+                      if (parentAnchor) {
+                        // Keep the anchor element but replace the <img>
+                        // with a wrapper that contains a hidden/preserved
+                        // IMG (so later extraction finds it) and the
+                        // textual placeholder used in markdown.
+                        var preservedImg = img.cloneNode(true);
+                        preservedImg.setAttribute("data-stn-preserve", "1");
+                        var preservedSrc =
+                          preservedImg.getAttribute("src") || preservedImg.src || "";
+                        if (preservedSrc) preservedImg.setAttribute("src", preservedSrc);
+                        preservedImg.style.cssText = "width:0;height:0;border:0;opacity:0;position:relative;left:0;";
+
+                        var wrapper = document.createElement("span");
+                        wrapper.className = "stn-inline-image";
+                        wrapper.appendChild(preservedImg);
+                        wrapper.appendChild(document.createTextNode("[" + alt + "]"));
+
+                        img.replaceWith(wrapper);
+                      } else {
+                        var replacement = document.createTextNode("[" + alt + "]");
+                        img.replaceWith(replacement);
+                      }
   ((this.props = e), (this.context = t));
 }
 function F(e, t) {

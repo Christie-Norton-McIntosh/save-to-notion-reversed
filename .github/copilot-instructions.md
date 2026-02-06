@@ -50,6 +50,8 @@ This repository is a Chrome extension for saving web content to Notion. It consi
 
 ---
 
+Notion is not compatable with markdown images. all image must be downloaded and then re-uploaded directly to Notion.
+
 The Chrome extension manifest has a limit of 4 keyboard shortcuts in the commands section
 
 For questions about project structure or workflow, review the main scripts in `Web-2-Notion/` and reference the read-only directory for legacy behavior.
