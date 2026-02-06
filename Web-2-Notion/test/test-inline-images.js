@@ -57,26 +57,26 @@ function test(name, html, expectedPattern, shouldContain) {
         src && (src.startsWith("http://") || src.startsWith("https://"));
 
       if (isValidUrl) {
-            // Replace with text placeholder [alt] (not image markdown)
-            // New behavior: preserve the original anchor element and leave a
-            // tiny hidden IMG (data-stn-preserve) as its child so that image
-            // extraction can still associate the image with the anchor —
-            // while the visible text shows the expected [alt] placeholder.
-            if (alt) {
-              if (parentAnchor) {
-                const preservedImg = img.cloneNode(true);
-                preservedImg.setAttribute("data-stn-preserve", "1");
-                preservedImg.style.cssText =
-                  "width:0;height:0;border:0;opacity:0;position:relative;left:0;";
-                const wrapper = document.createElement("span");
-                wrapper.className = "stn-inline-image";
-                wrapper.appendChild(preservedImg);
-                wrapper.appendChild(document.createTextNode("[" + alt + "]"));
-                img.replaceWith(wrapper);
-              } else {
-                const replacement = document.createTextNode("[" + alt + "]");
-                img.replaceWith(replacement);
-              }
+        // Replace with text placeholder [alt] (not image markdown)
+        // New behavior: preserve the original anchor element and leave a
+        // tiny hidden IMG (data-stn-preserve) as its child so that image
+        // extraction can still associate the image with the anchor —
+        // while the visible text shows the expected [alt] placeholder.
+        if (alt) {
+          if (parentAnchor) {
+            const preservedImg = img.cloneNode(true);
+            preservedImg.setAttribute("data-stn-preserve", "1");
+            preservedImg.style.cssText =
+              "width:0;height:0;border:0;opacity:0;position:relative;left:0;";
+            const wrapper = document.createElement("span");
+            wrapper.className = "stn-inline-image";
+            wrapper.appendChild(preservedImg);
+            wrapper.appendChild(document.createTextNode("[" + alt + "]"));
+            img.replaceWith(wrapper);
+          } else {
+            const replacement = document.createTextNode("[" + alt + "]");
+            img.replaceWith(replacement);
+          }
         } else {
           if (parentAnchor) {
             parentAnchor.remove();
@@ -93,13 +93,16 @@ function test(name, html, expectedPattern, shouldContain) {
     // original anchor (regression check).
     if (name === "Icon inside anchor keeps preserved IMG child") {
       const anchor = cellClone.querySelector("a");
-      const preservedImg = anchor && anchor.querySelector("img[data-stn-preserve]");
+      const preservedImg =
+        anchor && anchor.querySelector("img[data-stn-preserve]");
       if (preservedImg) {
         console.log("✅ preserved IMG remains a child of the original anchor");
         passCount++;
         return;
       } else {
-        console.log("❌ preserved IMG is NOT present as a child of the original anchor");
+        console.log(
+          "❌ preserved IMG is NOT present as a child of the original anchor",
+        );
         console.log(`   Result DOM: ${cellClone.innerHTML}`);
         failCount++;
         return;
