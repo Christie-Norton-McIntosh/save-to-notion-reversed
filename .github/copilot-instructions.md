@@ -52,7 +52,21 @@ Incrementally update the Version for all changes made to the extension, followin
 
 ---
 
-Notion is not compatable with markdown images. all image must be downloaded and then re-uploaded directly to Notion.
+## Image Handling
+
+**Markdown images ARE used as an intermediate format** in this extension. While Notion's API doesn't natively support markdown, this extension uses a multi-stage pipeline:
+
+1. **Content extraction** (`main.js`): Generate markdown syntax `![alt](url)` for all images
+2. **Markdown parsing** (`options.js`): Parse markdown and convert to Notion block structures
+3. **Upload tracking**: Images are tracked in `urlToUploadsMap` with `needtouploadfile` markers
+4. **File upload** (`serviceWorker.js`): Images are downloaded, converted to base64, and uploaded to Notion's S3 via the API
+
+**When working with images:**
+
+- Always generate markdown syntax: `"![" + alt + "](" + src + ")"`
+- The system automatically handles conversion and upload
+- Images will be tracked and uploaded separately from the markdown content
+- See `IMAGE_HANDLING_EXPLANATION.md` for detailed pipeline documentation
 
 The Chrome extension manifest has a limit of 4 keyboard shortcuts in the commands section
 

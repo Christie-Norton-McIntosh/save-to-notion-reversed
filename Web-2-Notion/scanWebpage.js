@@ -14673,84 +14673,11 @@ var applyCustomFormatting = (html) => {
     html.substring(0, 500),
   );
 
-  // Special handling: Unwrap problematic container elements
-  // This must happen BEFORE other rules to prevent code block interpretation
-
-  // 1. Unwrap div.itemgroup (remove wrapper, keep content)
-  const itemgroupElements = doc.querySelectorAll("div.itemgroup");
-  if (itemgroupElements.length > 0) {
-    console.log(
-      `[applyCustomFormatting] Found ${itemgroupElements.length} div.itemgroup elements to unwrap`,
-    );
-    itemgroupElements.forEach((el) => {
-      console.log(
-        `[applyCustomFormatting] Unwrapping div.itemgroup:`,
-        el.className,
-        el.textContent?.substring(0, 50),
-      );
-      // Move all children to parent, then remove the wrapper
-      const parent = el.parentNode;
-      while (el.firstChild) {
-        parent.insertBefore(el.firstChild, el);
-      }
-      parent.removeChild(el);
-    });
-  }
-
-  // 2. Unwrap div.note__body and div.note__title (blockquotes can't contain divs)
-  const noteBodyElements = doc.querySelectorAll(
-    "div.note__body, div.note__title",
-  );
-  if (noteBodyElements.length > 0) {
-    console.log(
-      `[applyCustomFormatting] Found ${noteBodyElements.length} note div elements to unwrap`,
-    );
-    noteBodyElements.forEach((el) => {
-      const parent = el.parentNode;
-      while (el.firstChild) {
-        parent.insertBefore(el.firstChild, el);
-      }
-      parent.removeChild(el);
-    });
-  }
-
-  // 3. Convert div.note to blockquote (so Turndown handles it properly)
-  const noteElements = doc.querySelectorAll("div.note");
-  if (noteElements.length > 0) {
-    console.log(
-      `[applyCustomFormatting] Converting ${noteElements.length} div.note elements to blockquote`,
-    );
-    noteElements.forEach((el) => {
-      const blockquote = doc.createElement("blockquote");
-      // Copy all attributes except class
-      Array.from(el.attributes).forEach((attr) => {
-        if (attr.name !== "class") {
-          blockquote.setAttribute(attr.name, attr.value);
-        }
-      });
-      // Move all children to blockquote
-      while (el.firstChild) {
-        blockquote.appendChild(el.firstChild);
-      }
-      // Replace div with blockquote
-      el.parentNode.replaceChild(blockquote, el);
-    });
-  }
-
-  // 4. Remove empty <p class="p"></p> wrappers that can't contain block elements
-  const emptyPWrappers = doc.querySelectorAll("p.p:empty");
-  if (emptyPWrappers.length > 0) {
-    console.log(
-      `[applyCustomFormatting] Removing ${emptyPWrappers.length} empty p.p wrappers`,
-    );
-    emptyPWrappers.forEach((el) => el.remove());
-  }
-
+  // ⚠️ CRITICAL: Apply custom format rules FIRST before unwrapping elements
+  // This allows selectors like .note__title and .note__body to match before they're removed
   console.log(
-    `[applyCustomFormatting] After unwrapping, doc structure:`,
-    doc.body.innerHTML.substring(0, 500),
+    "[applyCustomFormatting] Step 1: Applying custom format rules BEFORE unwrapping",
   );
-
   let totalReplacements = 0;
   formatRules.forEach((rule) => {
     const elements = doc.querySelectorAll(rule.selector);
@@ -14847,8 +14774,108 @@ var applyCustomFormatting = (html) => {
     );
   }
 
+  // Step 2: NOW unwrap problematic container elements
+  // This must happen AFTER custom format rules but BEFORE code block interpretation
+  console.log(
+    "[applyCustomFormatting] Step 2: Unwrapping containers AFTER format rules applied",
+  );
+
+  // 1. Unwrap div.itemgroup (remove wrapper, keep content)
+  // Unwrap ALL itemgroups to fix <p> nesting issues - do not special-case .info
+  // ⚠️ Mark children so they don't get extracted from list items later
+  const itemgroupElements = doc.querySelectorAll("div.itemgroup");
+  if (itemgroupElements.length > 0) {
+    console.log(
+      `[applyCustomFormatting] Found ${itemgroupElements.length} div.itemgroup elements to unwrap`,
+    );
+    itemgroupElements.forEach((el) => {
+      console.log(
+        `[applyCustomFormatting] Unwrapping div.itemgroup:`,
+        el.className,
+        el.textContent?.substring(0, 50),
+      );
+      // Mark all block-level children before unwrapping
+      // This prevents them from being extracted from list items later
+      Array.from(el.children).forEach((child) => {
+        const tagName = child.tagName.toLowerCase();
+        if (
+          tagName === "p" ||
+          tagName === "blockquote" ||
+          tagName === "div" ||
+          tagName === "table"
+        ) {
+          child.setAttribute("data-itemgroup-content", "true");
+          console.log(
+            `[applyCustomFormatting] Marked <${tagName}> as itemgroup content to preserve nesting`,
+          );
+        }
+      });
+
+      // Move all children to parent, then remove the wrapper
+      const parent = el.parentNode;
+      while (el.firstChild) {
+        parent.insertBefore(el.firstChild, el);
+      }
+      parent.removeChild(el);
+    });
+  }
+
+  // 2. Unwrap div.note__body and div.note__title (blockquotes can't contain divs)
+  const noteBodyElements = doc.querySelectorAll(
+    "div.note__body, div.note__title",
+  );
+  if (noteBodyElements.length > 0) {
+    console.log(
+      `[applyCustomFormatting] Found ${noteBodyElements.length} note div elements to unwrap`,
+    );
+    noteBodyElements.forEach((el) => {
+      const parent = el.parentNode;
+      while (el.firstChild) {
+        parent.insertBefore(el.firstChild, el);
+      }
+      parent.removeChild(el);
+    });
+  }
+
+  // 3. Convert div.note to blockquote (so Turndown handles it properly)
+  const noteElements = doc.querySelectorAll("div.note");
+  if (noteElements.length > 0) {
+    console.log(
+      `[applyCustomFormatting] Converting ${noteElements.length} div.note elements to blockquote`,
+    );
+    noteElements.forEach((el) => {
+      const blockquote = doc.createElement("blockquote");
+      // Copy all attributes except class
+      Array.from(el.attributes).forEach((attr) => {
+        if (attr.name !== "class") {
+          blockquote.setAttribute(attr.name, attr.value);
+        }
+      });
+      // Move all children to blockquote
+      while (el.firstChild) {
+        blockquote.appendChild(el.firstChild);
+      }
+      // Replace div with blockquote
+      el.parentNode.replaceChild(blockquote, el);
+    });
+  }
+
+  // 4. Remove empty <p class="p"></p> wrappers that can't contain block elements
+  const emptyPWrappers = doc.querySelectorAll("p.p:empty");
+  if (emptyPWrappers.length > 0) {
+    console.log(
+      `[applyCustomFormatting] Removing ${emptyPWrappers.length} empty p.p wrappers`,
+    );
+    emptyPWrappers.forEach((el) => el.remove());
+  }
+
+  console.log(
+    `[applyCustomFormatting] After unwrapping, doc structure:`,
+    doc.body.innerHTML.substring(0, 500),
+  );
+
   // ⚠️ REGRESSION TEST: test/test-applyCustomFormatting-abbr-spacing.js (v5.0.5)
-  // Clean up excessive indentation that might cause code block interpretation
+  // Step 3: Clean up excessive indentation that might cause code block interpretation
   // Remove leading/trailing whitespace from block elements
   // CRITICAL: Must preserve spaces in inline elements with special characters!
   const blockElements = doc.querySelectorAll(
@@ -15007,12 +15034,8 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
     content?.substring(0, 500),
   );
 
-  // Apply custom formatting BEFORE markdown conversion to fix problematic HTML structures
-  content = content ? applyCustomFormatting(content) : null;
-  console.warn(
-    "[parseFromHtml] After applyCustomFormatting (pre-markdown):",
-    content?.substring(0, 500),
-  );
+  // Note: applyCustomFormatting is called AFTER all HTML processing (see below)
+  // to ensure format rules and unwrapping happen on the final HTML structure
 
   content = await extractWithReadability(content, bestUrl);
   console.warn(
@@ -15137,7 +15160,18 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
       // Find block-level elements that are direct children of the li
       const blockElements = Array.from(li.children).filter((child) => {
         const tagName = child.tagName.toLowerCase();
-        return tagName === "p" || tagName === "blockquote" || tagName === "div";
+        const isBlockElement =
+          tagName === "p" || tagName === "blockquote" || tagName === "div";
+
+        // Skip elements that came from itemgroup - they should stay nested
+        if (child.hasAttribute("data-itemgroup-content")) {
+          console.log(
+            `[parseFromHtml] Skipping <${tagName}> with data-itemgroup-content - preserving nesting`,
+          );
+          return false;
+        }
+
+        return isBlockElement;
       });
 
       if (blockElements.length > 0) {
