@@ -1997,6 +1997,7 @@ class ce {
         }) => {
           var y;
           let g = a.substr(5, a.indexOf(";") - 5);
+          console.log("[uploadFile] Uploading file with record:", r);
           console.log("gonna upload 1/2...");
           const p = await this.post("/getUploadFileUrl", {
               bucket: "secure",
@@ -2030,6 +2031,73 @@ class ce {
           } catch (w) {
             return (console.error("error uploading", w), { success: !1 });
           }
+        },
+        uploadDataUrlBatch: async ({ dataUrls: urlArray, record: r }) => {
+          console.log(
+            "[ServiceWorker] uploadDataUrlBatch: Processing",
+            urlArray.length,
+            "data URLs",
+          );
+
+          const results = {};
+
+          for (const dataUrl of urlArray) {
+            try {
+              // Extract base64 data and mime type from data URL
+              const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+              if (!matches) {
+                console.error(
+                  "[ServiceWorker] Invalid data URL format:",
+                  dataUrl.substring(0, 50),
+                );
+                results[dataUrl] = { success: false, error: "Invalid format" };
+                continue;
+              }
+
+              const mimeType = matches[1];
+              const base64Data = matches[2];
+
+              // Create data:mime;base64,... format for uploadFile
+              const dataB64 = `data:${mimeType};base64,${base64Data}`;
+
+              console.log(
+                "[ServiceWorker] Uploading data URL, type:",
+                mimeType,
+              );
+
+              // Use existing uploadFile function
+              const uploadResult = await this.custom.uploadFile({
+                dataB64: dataB64,
+                record: r,
+                name: `image-${Date.now()}.${mimeType.split("/")[1] || "png"}`,
+              });
+
+              if (uploadResult.success && uploadResult.fileId) {
+                console.log(
+                  "[ServiceWorker] Upload successful, fileId:",
+                  uploadResult.fileId,
+                );
+                results[dataUrl] = {
+                  success: true,
+                  fileId: uploadResult.fileId,
+                  url: uploadResult.url,
+                };
+              } else {
+                console.error("[ServiceWorker] Upload failed for data URL");
+                results[dataUrl] = { success: false, error: "Upload failed" };
+              }
+            } catch (error) {
+              console.error("[ServiceWorker] Error uploading data URL:", error);
+              results[dataUrl] = { success: false, error: error.message };
+            }
+          }
+
+          console.log(
+            "[ServiceWorker] Batch upload complete:",
+            Object.keys(results).length,
+            "results",
+          );
+          return results;
         },
         createWebClippedPage: async (a, { title: s, url: r }) => {
           var u;
@@ -8773,6 +8841,429 @@ const El = Object.freeze(
       !0
     ),
     clipContent: async (e, t) => (Gr(e.action, e.props || null, t.tab.id), !0),
+    uploadDataUrlBatch: async (e, t) => {
+      console.log("[ServiceWorker] uploadDataUrlBatch message received");
+      try {
+        // Get the pl client wrapper from xa()
+        const { status, errorMsg, client: plClient } = await xa();
+
+        if (status === "error" || !plClient) {
+          console.error(
+            "[ServiceWorker] Failed to get Notion client:",
+            errorMsg,
+          );
+          return {
+            success: false,
+            error: errorMsg || "Failed to get Notion client",
+          };
+        }
+
+        // Create a ce instance (the actual client with .custom) using token and activeUserId
+        const notionClient = new ce({
+          token: plClient.authToken,
+          activeUserId: plClient.agent.activeUserId,
+        });
+
+        console.log(
+          "[ServiceWorker] Got Notion client, calling uploadDataUrlBatch",
+        );
+        const results = await notionClient.custom.uploadDataUrlBatch({
+          dataUrls: e.dataUrls,
+          record: e.record,
+        });
+        return { success: true, results };
+      } catch (error) {
+        console.error("[ServiceWorker] uploadDataUrlBatch error:", error);
+        return { success: false, error: error.message };
+      }
+    },
+    replaceDataUrlPlaceholders: async (e, t) => {
+      console.log("========================================");
+      console.log("[ServiceWorker] replaceDataUrlPlaceholders CALLED");
+      console.log(
+        "[ServiceWorker] Message object:",
+        JSON.stringify(e, null, 2),
+      );
+      console.log("========================================");
+      console.log("[ServiceWorker] Page ID:", e.pageId);
+      console.log("[ServiceWorker] Space ID:", e.spaceId);
+      console.log(
+        "[ServiceWorker] Placeholder count:",
+        Object.keys(e.placeholderMap || {}).length,
+      );
+      console.log(
+        "[ServiceWorker] Placeholder keys:",
+        Object.keys(e.placeholderMap || {}),
+      );
+
+      try {
+        // Get the Notion client
+        console.log("[ServiceWorker] Step 1: Getting Notion client...");
+        const { status, errorMsg, client: plClient } = await xa();
+
+        if (status === "error" || !plClient) {
+          console.error(
+            "[ServiceWorker] Failed to get Notion client:",
+            errorMsg,
+          );
+          return {
+            success: false,
+            error: errorMsg || "Failed to get Notion client",
+          };
+        }
+        console.log("[ServiceWorker] ✓ Notion client obtained");
+
+        // Create a ce instance
+        const notionClient = new ce({
+          token: plClient.authToken,
+          activeUserId: plClient.agent.activeUserId,
+        });
+        console.log("[ServiceWorker] ✓ Notion client instance created");
+
+        // Get the page to find placeholder blocks
+        console.log("[ServiceWorker] Step 2: Fetching page blocks...");
+        const pageData = await notionClient.post("/loadPageChunk", {
+          pageId: e.pageId,
+          limit: 100,
+          cursor: { stack: [] },
+          chunkNumber: 0,
+          verticalColumns: false,
+        });
+
+        if (!pageData || !pageData.recordMap || !pageData.recordMap.block) {
+          throw new Error("Failed to load page blocks");
+        }
+        console.log(
+          "[ServiceWorker] ✓ Page blocks loaded:",
+          Object.keys(pageData.recordMap.block).length,
+          "blocks",
+        );
+
+        const blocks = pageData.recordMap.block;
+        const placeholderMap = e.placeholderMap;
+        const replacements = [];
+
+        console.log(
+          "[ServiceWorker] Step 3: Searching for placeholder blocks...",
+        );
+        console.log(
+          "[ServiceWorker] Searching",
+          Object.keys(blocks).length,
+          "blocks for placeholders",
+        );
+
+        // Find blocks containing our unique ID placeholder: __IMG123__
+        let blockSearchCount = 0;
+        for (const blockId in blocks) {
+          const block = blocks[blockId].value;
+          blockSearchCount++;
+
+          // Log every block we check
+          if (block.type === "text") {
+            const blockText = block.properties?.title?.[0]?.[0] || "";
+            console.log(
+              `[ServiceWorker]   Block ${blockSearchCount}: ${blockId} type=${block.type} text="${blockText}"`,
+            );
+          }
+
+          // Check if this is a text block with our unique ID placeholder
+          if (
+            block.type === "text" &&
+            block.properties &&
+            block.properties.title
+          ) {
+            const blockText = block.properties.title[0]?.[0] || "";
+
+            // Check if this text matches any of our unique ID placeholders
+            // Format: __IMG1234567890_0__
+            for (const uniqueId in placeholderMap) {
+              const placeholder = placeholderMap[uniqueId];
+
+              console.log(
+                `[ServiceWorker]     Comparing "${blockText}" === "${uniqueId}"`,
+              );
+
+              if (blockText === uniqueId) {
+                console.log(
+                  "[ServiceWorker] ✓✓✓ FOUND MATCH! Block:",
+                  blockId,
+                  "uniqueId:",
+                  uniqueId,
+                  "alt:",
+                  placeholder.alt,
+                );
+
+                replacements.push({
+                  blockId: blockId,
+                  dataUrl: placeholder.dataUrl,
+                  alt: placeholder.alt,
+                });
+                break;
+              }
+            }
+          }
+        }
+
+        console.log(
+          "[ServiceWorker] ✓ Search complete. Found",
+          replacements.length,
+          "placeholder blocks to replace",
+        );
+
+        if (replacements.length === 0) {
+          console.warn("[ServiceWorker] WARNING: No placeholder blocks found!");
+          console.warn(
+            "[ServiceWorker] Expected to find:",
+            Object.keys(placeholderMap),
+          );
+          return {
+            success: false,
+            error: `No placeholder blocks found. Searched ${blockSearchCount} blocks.`,
+          };
+        }
+
+        // Now upload each image and replace the placeholder block
+        console.log(
+          "[ServiceWorker] Step 4: Uploading and replacing images...",
+        );
+        for (const replacement of replacements) {
+          try {
+            console.log(
+              "[ServiceWorker] Processing block:",
+              replacement.blockId,
+            );
+
+            // Upload the image
+            console.log("[ServiceWorker]   Uploading image...");
+            const uploadResult = await notionClient.custom.uploadFile({
+              imageBase64: replacement.dataUrl,
+              record: {
+                id: replacement.blockId,
+                table: "block",
+                spaceId: e.spaceId,
+              },
+            });
+
+            console.log(
+              "[ServiceWorker]   ✓ Upload successful:",
+              uploadResult.url,
+            );
+
+            // Update the block to be an image block instead of text
+            console.log("[ServiceWorker]   Updating block type to 'image'...");
+            await notionClient.post("/submitTransaction", {
+              requestId: J(),
+              transactions: [
+                {
+                  id: J(),
+                  spaceId: e.spaceId,
+                  operations: [
+                    {
+                      id: replacement.blockId,
+                      table: "block",
+                      path: [],
+                      command: "update",
+                      args: {
+                        type: "image",
+                        properties: {
+                          source: [[uploadResult.url]],
+                          ...(replacement.alt && {
+                            caption: [[replacement.alt]],
+                          }),
+                        },
+                      },
+                    },
+                  ],
+                },
+              ],
+            });
+
+            console.log(
+              "[ServiceWorker]   ✓ Replaced placeholder with image:",
+              replacement.blockId,
+            );
+          } catch (uploadError) {
+            console.error(
+              "[ServiceWorker] ✗ Failed to process replacement:",
+              uploadError,
+            );
+          }
+        }
+
+        console.log("========================================");
+        console.log(
+          "[ServiceWorker] ✓✓✓ ALL DONE! Replaced",
+          replacements.length,
+          "images",
+        );
+        console.log("========================================");
+
+        return {
+          success: true,
+          replacedCount: replacements.length,
+        };
+      } catch (error) {
+        console.error("========================================");
+        console.error(
+          "[ServiceWorker] ✗✗✗ ERROR in replaceDataUrlPlaceholders:",
+          error,
+        );
+        console.error("[ServiceWorker] Error stack:", error.stack);
+        console.error("========================================");
+        return { success: false, error: error.message };
+      }
+    },
+    // Unit test that runs entirely inside the service worker (no network)
+    // - Verifies the placeholder -> upload -> submitTransaction flow
+    // - Does NOT touch real Notion data
+    runDataUrlReplacementUnitTest: async (e, t) => {
+      console.log("[ServiceWorker][TEST] runDataUrlReplacementUnitTest called");
+
+      try {
+        const timestamp = Date.now();
+        const uniqueId = `__IMG${timestamp}_UT__`;
+
+        // Create a fake placeholder map (data: URL small image)
+        const placeholderMap = {};
+        placeholderMap[uniqueId] = {
+          dataUrl:
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+          alt: "unit-test-pixel",
+          uniqueId: uniqueId,
+          inlinePlaceholder: "[unit-test-pixel]",
+        };
+
+        // Create a fake page blocks map containing a single text block with the uniqueId
+        const fakeBlockId = j();
+        const blocks = {};
+        blocks[fakeBlockId] = {
+          value: {
+            id: fakeBlockId,
+            type: "text",
+            properties: { title: [[uniqueId]] },
+            parent_id: e?.pageId || "test-page-id",
+            alive: true,
+          },
+        };
+
+        // Create a fake notionClient that records calls
+        const recorded = { uploads: [], posts: [] };
+        const fakeNotionClient = {
+          custom: {
+            uploadFile: async ({ imageBase64, record }) => {
+              recorded.uploads.push({ imageBase64, record });
+              return { url: `https://example.com/${uniqueId}.png` };
+            },
+            saveTransaction: async () => ({}),
+          },
+          post: async (path, payload) => {
+            recorded.posts.push({ path, payload });
+            // emulate submitTransaction response shape
+            if (path === "/submitTransaction") return { success: true };
+            if (path === "/loadPageChunk")
+              return { recordMap: { block: blocks } };
+            return {};
+          },
+        };
+
+        // Reuse the same core logic as replaceDataUrlPlaceholders but with fake client/blocks
+        const placeholderEntries = Object.entries(placeholderMap);
+        const replacements = [];
+
+        // search fake blocks for placeholders
+        for (const [blockId, blk] of Object.entries(blocks)) {
+          const block = blk.value;
+          if (block.type === "text" && block.properties?.title) {
+            const blockText = block.properties.title[0]?.[0] || "";
+            for (const [uid, ph] of placeholderEntries) {
+              if (blockText === uid)
+                replacements.push({
+                  blockId,
+                  dataUrl: ph.dataUrl,
+                  alt: ph.alt,
+                });
+            }
+          }
+        }
+
+        if (replacements.length === 0) {
+          console.warn(
+            "[ServiceWorker][TEST] No placeholder blocks found in fake data — test failed",
+          );
+          return { success: false, error: "no-placeholder-blocks-found" };
+        }
+
+        // perform upload + submitTransaction (recorded by fakeNotionClient)
+        for (const r of replacements) {
+          const uploadResult = await fakeNotionClient.custom.uploadFile({
+            imageBase64: r.dataUrl,
+            record: {
+              id: r.blockId,
+              table: "block",
+              spaceId: e?.spaceId || "test-space",
+            },
+          });
+
+          await fakeNotionClient.post("/submitTransaction", {
+            requestId: J(),
+            transactions: [
+              {
+                id: J(),
+                spaceId: e?.spaceId || "test-space",
+                operations: [
+                  {
+                    id: r.blockId,
+                    table: "block",
+                    path: [],
+                    command: "update",
+                    args: {
+                      type: "image",
+                      properties: {
+                        source: [[uploadResult.url]],
+                        caption: [[r.alt]],
+                      },
+                    },
+                  },
+                ],
+              },
+            ],
+          });
+        }
+
+        // Validate recorded calls
+        const uploaded = recorded.uploads.length === replacements.length;
+        const submitted = recorded.posts.some(
+          (p) => p.path === "/submitTransaction",
+        );
+
+        if (uploaded && submitted) {
+          console.log(
+            "[ServiceWorker][TEST] Unit test succeeded — placeholder -> image flow is working (in-memory)",
+          );
+          return {
+            success: true,
+            replacedCount: replacements.length,
+            details: recorded,
+          };
+        }
+
+        console.error(
+          "[ServiceWorker][TEST] Unit test failed — uploads/submits not observed",
+          recorded,
+        );
+        return {
+          success: false,
+          error: "upload-or-submit-missing",
+          details: recorded,
+        };
+      } catch (err) {
+        console.error(
+          "[ServiceWorker][TEST] runDataUrlReplacementUnitTest error:",
+          err,
+        );
+        return { success: false, error: err?.message || String(err) };
+      }
+    },
     quickCapture: async (e) => {},
     openQuickCaptureFloatingButton: async (e, t) => (
       Ze("openQuickCaptureFloatingButton", void 0, t.tab.id),

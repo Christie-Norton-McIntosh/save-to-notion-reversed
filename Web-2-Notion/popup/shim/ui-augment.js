@@ -3,11 +3,15 @@
   const DEBUG = false;
 
   const KEYS = {
-    formatMode: "__stn_format_mode"
+    formatMode: "__stn_format_mode",
   };
 
   function ready(fn) {
-    if (document.readyState === "complete" || document.readyState === "interactive") fn();
+    if (
+      document.readyState === "complete" ||
+      document.readyState === "interactive"
+    )
+      fn();
     else document.addEventListener("DOMContentLoaded", fn);
   }
 
@@ -37,7 +41,7 @@
     const modes = [
       { value: "plain", label: "Plain" },
       { value: "singleLine", label: "Single line" },
-      { value: "bullets", label: "Bullets" }
+      { value: "bullets", label: "Bullets" },
     ];
 
     for (const m of modes) {
@@ -75,6 +79,114 @@
     });
 
     wrap.append(label, select, apply);
+
+    // --- Image-replacement one-click tester ---
+    const testBtn = document.createElement("button");
+    testBtn.id = "stn-image-replacement-test";
+    testBtn.textContent = "Run image-replacement test";
+    testBtn.style.padding = "6px 10px";
+    testBtn.style.borderRadius = "8px";
+    testBtn.style.border = "none";
+    testBtn.style.cursor = "pointer";
+    testBtn.style.background = "linear-gradient(90deg, #20c997, #38d39f)";
+    testBtn.style.color = "#fff";
+    testBtn.style.fontSize = "12px";
+    testBtn.style.marginLeft = "6px";
+
+    const status = document.createElement("span");
+    status.id = "stn-image-replacement-status";
+    status.style.marginLeft = "10px";
+    status.style.fontSize = "12px";
+    status.style.color = "#666";
+
+    testBtn.addEventListener("click", async () => {
+      try {
+        testBtn.disabled = true;
+        status.textContent = "Running…";
+
+        // Try to reuse saved test IDs if present
+          // Try to auto-discover Page ID / Space ID from several popup contexts
+          let prefillPageId = localStorage.getItem("testPageId") || '';
+          let prefillSpaceId = localStorage.getItem("testSpaceId") || '';
+
+          try {
+            // current-space-id is used elsewhere in the popup
+            if (!prefillSpaceId && localStorage.getItem('current-space-id')) {
+              prefillSpaceId = localStorage.getItem('current-space-id');
+            }
+
+            // pageViewManager may expose the current page view with notion IDs
+            const pvm = window.pageViewManager || window.PageViewManager || null;
+            const cur = pvm && pvm._currentPageview ? pvm._currentPageview : null;
+            if (cur) {
+              prefillPageId = prefillPageId || (cur.notionPageId || cur.pageId || '');
+              prefillSpaceId = prefillSpaceId || (cur.notionSpaceId || cur.spaceId || '');
+            }
+
+            // Try a global helper if available
+            if ((!prefillPageId || !prefillSpaceId) && typeof window.getInfoFromCurrentPage === 'function') {
+              const info = window.getInfoFromCurrentPage();
+              if (info) {
+                prefillPageId = prefillPageId || info.notionPageId || info.pageId || '';
+                prefillSpaceId = prefillSpaceId || info.notionSpaceId || info.spaceId || '';
+              }
+            }
+
+            // Some consumers expose current form on window.__CURRENT__ or window.current
+            const altCur = window.current || window.__CURRENT__ || null;
+            if (altCur && altCur.form) {
+              prefillPageId = prefillPageId || (altCur.form.page && altCur.form.page.id) || '';
+              prefillSpaceId = prefillSpaceId || altCur.form.spaceId || '';
+            }
+          } catch (err) {
+            console.debug('Auto-discover page/space id failed:', err && err.message);
+          }
+
+          const savedPageId = prefillPageId || localStorage.getItem('testPageId') || '';
+          const savedSpaceId = prefillSpaceId || localStorage.getItem('testSpaceId') || '';
+          const pageId = window.prompt('Page ID (32 hex chars):', savedPageId) || '';
+          const spaceId = window.prompt('Space ID:', savedSpaceId) || '';
+
+        if (!pageId || !spaceId) {
+          status.textContent = "Cancelled — missing IDs";
+          testBtn.disabled = false;
+          return;
+        }
+
+        localStorage.setItem("testPageId", pageId);
+        localStorage.setItem("testSpaceId", spaceId);
+
+        if (typeof window.runAutomatedReplacementTest === "function") {
+          const res = await window.runAutomatedReplacementTest(
+            pageId,
+            spaceId,
+            { maxAttempts: 5, retryDelay: 2000 },
+          );
+          console.log("[stn-test] result:", res);
+          if (res && res.success) {
+            status.textContent = `OK — replaced ${res.replacedCount || 0}`;
+            status.style.color = "#0b8043";
+          } else {
+            status.textContent = `Failed: ${res?.error || res?.phase || "unknown"}`;
+            status.style.color = "#d44";
+          }
+        } else {
+          status.textContent = "Runner not available in this context";
+        }
+      } catch (err) {
+        console.error("[stn-test] error", err);
+        status.textContent = `Error: ${err?.message || err}`;
+        status.style.color = "#d44";
+      } finally {
+        testBtn.disabled = false;
+        setTimeout(() => {
+          status.textContent = "";
+          status.style.color = "#666";
+        }, 8000);
+      }
+    });
+
+    wrap.append(testBtn, status);
 
     // Insert above the existing UI
     root.prepend(wrap);
