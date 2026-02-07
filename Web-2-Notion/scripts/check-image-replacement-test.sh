@@ -38,5 +38,13 @@ else
   exit 2
 fi
 
+echo "Checking popup UI shim for floating FAB..."
+if grep -q "stn-image-replacement-fab" "$repo_root/popup/shim/ui-augment.js"; then
+  echo "  OK: floating FAB defined in ui-augment.js"
+else
+  echo "  MISSING: floating FAB not found in ui-augment.js" >&2
+  exit 2
+fi
+
 echo "All image-replacement automated test hooks are present."
 exit 0
