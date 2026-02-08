@@ -325,5 +325,5 @@ Service worker message handler for replacing placeholders.
 1. `Web-2-Notion/DATA_URL_PLACEHOLDER_TEST.html`
    - Test page with instructions and examples
 
-2. `Web-2-Notion/DATA_URL_PLACEHOLDER_IMPLEMENTATION.md`
+2. `./DATA_URL_PLACEHOLDER_IMPLEMENTATION.md`
    - This documentation file

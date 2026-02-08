@@ -289,9 +289,9 @@ function formatRawValue(rawValue) {
 - `Web-2-Notion/popup/shim/` (directory)
 - `Web-2-Notion/popup/shim/preload-format.js` (2.5 KB)
 - `Web-2-Notion/popup/shim/ui-augment.js` (2.7 KB)
-- `Web-2-Notion/popup/shim/README.md` (4.4 KB)
-- `Web-2-Notion/popup/shim/TESTING.md` (7.0 KB)
-- `Web-2-Notion/popup/shim/SUMMARY.md` (this file)
+- `README.md` (4.4 KB)
+- `TESTING.md` (7.0 KB)
+- `SUMMARY.md` (this file)
 
 ### Modified
 - `Web-2-Notion/popup/index.html` (added 3 script tags)

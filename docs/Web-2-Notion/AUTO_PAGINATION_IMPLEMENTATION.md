@@ -55,7 +55,7 @@ A complete auto-pagination system that allows users to automatically save multip
 
 ### 5. **AUTO_PAGINATION_README.md** (Documentation)
 
-- **Location**: `Web-2-Notion/AUTO_PAGINATION_README.md`
+- **Location**: `./AUTO_PAGINATION_README.md`
 - **Purpose**: Complete user guide
 - **Contents**:
   - How to use guide
