@@ -17061,52 +17061,104 @@ function Wv(e) {
             let src = img.getAttribute("src") || img.src || "";
             const alt = img.getAttribute("alt") || "";
             const title = img.getAttribute("title") || "";
+
             console.debug(
               `[tableWithHeading] Image src attribute: ${src?.substring(0, 50)}...`,
             );
 
-            // Store the parent anchor if the image is wrapped in one
             const parentAnchor =
               img.parentElement?.tagName === "A" ? img.parentElement : null;
 
-            // If image is wrapped in anchor, prefer the anchor href (often points to full-res image)
-            // This avoids base64-converted proxied/resized image URLs
-            if (parentAnchor && parentAnchor.href) {
-              const anchorHref =
-                parentAnchor.getAttribute("href") || parentAnchor.href;
-              console.debug(
-                `[tableWithHeading] Image wrapped in anchor, using href: ${anchorHref?.substring(0, 50)}...`,
-              );
-              src = anchorHref;
+            // Prefer anchor href when present (often points to full-res image)
+            if (parentAnchor) {
+              const anchorHref = parentAnchor.getAttribute("href") || parentAnchor.href || "";
+              if (anchorHref) {
+                console.debug(
+                  `[tableWithHeading] Image wrapped in anchor, using href: ${anchorHref.substring(0, 50)}...`,
+                );
+                src = anchorHref;
+              }
             }
 
-            // Only extract images with http/https URLs (Notion doesn't support base64/data URLs)
+            // Detect inline-image siblings so we can force a visible placeholder
+            const hasTextSibling = (() => {
+              try {
+                const prev = img.previousSibling;
+                const next = img.nextSibling;
+                if (
+                  (prev && prev.nodeType === Node.TEXT_NODE && prev.textContent.trim()) ||
+                  (next && next.nodeType === Node.TEXT_NODE && next.textContent.trim())
+                )
+                  return true;
+                if (parentAnchor)
+                  return Array.from(parentAnchor.childNodes).some(
+                    (n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim(),
+                  );
+              } catch (err) {
+                return false;
+              }
+              return false;
+            })();
+
             const isValidUrl =
               src && (src.startsWith("http://") || src.startsWith("https://"));
 
-            if (isValidUrl) {
-              const titlePart = title ? ` "${title}"` : "";
-              extractedImages.push(`![${alt}](${src}${titlePart})`);
-              // Replace with alt text if available, otherwise just remove
-              if (alt) {
-                const replacement = document.createTextNode(`[${alt}]`);
+            const titlePart = title ? ` "${title}"` : "";
+            const pageUrl = window.location.href;
+            let linkedAlt = alt || "";
+
+            if (isValidUrl || hasTextSibling) {
+              if (alt && parentAnchor && parentAnchor.href && parentAnchor.href !== src) {
+                linkedAlt = `[${alt}](${pageUrl}) → [Link](${parentAnchor.href})`;
+              } else if (alt) {
+                linkedAlt = `[${alt}](${pageUrl})`;
+              }
+
+              extractedImages.push(`![${linkedAlt}](${src}${titlePart})`);
+
+              // Preserve clickable anchors but replace the image with a small
+              // wrapper containing a hidden discoverable IMG and a textual placeholder
+              if (alt || hasTextSibling) {
                 if (parentAnchor) {
-                  parentAnchor.replaceWith(replacement);
+                  const preservedImg = img.cloneNode(true);
+                  preservedImg.setAttribute("data-stn-preserve", "1");
+                  const preservedSrc = preservedImg.getAttribute("src") || preservedImg.src || "";
+                  if (preservedSrc) preservedImg.setAttribute("src", preservedSrc);
+                  preservedImg.removeAttribute("alt");
+                  preservedImg.style.cssText =
+                    "width:0;height:0;border:0;opacity:0;position:relative;left:0;";
+
+                  const wrapper = document.createElement("span");
+                  wrapper.className = "stn-inline-image";
+                  wrapper.appendChild(preservedImg);
+                  wrapper.appendChild(document.createTextNode(" • " + (alt || "Image") + " • "));
+                  img.replaceWith(wrapper);
                 } else {
+                  const placeholderAlt = (alt && alt.trim()) || "Image";
+                  let replacement;
+                  if (parentAnchor && parentAnchor.href) {
+                    replacement = document.createElement("a");
+                    replacement.href = parentAnchor.href;
+                    replacement.textContent = ` • ${placeholderAlt} • `;
+                  } else if (isValidUrl && src) {
+                    replacement = document.createTextNode(` • ${placeholderAlt} • `);
+                  } else {
+                    replacement = document.createTextNode(` • ${placeholderAlt} • `);
+                  }
                   img.replaceWith(replacement);
                 }
               } else {
-                if (parentAnchor) {
-                  parentAnchor.remove();
-                } else {
-                  img.remove();
-                }
+                if (parentAnchor) parentAnchor.remove();
+                else img.remove();
               }
             } else {
+              // Not a usable URL — remove element but keep spacing
               if (parentAnchor) {
-                parentAnchor.remove();
+                const replacement = document.createTextNode(` • ${alt || "Image"} • `);
+                parentAnchor.replaceWith(replacement);
               } else {
-                img.remove();
+                const replacement = document.createTextNode(` • ${alt || "Image"} • `);
+                img.replaceWith(replacement);
               }
             }
           });
