@@ -16850,12 +16850,12 @@ function Wv(e) {
               console.debug(
                 `[tableWithoutHeading] Src is base64, trying anchor href: ${anchorHref?.substring(0, 70)}...`,
               );
-              // Use anchor href even if it's a viewer page - better than no link at all
-              // ServiceNow's /viewer/attachment/ URLs are valid image sources
+              // Only use anchor if it points to an actual image URL, not a viewer page
               if (
                 anchorHref &&
-                (anchorHref.startsWith("http://") ||
-                  anchorHref.startsWith("https://"))
+                !anchorHref.includes("/viewer/attachment/") &&
+                (anchorHref.includes("/resources/") ||
+                  anchorHref.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i))
               ) {
                 src = anchorHref;
                 console.debug(
