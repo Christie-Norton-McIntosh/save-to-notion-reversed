@@ -8,7 +8,7 @@ chrome://extensions → Find "Web-2-Notion" → Click reload 🔄
 
 ## 2️⃣ Open Test Page
 
-Double-click: `test-image-replacement.html`
+Double-click: `tests/test-image-replacement.html`
 
 ## 3️⃣ Get IDs
 

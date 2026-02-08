@@ -163,7 +163,7 @@ window.processDataUrlPlaceholders(pageId, spaceId);
 
 ## Testing
 
-Use the `DATA_URL_PLACEHOLDER_TEST.html` file:
+Use the `tests/DATA_URL_PLACEHOLDER_TEST.html` file:
 
 1. Load the test page in Chrome
 2. Use Web-2-Notion extension to capture the page
@@ -322,7 +322,7 @@ Service worker message handler for replacing placeholders.
 
 ### New Files:
 
-1. `Web-2-Notion/DATA_URL_PLACEHOLDER_TEST.html`
+1. `tests/DATA_URL_PLACEHOLDER_TEST.html`
    - Test page with instructions and examples
 
 2. `./DATA_URL_PLACEHOLDER_IMPLEMENTATION.md`

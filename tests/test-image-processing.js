@@ -42,7 +42,19 @@ global.DOMParser = class {
 console.log("Loading main.js to extract conversion functions...\n");
 
 // Read main.js and try to extract the image rule
-const mainJsPath = path.join(__dirname, "popup", "static", "js", "main.js");
+// When this script runs from the consolidated `tests/` directory the
+// bundle lives at ../Web-2-Notion/popup/static/js/main.js — use a
+// path that works whether the file is executed in-place or after the
+// test has been moved to `tests/`.
+const mainJsPath = path.join(
+  __dirname,
+  "..",
+  "Web-2-Notion",
+  "popup",
+  "static",
+  "js",
+  "main.js",
+);
 const mainJs = fs.readFileSync(mainJsPath, "utf8");
 
 // Test cases

@@ -50,7 +50,7 @@ window.processDataUrlPlaceholders(pageId, spaceId);
 
 ### Testing
 
-1. Open `DATA_URL_PLACEHOLDER_TEST.html` in Chrome
+1. Open `tests/DATA_URL_PLACEHOLDER_TEST.html` in Chrome
 2. Capture with Web-2-Notion extension (v5.2.17+)
 3. Save to Notion
 4. **Wait 1-2 seconds** (automatic processing happens in background)

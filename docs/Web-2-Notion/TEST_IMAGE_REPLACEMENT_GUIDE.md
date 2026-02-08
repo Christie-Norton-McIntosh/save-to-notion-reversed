@@ -8,8 +8,8 @@
    - Click the reload button (circular arrow icon)
 
 2. **Open the Test Page**
-   - Navigate to: `file:///path/to/Web-2-Notion/test-image-replacement.html`
-   - Or double-click `test-image-replacement.html` to open in Chrome
+   - Navigate to: `file:///path/to/tests/test-image-replacement.html`
+   - Or double-click `tests/test-image-replacement.html` to open in Chrome
 
 3. **Get Required IDs**
 

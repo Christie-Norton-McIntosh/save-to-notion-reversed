@@ -214,7 +214,7 @@ The implementation includes comprehensive error handling:
 
 1. Load unpacked extension in Chrome
 2. Verify version is 5.2.17 in chrome://extensions
-3. Test with `DATA_URL_PLACEHOLDER_TEST.html`
+3. Test with `tests/DATA_URL_PLACEHOLDER_TEST.html`
 4. Watch console for automatic trigger logs
 
 ### To Verify:
