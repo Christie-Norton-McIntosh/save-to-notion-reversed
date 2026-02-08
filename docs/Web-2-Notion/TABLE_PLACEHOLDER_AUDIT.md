@@ -57,6 +57,45 @@ Canonical decision (recommended)
 - Canonical producer for table placeholders: **content-script** (`options.js`) — it runs in the page and can preserve link/DOM context and insert `XCELLIDX` markers.
 - Popup (`tableToList`) should _not_ inject placeholders when `XCELLIDX` is present; only act as a fallback when no marker exists.
 
+## Placeholder inventory — canonical names, locations and how to refer to them in chat
+
+To avoid confusion in reviews and chat, use the canonical short names in the "Chat ref" column below. These names are concise, unambiguous, and map to a single behaviour (producer + consumer).
+
+| Chat ref            |                         Visible form (example) | Code location (primary)                                                                                                                       | Producer (primary)                            | Affects / intent                                                                                           | Notes / migration status                                                                                                         |
+| ------------------- | ---------------------------------------------: | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| TABLE:bullet        |                        • Automate IT service • | `Web-2-Notion/options.js` — sanitizeCell (tableWith/WithoutHeading)<br>`Web-2-Notion/popup/static/js/main.js` — tableToList (fallback/dedupe) | content-script (canonical); popup (fallback)  | Table-cell visible placeholder; spacing separator; clickable when wrapped by anchor                        | Canonical table placeholder — normalized across flows. Use this name in PRs/chat when discussing table placeholders.             |
+| TABLE:bullet-linked |               <a> • Automate IT service • </a> | `Web-2-Notion/options.js` — sanitizeCell (wraps placeholder in anchor when imageLink present)                                                 | content-script                                | Clickable placeholder for linked images in table cells                                                     | Same visual token as TABLE:bullet but preserves anchor href. Refer to as TABLE:bullet-linked when link affinity matters.         |
+| LEGACY:bracketed    |                          [Automate IT service] | `Web-2-Notion/popup/static/js/main.js` — CN(image) & other legacy inline flows                                                                | popup / legacy CN                             | Older inline placeholder; targeted by SN's figure-only removal rule                                        | SHOULD NOT be produced for table flows. CI asserts prevent bracketed placeholders in table output. Refer to as LEGACY:bracketed. |
+| LEGACY:plain-alt    |       Automate IT service (plain text sibling) | various (anchor-to-text, list conversions in `main.js`)                                                                                       | multiple legacy producers                     | Occurs when alt/anchor text is left in DOM as plain text (can cause duplicates)                            | Not a separator — avoid relying on this for spacing. Chat ref: LEGACY:plain-alt.                                                 |
+| MARKER:XCELLIDX     |  (invisible marker) `XCELLIDXCELL_xxxXCELLIDX` | `Web-2-Notion/options.js` — sanitizeCell (emits)<br>`Web-2-Notion/popup/static/js/main.js` — XCELLIDX expansion                               | content-script (emits marker)                 | Transports original cell content to popup; signals "from a table" to SN and prevents placeholder stripping | Primary mechanism to preserve provenance. Always reference MARKER:XCELLIDX when debugging end-to-end.                            |
+| DATA:IMAGE          |    DATA_IMAGE_1707321234567_0 (placeholder id) | `Web-2-Notion/popup/static/js/main.js` — `processDataUrlPlaceholders`<br>`Web-2-Notion/tB()` (capture)                                        | capture/tB + popup.processDataUrlPlaceholders | Placeholder for data: URL images used during upload-replace workflow                                       | Part of data:URL upload lifecycle (`window.__dataUrlPlaceholders`). Chat ref: DATA:IMAGE.                                        |
+| PRESERVE:IMG        | hidden <img data-stn-preserve="1"> (invisible) | `Web-2-Notion/options.js` — sanitizeCell (preservedImg)                                                                                       | content-script                                | Keeps an image node for later extraction while removing alt to avoid polluting textContent                 | Not visible to users — refer to as PRESERVE:IMG when talking about hidden preserved images.                                      |
+| MD:IMAGE            |                 ![alt](https://...) (markdown) | `Web-2-Notion/popup/static/js/main.js` — image extraction / tableToList                                                                       | popup (converter)                             | Markdown representation of an extracted image (used when rendering after table)                            | Not a placeholder but important in image-extraction flows. Chat ref: MD:IMAGE.                                                   |
+
+Best-practice shorthand (use these in chat and PRs)
+
+- TABLE:bullet — canonical visible placeholder for table cells (use this when you mean the bullet-style placeholder)
+- MARKER:XCELLIDX — use this when discussing provenance/why SN should preserve a paragraph
+- DATA:IMAGE — use this when discussing data: URL placeholder/upload flows
+- LEGACY:bracketed / LEGACY:plain-alt — call out as legacy when triaging regressions
+
+Why this mapping matters
+
+- Single source of truth: `TABLE:bullet` is the canonical placeholder for table flows and should be produced by `options.js` whenever possible.
+- Disambiguation: talk about `MARKER:XCELLIDX` (not the visible placeholder) when you mean "this paragraph came from a table cell" — SN's behavior depends on that marker, not on the visible token alone.
+- CI will block regressions that reintroduce `LEGACY:bracketed` into table outputs.
+
+How to find these in the codebase
+
+- To find the canonical producer: search for `XCELLIDX` or `data-stn-preserve` (content-script).
+- To find popup-side handling: search `tableToList`, `processDataUrlPlaceholders`, or the `SN` paragraph processor in `popup/static/js/main.js`.
+
+Quick debugging checklist
+
+1. If a visible placeholder is missing, check `window.__TABLE_CELL_CONTENT_MAP__` for MARKER:XCELLIDX entries in the popup console. If present, the content-script did its job.
+2. If MARKER:XCELLIDX is missing, inspect the content-script sanitize path (`options.js`) for the TD in question — ensure `data-stn-preserve` and canonical placeholder insertion ran.
+3. If bracketed placeholders appear in table output, grep for `\[.*\]` producers (legacy paths) and prefer replacing them with TABLE:bullet.
+
 Fixes applied in this branch / workspace
 
 - Normalized table placeholders to `• ALT •` (content script + popup table flow).

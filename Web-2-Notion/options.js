@@ -17291,20 +17291,17 @@ function Wv(e) {
           );
           images.forEach((img) => {
             let src = img.getAttribute("src") || img.src || "";
-            const alt = img.getAttribute("alt") || "Image"; // Use "Image" as default placeholder
+            const alt = img.getAttribute("alt") || "Image";
             const title = img.getAttribute("title") || "";
-            console.debug(
-              `[tableWithHeading] Image alt: "${alt}"`,
-            );
+
+            console.debug(`[tableWithHeading] Image alt: "${alt}"`);
             console.debug(
               `[tableWithHeading] Image src attribute: ${src?.substring(0, 50)}...`,
             );
 
-            // Store the parent anchor if the image is wrapped in one
             const parentAnchor =
               img.parentElement?.tagName === "A" ? img.parentElement : null;
-            
-            // Detect inline image (text siblings) — ensure placeholder for inline cases
+
             const hasTextSibling = (() => {
               try {
                 const prev = img.previousSibling;
@@ -17325,11 +17322,8 @@ function Wv(e) {
               return false;
             })();
 
-            // Store the original anchor href if image is a link
             const imageLink = parentAnchor ? (parentAnchor.getAttribute("href") || parentAnchor.href) : null;
 
-            // If image is wrapped in anchor, prefer the anchor href (often points to full-res image)
-            // This avoids base64-converted proxied/resized image URLs
             if (imageLink) {
               console.debug(
                 `[tableWithHeading] Image wrapped in anchor, using href: ${imageLink?.substring(0, 50)}...`,
@@ -17337,24 +17331,42 @@ function Wv(e) {
               src = imageLink;
             }
 
-            // Only extract images with http/https URLs (Notion doesn't support base64/data URLs)
             const isValidUrl =
               src && (src.startsWith("http://") || src.startsWith("https://"));
             console.debug(`[tableWithHeading] isValidUrl: ${isValidUrl}, src: ${src?.substring(0, 70)}...`);
 
-            // Force placeholder insertion when image appears inline with text
+            const titlePart = title ? ` "${title}"` : "";
+            const pageUrl = window.location.href;
+            let linkedAlt = alt || "";
+
             if (isValidUrl || hasTextSibling) {
-              const titlePart = title ? ` "${title}"` : "";
-              // Add hyperlink to source page in alt text label (same as inline images)
-              const pageUrl = window.location.href;
-              // If image is a link, include that in the alt text too
-              let linkedAlt = alt || "";
               if (alt && imageLink && imageLink !== src) {
-                // Image has both an alt and is a link to different content
                 linkedAlt = `[${alt}](${pageUrl}) → [Link](${imageLink})`;
+              } else if (alt) {
+                linkedAlt = `[${alt}](${pageUrl})`;
+              }
+
+              // record extracted image for rendering after the table
+              extractedImages.push(`![${linkedAlt}](${src}${titlePart})`);
+
+              // Replace with textual placeholder (preserve anchors when present)
+              if (alt || hasTextSibling) {
+                if (parentAnchor) {
+                  const preservedImg = img.cloneNode(true);
+                  preservedImg.setAttribute("data-stn-preserve", "1");
+                  const preservedSrc =
+                    preservedImg.getAttribute("src") || preservedImg.src || "";
+                  if (preservedSrc) preservedImg.setAttribute("src", preservedSrc);
+                  preservedImg.removeAttribute("alt");
+                  preservedImg.style.cssText =
+                    "width:0;height:0;border:0;opacity:0;position:relative;left:0;";
+
+                  const wrapper = document.createElement("span");
+                  wrapper.className = "stn-inline-image";
+                  wrapper.appendChild(preservedImg);
+                  wrapper.appendChild(document.createTextNode(" • " + alt + " • "));
+                  img.replaceWith(wrapper);
                 } else {
-                  // Just replace the image with the textual placeholder
-                  // If image has a link, make placeholder clickable; otherwise plain text
                   let replacement;
                   const placeholderAlt = (alt && alt.trim()) || "Image";
                   if (imageLink) {
@@ -17371,75 +17383,17 @@ function Wv(e) {
                 else img.remove();
               }
             } else {
-              // Invalid URL - don't extract but still add placeholder to prevent text from running together
               console.debug(`[tableWithHeading] Invalid URL, adding placeholder for alt: "${alt}"`);
               if (parentAnchor) {
                 const replacement = document.createTextNode(` • ${alt} • `);
                 parentAnchor.replaceWith(replacement);
               } else {
-                const replacement = document.createTextNode(` • ${alt} • `);
-                img.replaceWith(replacement);
-              }
-            }
-                  // Keep a discoverable src so later collectors pick it up
-                  const preservedSrc =
-                    preservedImg.getAttribute("src") ||
-                    preservedImg.src ||
-                    "";
-                  if (preservedSrc)
-                    preservedImg.setAttribute("src", preservedSrc);
-                  // Remove alt to prevent textContent from picking it up
-                  preservedImg.removeAttribute("alt");
-                  // Hide the preserved image in the text-to-markdown flow
-                  preservedImg.style.cssText =
-                    "width:0;height:0;border:0;opacity:0;position:relative;left:0;";
-
-                  const wrapper = document.createElement("span");
-                  wrapper.className = "stn-inline-image";
-                  wrapper.appendChild(preservedImg);
-                  
-                  // Parent anchor will provide the link, just add text
-                  wrapper.appendChild(
-                    document.createTextNode(" • " + alt + " • "),
-                  );
-
-                  // Replace only the image node so the anchor element
-                  // remains in the DOM with the wrapper as its child.
-                  img.replaceWith(wrapper);
-                } else {
-                  // Just replace the image with the textual placeholder
-                  // If image has a link, make [alt] clickable; otherwise plain text
-                  let replacement;
-                  if (imageLink) {
-                    replacement = document.createElement("a");
-                    replacement.href = imageLink;
-                    replacement.textContent = ` • ${alt} • `;
-                  } else {
-                    replacement = document.createTextNode(` • ${alt} • `);
-                  }
-                  img.replaceWith(replacement);
-                }
-              } else {
-                if (parentAnchor) {
-                  parentAnchor.remove();
-                } else {
-                  img.remove();
-                }
-              }
-            } else {
-              // Invalid URL - don't extract but still add placeholder to prevent text from running together
-              console.debug(`[tableWithHeading] Invalid URL, adding placeholder for alt: "${alt}"`);
-              if (parentAnchor) {
-                // Replace entire anchor with text placeholder
-                const replacement = document.createTextNode(` • ${alt} • `);
-                parentAnchor.replaceWith(replacement);
-              } else {
-                // Replace image with text placeholder
                 const replacement = document.createTextNode(` • ${alt} • `);
                 img.replaceWith(replacement);
               }
             }
           });
+          
 
           // Handle nested lists - convert to inline comma-separated
           const lists = cellClone.querySelectorAll("ul, ol");
