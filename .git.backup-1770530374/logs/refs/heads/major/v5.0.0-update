@@ -1,0 +1,4 @@
+0000000000000000000000000000000000000000 0abbdde85249c8aea139079d6eb9f275ea8f5481 Christie Norton-McIntosh <norton.mcintosh@gmail.com> 1769383805 -0600	branch: Created from HEAD
+0abbdde85249c8aea139079d6eb9f275ea8f5481 def6ebf60122a251f844d3eaa802268db550a180 Christie Norton-McIntosh <norton.mcintosh@gmail.com> 1769383819 -0600	commit: chore: bump version to 5.0.0 for major update
+def6ebf60122a251f844d3eaa802268db550a180 6d713a4f5328f32da34ecc3f9b1b3193021bb78a Christie Norton-McIntosh <norton.mcintosh@gmail.com> 1769383928 -0600	commit: Add ESLint configuration and dev dependency for code linting
+6d713a4f5328f32da34ecc3f9b1b3193021bb78a 8b7ebba1d8b9aa911f12282ac0bf8ed8055817c5 Christie Norton-McIntosh <norton.mcintosh@gmail.com> 1769386773 -0600	commit: Enhance custom site selector handling: support both string and object formats, add format metadata for specific domains, and improve content extraction logic.

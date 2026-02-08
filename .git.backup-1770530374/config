@@ -1,0 +1,38 @@
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+	ignorecase = true
+	precomposeunicode = true
+[remote "origin"]
+	url = https://github.com/Christie-Norton-McIntosh/save-to-notion-reversed.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+[branch "main"]
+	remote = origin
+	merge = refs/heads/main
+	vscode-merge-base = origin/main
+[branch "feature/site-selectors-button"]
+	github-pr-base-branch = "Christie-Norton-McIntosh#save-to-notion-reversed#main"
+	vscode-merge-base = origin/main
+	remote = origin
+	merge = refs/heads/feature/site-selectors-button
+[branch "feat/e2e-base64-image-upload"]
+	github-pr-base-branch = "Christie-Norton-McIntosh#save-to-notion-reversed#main"
+	vscode-merge-base = origin/main
+	remote = origin
+	merge = refs/heads/feat/e2e-base64-image-upload
+[branch "copilot/vscode1770262702973"]
+	vscode-merge-base = origin/feat/e2e-base64-image-upload
+	remote = origin
+	merge = refs/heads/copilot/vscode1770262702973
+	github-pr-owner-number = "Christie-Norton-McIntosh#save-to-notion-reversed#8"
+[branch "hotfix/marker-recovery"]
+	vscode-merge-base = origin/feat/e2e-base64-image-upload
+	remote = origin
+	merge = refs/heads/hotfix/marker-recovery
+[branch "copilot/vscode1770325179907"]
+	github-pr-base-branch = "Christie-Norton-McIntosh#save-to-notion-reversed#hotfix/marker-recovery"
+	vscode-merge-base = origin/hotfix/marker-recovery
+	remote = origin
+	merge = refs/heads/copilot/vscode1770325179907

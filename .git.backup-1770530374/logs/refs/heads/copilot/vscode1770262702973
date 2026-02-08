@@ -1,0 +1,6 @@
+0000000000000000000000000000000000000000 a5be9332565ee72a79c9768316f8a038fae341f8 Christie Norton-McIntosh <norton.mcintosh@gmail.com> 1770262703 -0600	branch: Created from HEAD
+a5be9332565ee72a79c9768316f8a038fae341f8 d67b8f0c31bf38099e53797775ca98977e4a99b0 Christie Norton-McIntosh <norton.mcintosh@gmail.com> 1770262703 -0600	commit: Checkpoint from VS Code for coding agent session
+d67b8f0c31bf38099e53797775ca98977e4a99b0 5bd1e61d2e3dedbcd0d9256651428a3c6705ddd1 Christie Norton-McIntosh <norton.mcintosh@gmail.com> 1770263073 -0600	pull --tags origin copilot/vscode1770262702973: Fast-forward
+5bd1e61d2e3dedbcd0d9256651428a3c6705ddd1 97028f49d458f223409688f5fed89eb746aa9aba Christie Norton-McIntosh <norton.mcintosh@gmail.com> 1770263101 -0600	pull --tags origin copilot/vscode1770262702973: Fast-forward
+97028f49d458f223409688f5fed89eb746aa9aba 927b2711c618a9df0e3ad7cb2a8bd7c369c603ab Christie Norton-McIntosh <norton.mcintosh@gmail.com> 1770263721 -0600	commit: chore: update changelog and improve test for table cell line break preservation
+927b2711c618a9df0e3ad7cb2a8bd7c369c603ab 770ce6b7b29e8ad992395be75b66b131d0a94078 Christie Norton-McIntosh <norton.mcintosh@gmail.com> 1770263784 -0600	pull --tags -r origin copilot/vscode1770262702973 (finish): refs/heads/copilot/vscode1770262702973 onto c0a09d7a48e2283358be5d7131c0c635c563c85c

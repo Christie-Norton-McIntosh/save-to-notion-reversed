@@ -1,0 +1,4 @@
+0000000000000000000000000000000000000000 795088c5e3289032a171e526f7a3691c1b0baa9d Christie Norton-McIntosh <norton.mcintosh@gmail.com> 1769398163 -0600	WIP on main: e0aaba7 remove node_modules
+795088c5e3289032a171e526f7a3691c1b0baa9d 9963e1594ca6e9fba2465bbc65935254826b9086 Christie Norton-McIntosh <norton.mcintosh@gmail.com> 1769744418 -0600	On main: dedup debugging changes to scanWebpage.js
+9963e1594ca6e9fba2465bbc65935254826b9086 dc97b5ea421bae0f91987ce0418e3594427d7f32 Christie Norton-McIntosh <norton.mcintosh@gmail.com> 1770264029 -0600	On main: wip: add jsdom CI workflow + harness fix
+dc97b5ea421bae0f91987ce0418e3594427d7f32 d9721cf393f17a99dee540f36abf9135e024a962 Christie Norton-McIntosh <norton.mcintosh@gmail.com> 1770512450 -0600	On main: mcp
