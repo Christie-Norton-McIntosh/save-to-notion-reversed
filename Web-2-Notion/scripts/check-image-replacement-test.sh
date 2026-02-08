@@ -3,7 +3,7 @@
 set -euo pipefail
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 sw_file="$repo_root/serviceWorker.js"
-console_file="$repo_root/test-in-console.js"
+console_file="$repo_root/../tests/test-in-console.js"
 popup_file="$repo_root/popup/static/js/main.js"
 
 echo "Checking service worker for runDataUrlReplacementUnitTest..."
@@ -18,7 +18,7 @@ echo "Checking console test for runReplaceUnitTest/testImageReplacementAuto..."
 if grep -q "runReplaceUnitTest" "$console_file" && grep -q "testImageReplacementAuto" "$console_file"; then
   echo "  OK: console helpers present"
 else
-  echo "  MISSING: console helpers not present in test-in-console.js" >&2
+  echo "  MISSING: console helpers not present in tests/test-in-console.js" >&2
   exit 2
 fi
 

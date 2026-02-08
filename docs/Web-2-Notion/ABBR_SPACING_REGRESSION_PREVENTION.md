@@ -27,7 +27,7 @@ Both critical functions now have regression test markers in the code:
 **scanWebpage.js ~line 12022:**
 
 ```javascript
-// ⚠️ REGRESSION TEST: test/test-scanwebpage-abbr-spacing.js (v5.0.4)
+// ⚠️ REGRESSION TEST: tests/test-scanwebpage-abbr-spacing.js (v5.0.4)
 // This function must preserve spaces around special characters in inline elements
 var stripMultispaces = (str) => { ... }
 ```
@@ -35,7 +35,7 @@ var stripMultispaces = (str) => { ... }
 **scanWebpage.js ~line 14850:**
 
 ```javascript
-// ⚠️ REGRESSION TEST: test/test-applyCustomFormatting-abbr-spacing.js (v5.0.5)
+// ⚠️ REGRESSION TEST: tests/test-applyCustomFormatting-abbr-spacing.js (v5.0.5)
 // CRITICAL: Must preserve spaces in inline elements with special characters!
 ```
 
@@ -78,8 +78,8 @@ npm test
 
 ### Test Files Created
 
-- `test/test-scanwebpage-abbr-spacing.js` - Unit tests for stripMultispaces
-- `test/test-applyCustomFormatting-abbr-spacing.js` - Unit tests for applyCustomFormatting
+- `tests/test-scanwebpage-abbr-spacing.js` - Unit tests for stripMultispaces
+- `tests/test-applyCustomFormatting-abbr-spacing.js` - Unit tests for applyCustomFormatting
 
 ### Documentation Files
 

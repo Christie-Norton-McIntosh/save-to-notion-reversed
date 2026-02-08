@@ -58,8 +58,8 @@ npm test  # Includes abbr spacing tests
 
 ## Test File Locations
 
-- `test/test-scanwebpage-abbr-spacing.js` - 4 test cases
-- `test/test-applyCustomFormatting-abbr-spacing.js` - 13 test cases
+`tests/test-scanwebpage-abbr-spacing.js` - 4 test cases
+`tests/test-applyCustomFormatting-abbr-spacing.js` - 13 test cases
 
 ## Expected Results
 

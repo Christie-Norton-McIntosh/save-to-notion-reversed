@@ -15,7 +15,7 @@
   - Images replaced with text placeholders `[alt]` in cell content (Notion doesn't support inline Markdown images in cells)
   - Surrounding text now preserved: `Open [→] portal` instead of just `[→]`
   - Images still extracted separately as `![alt](url)` for display in dedicated images section
-  - Added comprehensive test suite (`test/test-inline-images.js`) with 6 test cases
+  - Added comprehensive test suite (`tests/test-inline-images.js`) with 6 test cases
   - See `docs/Web-2-Notion/INLINE_IMAGE_PRESERVATION.md` for detailed documentation
 
 - **�📋 Table Cell List Formatting**: Lists within table cells now preserve line breaks between items

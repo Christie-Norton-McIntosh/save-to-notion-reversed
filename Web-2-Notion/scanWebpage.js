@@ -12033,7 +12033,7 @@ var stripMultiLinebreaks = (str) => {
     })
     .join("\n");
 };
-// ⚠️ REGRESSION TEST: test/test-scanwebpage-abbr-spacing.js (v5.0.4)
+// ⚠️ REGRESSION TEST: tests/test-scanwebpage-abbr-spacing.js (v5.0.4)
 // This function must preserve spaces around special characters in inline elements
 // Example: <abbr title="and then"> &gt; </abbr> must keep spaces around >
 var stripMultispaces = (str) => {
@@ -14888,7 +14888,7 @@ var applyCustomFormatting = (html) => {
     doc.body.innerHTML.substring(0, 500),
   );
 
-  // ⚠️ REGRESSION TEST: test/test-applyCustomFormatting-abbr-spacing.js (v5.0.5)
+  // ⚠️ REGRESSION TEST: tests/test-applyCustomFormatting-abbr-spacing.js (v5.0.5)
   // Step 3: Clean up excessive indentation that might cause code block interpretation
   // Remove leading/trailing whitespace from block elements
   // CRITICAL: Must preserve spaces in inline elements with special characters!

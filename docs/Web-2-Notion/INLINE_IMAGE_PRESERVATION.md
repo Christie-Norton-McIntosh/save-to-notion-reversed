@@ -113,7 +113,7 @@ if (alt) {
 
 ## Test Coverage
 
-Added comprehensive test suite in `test/test-inline-images.js` covering:
+Added comprehensive test suite in `tests/test-inline-images.js` covering:
 
 1. ✅ Simple inline icons → `[icon]`
 2. ✅ Icons in parentheses with text → `(View details [arrow])`
@@ -233,7 +233,7 @@ This approach ensures compatibility with Notion while maintaining readability an
 ## Related Files
 
 - `Web-2-Notion/popup/static/js/main.js` - Main implementation
-- `Web-2-Notion/test/test-inline-images.js` - Test suite
+  `tests/test-inline-images.js` - Test suite
 - `Web-2-Notion/package.json` - Test scripts
 
 ## Future Considerations

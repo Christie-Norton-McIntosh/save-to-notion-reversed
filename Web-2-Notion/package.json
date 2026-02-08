@@ -3,21 +3,16 @@
     "turndown": "^7.2.2",
     "jsdom": "^24.0.0"
   },
-  "devDependencies": {
-    "playwright": "^1.36.0"
-  },
+  "devDependencies": {},
   "scripts": {
-    "test-e2e-popup": "node test/e2e/popup-conversion.e2e.js",
-    "test-e2e-save-and-next": "node test/e2e/save-and-next.e2e.js",
-    "e2e:setup": "npx playwright install chromium",
-    "test-line-breaks": "node test/test-table-line-breaks.js",
-    "test-table-edge-cases": "node test/test-table-edge-cases.js",
-    "test-table-edge-more": "node test/test-table-edge-more.js",
-    "test-inline-images": "node test/test-inline-images.js",
-    "test-gt-spacing": "node test/test-gt-spacing.js",
-    "test-notion-utils": "node test/test-notion-api-utils.js",
-    "test-abbr-spacing-stripMultispaces": "node test/test-scanwebpage-abbr-spacing.js",
-    "test-abbr-spacing-applyCustomFormatting": "node test/test-applyCustomFormatting-abbr-spacing.js",
+    "test-line-breaks": "node ../tests/test-table-line-breaks.js",
+    "test-table-edge-cases": "node ../tests/test-table-edge-cases.js",
+    "test-table-edge-more": "node ../tests/test-table-edge-more.js",
+    "test-inline-images": "node ../tests/test-inline-images.js",
+    "test-gt-spacing": "node ../tests/test-gt-spacing.js",
+    "test-notion-utils": "node ../tests/test-notion-api-utils.js",
+    "test-abbr-spacing-stripMultispaces": "node ../tests/test-scanwebpage-abbr-spacing.js",
+    "test-abbr-spacing-applyCustomFormatting": "node ../tests/test-applyCustomFormatting-abbr-spacing.js",
     "test-abbr-spacing": "npm run test-abbr-spacing-stripMultispaces && npm run test-abbr-spacing-applyCustomFormatting",
     "test": "npm run test-line-breaks && npm run test-table-edge-cases && npm run test-table-edge-more && npm run test-inline-images && npm run test-gt-spacing && npm run test-notion-utils && npm run test-abbr-spacing"
   }

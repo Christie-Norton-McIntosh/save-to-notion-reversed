@@ -119,7 +119,7 @@ return null;
 
 ### Test Case 1: No Custom Selectors
 
-1. Open `test/custom-selector-test.html` in Chrome
+1. Open `tests/custom-selector-test.html` in Chrome
 2. Load the extension
 3. Click "Pick Content" (without saving selectors first)
 4. Select the article
@@ -180,7 +180,7 @@ return null;
 ## Related Files
 
 - `Web-2-Notion/clipContent.js` - Main content script with extraction logic
-- `Web-2-Notion/test/custom-selector-test.html` - Test page for verification
+- `tests/custom-selector-test.html` - Test page for verification
 
 ## Impact
 

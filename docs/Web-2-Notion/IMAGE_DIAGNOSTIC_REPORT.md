@@ -223,7 +223,7 @@ node test-image-processing.js
 
 ### Full Pipeline Test (5 minutes):
 
-1. Load `test-images.html` in Chrome with extension
+1. Load `tests/test-images.html` in Chrome with extension
 2. Open DevTools Console
 3. Run: `runAllTests()`
 4. Compare actual markdown output vs. expected

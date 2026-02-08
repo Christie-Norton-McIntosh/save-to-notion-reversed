@@ -199,7 +199,7 @@ Manual testing required:
 
 ### itemgroup.info Tests
 
-Created: `test/test-itemgroup-info-blockquote.js`
+Created: `tests/test-itemgroup-info-blockquote.js`
 
 **Test Results:**
 
@@ -211,12 +211,12 @@ Created: `test/test-itemgroup-info-blockquote.js`
 Run with:
 
 ```bash
-node test/test-itemgroup-info-blockquote.js
+node tests/test-itemgroup-info-blockquote.js
 ```
 
 ### Custom Format Rule Order Tests
 
-Created: `test/test-note-formatting-order.js`
+Created: `tests/test-note-formatting-order.js`
 
 **Test Results:**
 
@@ -229,7 +229,7 @@ Created: `test/test-note-formatting-order.js`
 Run with:
 
 ```bash
-node test/test-note-formatting-order.js
+node tests/test-note-formatting-order.js
 ```
 
 Output shows:
@@ -273,9 +273,9 @@ Output shows:
 - `Web-2-Notion/popup/static/js/main.js` - Image preservation logic
 - `Web-2-Notion/scanWebpage.js` - HTML formatting, element conversion, and custom format rules
 - `Web-2-Notion/manifest.json` - Version number
-- `test/test-itemgroup-info-blockquote.js` - itemgroup.info regression tests
-- `test/test-note-formatting-order.js` - Custom format rule order tests
-- `test/DIAGNOSTIC_ITEMGROUP_UNWRAP.js` - Diagnostic tool
+- `tests/test-itemgroup-info-blockquote.js` - itemgroup.info regression tests
+- `tests/test-note-formatting-order.js` - Custom format rule order tests
+- `tests/DIAGNOSTIC_ITEMGROUP_UNWRAP.js` - Diagnostic tool
 
 ## Next Steps
 

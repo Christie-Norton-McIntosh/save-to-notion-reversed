@@ -121,7 +121,7 @@ When saving a page with data: URL images:
 Use the included test file:
 
 ```bash
-open Web-2-Notion/DATA_URL_PLACEHOLDER_TEST.html
+open tests/DATA_URL_PLACEHOLDER_TEST.html
 ```
 
 1. Load test page in Chrome

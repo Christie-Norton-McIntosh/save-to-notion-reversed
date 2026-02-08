@@ -174,7 +174,7 @@ For a complete end-to-end test:
 - **`simple-test.html`** - Friendly UI with instructions
 - **`test-in-console.js`** - The actual test script (copy to console)
 - **`diagnostic-tool.html`** - Quick diagnostic checks
-- **`test-image-replacement.html`** - Original (doesn't work due to API limitations)
+- **`tests/test-image-replacement.html`** - Original (doesn't work due to API limitations)
 
 ## 🆘 Still Not Working?
 

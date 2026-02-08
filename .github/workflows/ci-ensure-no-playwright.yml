@@ -1,0 +1,50 @@
+name: CI — ensure Playwright jobs removed
+
+# Guard workflow: fail PRs that still introduce Playwright or Playwright-based CI jobs.
+# Purpose: prevent CI flakes and accidental re-introduction of archived E2E harness.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+  push:
+    branches: [main]
+
+jobs:
+  detect-playwright:
+    runs-on: ubuntu-latest
+    name: "Detect Playwright references"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Search repository for Playwright references
+        run: |
+          set -euo pipefail
+          echo "Looking for 'playwright' in repository (workflows, package.json, lockfiles, scripts)..."
+          # Check workflow files first (these would be the CI jobs we want removed)
+          if grep -R --line-number --exclude-dir=node_modules --exclude='*.lock' -E "playwright" . ; then
+            echo "\nERROR: repository contains references to 'playwright'.\n"
+            echo "If Playwright was intentionally removed, delete or disable CI jobs that reference it and remove the dependency from package.json/package-lock.json." >&2
+            exit 1
+          fi
+          echo "No Playwright references found."
+
+  validate-web-2-notion:
+    runs-on: ubuntu-latest
+    needs: detect-playwright
+    name: Verify Web-2-Notion builds/tests (fast sanity)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install Web-2-Notion deps (no-audit)
+        working-directory: Web-2-Notion
+        run: npm ci --no-audit --no-fund
+
+      - name: Run unit tests (fast)
+        working-directory: Web-2-Notion
+        run: npm test --silent
