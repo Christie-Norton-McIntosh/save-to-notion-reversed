@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auto-Pagination Settings</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #f5f5f5;
+        padding: 20px;
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 24px;
+      }
+
+      h1 {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #333;
+      }
+
+      .subtitle {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 24px;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        margin-bottom: 8px;
+        color: #333;
+      }
+
+      .help-text {
+        font-size: 12px;
+        color: #666;
+        margin-top: 4px;
+        line-height: 1.4;
+      }
+
+      input[type="text"],
+      input[type="number"] {
+        width: 100%;
+        padding: 10px 12px;
+        font-size: 14px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-family: "Monaco", "Courier New", monospace;
+      }
+
+      input[type="text"]:focus,
+      input[type="number"]:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+
+      .button-group {
+        display: flex;
+        gap: 12px;
+        margin-top: 24px;
+      }
+
+      button {
+        flex: 1;
+        padding: 12px 24px;
+        font-size: 14px;
+        font-weight: 500;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      }
+
+      .btn-secondary {
+        background: #6c757d;
+        color: white;
+      }
+
+      .btn-secondary:hover {
+        background: #5a6268;
+      }
+
+      .btn-back {
+        background: #6c757d;
+        color: white;
+      }
+
+      .btn-back:hover {
+        background: #5a6268;
+      }
+
+      .btn-danger {
+        background: #f44336;
+        color: white;
+      }
+
+      .btn-danger:hover {
+        background: #d32f2f;
+      }
+
+      .status {
+        margin-top: 24px;
+        padding: 12px;
+        border-radius: 4px;
+        font-size: 14px;
+        display: none;
+      }
+
+      .status.active {
+        background: #e8f5e9;
+        color: #2e7d32;
+        border: 1px solid #a5d6a7;
+        display: block;
+      }
+
+      .status.inactive {
+        background: #fce4ec;
+        color: #c2185b;
+        border: 1px solid #f8bbd0;
+        display: block;
+      }
+
+      .status.info {
+        background: #e3f2fd;
+        color: #1976d2;
+        border: 1px solid #90caf9;
+        display: block;
+      }
+
+      .code-example {
+        background: #f5f5f5;
+        padding: 12px;
+        border-radius: 4px;
+        font-family: "Monaco", "Courier New", monospace;
+        font-size: 12px;
+        margin-top: 8px;
+        color: #666;
+      }
+
+      .divider {
+        height: 1px;
+        background: #e0e0e0;
+        margin: 24px 0;
+      }
+
+      .control-panel {
+        background: #f9f9f9;
+        padding: 16px;
+        border-radius: 4px;
+        margin-bottom: 24px;
+      }
+
+      .control-panel h2 {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 12px;
+        color: #333;
+      }
+
+      .page-counter {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 12px;
+      }
+
+      .page-counter strong {
+        color: #333;
+        font-size: 18px;
+      }
+
+      .header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .header-content {
+        flex: 1;
+      }
+
+      .btn-back-top {
+        background: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 10px 16px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        flex-shrink: 0;
+      }
+
+      .btn-back-top:hover {
+        background: #5a6268;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header-row">
+        <div class="header-content">
+          <h1>⚡ Auto-Pagination</h1>
+          <p class="subtitle">
+            Automatically save pages and navigate to the next page
+          </p>
+        </div>
+        <button id="backBtnTop" class="btn-back-top">
+          ← Back to Main Interface
+        </button>
+      </div>
+
+      <div
+        class="info-box"
+        style="
+          background: #e8f5e9;
+          border-left: 4px solid #4caf50;
+          padding: 16px;
+          margin-bottom: 20px;
+          border-radius: 4px;
+        "
+      >
+        <strong style="color: #2e7d32; display: block; margin-bottom: 8px"
+          >✨ How to Use:</strong
+        >
+        <ol
+          style="
+            margin-left: 20px;
+            line-height: 1.6;
+            color: #333;
+            font-size: 13px;
+          "
+        >
+          <li>Configure the "Next Button CSS Selector" below</li>
+          <li>Click "Save Configuration"</li>
+          <li>Go back to your webpage</li>
+          <li>Send a message with the "startAutoPagination" action</li>
+          <li>A floating "Save & Next" button will appear on the page</li>
+          <li>Click the extension icon to save the page</li>
+          <li>After saving, click the "Save & Next" button</li>
+          <li>The button will automatically click the Next button</li>
+          <li>Repeat on each new page until done!</li>
+        </ol>
+        <div
+          style="
+            margin-top: 12px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 4px;
+            font-size: 12px;
+            color: #555;
+          "
+        >
+          <strong>💡 Tip:</strong> The button will persist across pages, so you
+          just keep clicking it after each save!
+        </div>
+      </div>
+
+      <div class="control-panel">
+        <h2>Current Status</h2>
+        <div class="page-counter">
+          Pages saved: <strong id="pageCount">0</strong>
+        </div>
+        <div id="status" class="status"></div>
+        <div class="button-group">
+          <button id="resetBtn" class="btn-secondary">🔄 Reset Counter</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <form id="configForm">
+        <div class="form-group">
+          <label for="selector">Next Button CSS Selector *</label>
+          <input
+            type="text"
+            id="selector"
+            name="selector"
+            placeholder="ft-tooltip > button"
+            required
+          />
+          <div class="help-text">
+            CSS selector for the "next page" button. Examples:
+            <div class="code-example">
+              ft-tooltip > button<br />
+              .next-page-btn<br />
+              button[aria-label="Next"]<br />
+              #pagination .next
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="delay">Delay Before Next Page (ms)</label>
+          <input
+            type="number"
+            id="delay"
+            name="delay"
+            value="2000"
+            min="500"
+            max="10000"
+            step="100"
+          />
+          <div class="help-text">
+            Time to wait after saving before clicking the next button (default:
+            2000ms)
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="maxPages">Maximum Pages (optional)</label>
+          <input
+            type="number"
+            id="maxPages"
+            name="maxPages"
+            value=""
+            min="1"
+            placeholder="Unlimited"
+          />
+          <div class="help-text">
+            Stop after saving this many pages (leave empty for unlimited)
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary">💾 Save Configuration</button>
+      </form>
+    </div>
+
+    <script src="autoPaginationUI.js"></script>
+  </body>
+</html>

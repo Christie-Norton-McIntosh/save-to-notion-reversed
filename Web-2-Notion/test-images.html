@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Image Processing Test Suite</title>
+    <style>
+      body {
+        font-family: monospace;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .test-section {
+        background: white;
+        padding: 15px;
+        margin: 15px 0;
+        border-radius: 5px;
+        border-left: 4px solid #007bff;
+      }
+      .test-pass {
+        border-left-color: #28a745;
+      }
+      .test-fail {
+        border-left-color: #dc3545;
+      }
+      h2 {
+        margin-top: 0;
+        color: #333;
+      }
+      .result {
+        margin: 10px 0;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 3px;
+      }
+      .markdown {
+        background: #e9ecef;
+        padding: 10px;
+        margin: 5px 0;
+        white-space: pre-wrap;
+        font-family: "Courier New", monospace;
+      }
+      .expected {
+        color: #28a745;
+      }
+      .actual {
+        color: #dc3545;
+      }
+      .status {
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Web-2-Notion Image Processing Test Suite</h1>
+    <div id="test-results"></div>
+
+    <!-- Test HTML Templates -->
+    <div id="test-templates" style="display: none">
+      <!-- Test 1: Inline image with data URL -->
+      <div id="test1-html">
+        <p>
+          Select the home icon
+          <img
+            src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUg"
+            alt="home icon"
+            class="image icon"
+          />
+          from the navigation.
+        </p>
+      </div>
+
+      <!-- Test 2: Inline image in anchor with http URL -->
+      <div id="test2-html">
+        <p>
+          Click the settings
+          <a href="https://example.com/icon.png"
+            ><img src="data:image/gif;base64,R0lGOD" alt="settings icon"
+          /></a>
+          to configure.
+        </p>
+      </div>
+
+      <!-- Test 3: Table with images -->
+      <div id="test3-html">
+        <table>
+          <tr>
+            <td>
+              <a href="https://example.com/image1.png"
+                ><img src="data:image/png;base64,abc" alt="Image 1"
+              /></a>
+            </td>
+            <td>Description 1</td>
+          </tr>
+          <tr>
+            <td>
+              <a href="https://example.com/image2.png"
+                ><img src="data:image/png;base64,def" alt="Image 2"
+              /></a>
+            </td>
+            <td>Description 2</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Test 4: Inline image with relative URL -->
+      <div id="test4-html">
+        <p>See the <img src="/images/icon.png" alt="icon" /> for details.</p>
+      </div>
+
+      <!-- Test 5: Table with mixed URLs -->
+      <div id="test5-html">
+        <table>
+          <tr>
+            <td>
+              <img src="https://example.com/direct.png" alt="Direct HTTP" />
+            </td>
+            <td><img src="/relative/path.png" alt="Relative" /></td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      // Load main.js functions we need
+      // Since main.js is bundled, we need to extract the relevant functions
+
+      const testResults = [];
+
+      function runTest(testNum, testName, htmlSource, expectedMarks, checkFn) {
+        const section = document.createElement("div");
+        section.className = "test-section";
+
+        const title = document.createElement("h2");
+        title.textContent = `Test ${testNum}: ${testName}`;
+        section.appendChild(title);
+
+        try {
+          const sourceDiv = document.createElement("div");
+          sourceDiv.className = "result";
+          sourceDiv.innerHTML =
+            '<strong>Source HTML:</strong><div class="markdown">' +
+            htmlSource.replace(/</g, "&lt;").replace(/>/g, "&gt;") +
+            "</div>";
+          section.appendChild(sourceDiv);
+
+          // Call the conversion
+          const markdown = convertToMarkdown(htmlSource);
+
+          const actualDiv = document.createElement("div");
+          actualDiv.className = "result actual";
+          actualDiv.innerHTML =
+            '<strong>Actual Markdown:</strong><div class="markdown">' +
+            markdown.replace(/</g, "&lt;").replace(/>/g, "&gt;") +
+            "</div>";
+          section.appendChild(actualDiv);
+
+          const expectedDiv = document.createElement("div");
+          expectedDiv.className = "result expected";
+          expectedDiv.innerHTML =
+            '<strong>Expected to contain:</strong><div class="markdown">' +
+            expectedMarks
+              .map((m) => m.replace(/</g, "&lt;").replace(/>/g, "&gt;"))
+              .join("\n") +
+            "</div>";
+          section.appendChild(expectedDiv);
+
+          // Check if markdown contains expected markers
+          const checks = checkFn
+            ? checkFn(markdown)
+            : expectedMarks.every((mark) => markdown.includes(mark));
+          const passed =
+            checks === true ||
+            (Array.isArray(checks) && checks.every((c) => c));
+
+          const statusDiv = document.createElement("div");
+          statusDiv.className = "result status";
+          statusDiv.textContent = passed ? "✅ PASS" : "❌ FAIL";
+          statusDiv.style.color = passed ? "#28a745" : "#dc3545";
+          section.appendChild(statusDiv);
+
+          section.className += passed ? " test-pass" : " test-fail";
+          testResults.push({ num: testNum, name: testName, passed });
+        } catch (error) {
+          const errorDiv = document.createElement("div");
+          errorDiv.className = "result status";
+          errorDiv.style.color = "#dc3545";
+          errorDiv.textContent = "❌ ERROR: " + error.message;
+          section.appendChild(errorDiv);
+
+          section.className += " test-fail";
+          testResults.push({
+            num: testNum,
+            name: testName,
+            passed: false,
+            error: error.message,
+          });
+        }
+
+        document.getElementById("test-results").appendChild(section);
+      }
+
+      function convertToMarkdown(html) {
+        // This needs to call the actual JZ function from main.js
+        // For now, we'll simulate it or we need to export/expose it
+
+        // Try to access the global conversion function if available
+        if (window.JZ) {
+          return window.JZ(html);
+        }
+
+        // Otherwise, we need to mock it or load main.js
+        throw new Error(
+          "Conversion function not available. Please load main.js first.",
+        );
+      }
+
+      // Run all tests
+      function runAllTests() {
+        const templates = document.getElementById("test-templates");
+
+        // Test 1: Inline image with data URL should be converted
+        runTest(
+          1,
+          "Inline image with data URL",
+          templates.querySelector("#test1-html").innerHTML,
+          ["![home icon](data:image/png;base64,"],
+          (md) => md.includes("![home icon](data:image/") && !md.includes("()"),
+        );
+
+        // Test 2: Inline image in anchor should use anchor href
+        runTest(
+          2,
+          "Inline image in anchor with http URL",
+          templates.querySelector("#test2-html").innerHTML,
+          ["![settings icon](https://example.com/icon.png)"],
+          (md) => md.includes("https://example.com/icon.png"),
+        );
+
+        // Test 3: Table with images should convert to list with images
+        runTest(
+          3,
+          "Table with images in anchors",
+          templates.querySelector("#test3-html").innerHTML,
+          [
+            "![Image 1](https://example.com/image1.png)",
+            "Description 1",
+            "---",
+            "![Image 2](https://example.com/image2.png)",
+            "Description 2",
+          ],
+        );
+
+        // Test 4: Relative URL should be converted to absolute
+        runTest(
+          4,
+          "Inline image with relative URL",
+          templates.querySelector("#test4-html").innerHTML,
+          ["![icon](http"], // Should start with http/https
+          (md) => {
+            const match = md.match(/!\[icon\]\((https?:\/\/[^)]+)\)/);
+            return match && match[1].includes("/images/icon.png");
+          },
+        );
+
+        // Test 5: Table with mixed URLs
+        runTest(
+          5,
+          "Table with mixed URL types",
+          templates.querySelector("#test5-html").innerHTML,
+          [
+            "![Direct HTTP](https://example.com/direct.png)",
+            "![Relative](http", // Should be converted to absolute
+          ],
+        );
+
+        // Summary
+        const summary = document.createElement("div");
+        summary.className = "test-section";
+        summary.style.borderLeftColor = "#6c757d";
+        const passed = testResults.filter((t) => t.passed).length;
+        const total = testResults.length;
+        summary.innerHTML = `
+                <h2>Test Summary</h2>
+                <div class="result">
+                    <strong>Results:</strong> ${passed}/${total} tests passed
+                </div>
+            `;
+        document.getElementById("test-results").appendChild(summary);
+      }
+
+      // Note: Tests will fail until main.js is properly loaded and JZ function is exposed
+      window.addEventListener("load", () => {
+        const note = document.createElement("div");
+        note.className = "test-section";
+        note.style.borderLeftColor = "#ffc107";
+        note.innerHTML = `
+                <h2>⚠️ Setup Required</h2>
+                <div class="result">
+                    <p>This test page needs main.js loaded to function properly.</p>
+                    <p>To run tests:</p>
+                    <ol>
+                        <li>Open this page in Chrome with the extension loaded</li>
+                        <li>Open DevTools Console</li>
+                        <li>Run: <code>runAllTests()</code></li>
+                    </ol>
+                    <p>Or integrate this into the extension's test framework.</p>
+                </div>
+            `;
+        document.getElementById("test-results").appendChild(note);
+      });
+    </script>
+  </body>
+</html>

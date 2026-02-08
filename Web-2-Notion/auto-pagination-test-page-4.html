@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Page 4 - Auto Pagination</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .content {
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+      .navigation {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      button {
+        padding: 12px 24px;
+        font-size: 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+      .prev-btn {
+        background: #6c757d;
+        color: white;
+      }
+      .prev-btn:hover {
+        background: #5a6268;
+      }
+      .next-btn {
+        background: #007bff;
+        color: white;
+      }
+      .next-btn:hover {
+        background: #0056b3;
+      }
+      .page-indicator {
+        font-weight: bold;
+        color: #333;
+      }
+      h1 {
+        color: #2c3e50;
+      }
+      .highlight {
+        background: #cfe2ff;
+        padding: 2px 4px;
+        border-radius: 2px;
+      }
+      .stats {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="content">
+      <h1>Test Page 4 of 5</h1>
+      <p>
+        Almost there! This is the <span class="highlight">fourth page</span> in
+        the sequence.
+      </p>
+
+      <div class="stats">
+        <h3>📊 Automation Statistics</h3>
+        <p><strong>Pages processed:</strong> 4 of 5</p>
+        <p>
+          <strong>Success rate:</strong> Should be 100% if everything is working
+          correctly
+        </p>
+        <p>
+          <strong>Next action:</strong> Save this page, then navigate to page 5
+        </p>
+      </div>
+
+      <h2>Performance Testing</h2>
+      <p>At this stage, we're testing:</p>
+
+      <h3>Memory Management</h3>
+      <p>
+        The extension should efficiently manage memory across multiple page
+        loads without accumulating unnecessary data or listeners.
+      </p>
+
+      <h3>Timing Coordination</h3>
+      <p>
+        Each save operation must complete before the next navigation occurs. The
+        extension uses a configurable delay (default 3 seconds) to ensure proper
+        timing.
+      </p>
+
+      <h3>User Experience</h3>
+      <p>The user should see clear indicators of progress:</p>
+      <ul>
+        <li>Console logs showing each save and navigation</li>
+        <li>Visual feedback in the extension popup (if kept open)</li>
+        <li>Page transitions happening automatically</li>
+      </ul>
+
+      <h2>Edge Cases Covered</h2>
+      <ol>
+        <li>
+          <strong>Button not found:</strong> Automation stops with clear error
+          message
+        </li>
+        <li>
+          <strong>Save failure:</strong> Error is logged, automation can be
+          retried
+        </li>
+        <li><strong>Max pages reached:</strong> Automation stops gracefully</li>
+        <li>
+          <strong>Manual stop:</strong> User can stop anytime via popup UI
+        </li>
+      </ol>
+
+      <p>
+        <em
+          >One more page to go! The automation should continue to the final page
+          after this one is saved.</em
+        >
+      </p>
+    </div>
+
+    <div class="navigation">
+      <button
+        class="prev-btn"
+        onclick="window.location.href = 'auto-pagination-test-page-3.html'"
+      >
+        ← Previous Page
+      </button>
+      <span class="page-indicator">Page 4 of 5</span>
+      <button
+        class="next-btn"
+        onclick="window.location.href = 'auto-pagination-test-page-5.html'"
+      >
+        Next Page →
+      </button>
+    </div>
+  </body>
+</html>

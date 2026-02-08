@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Table Image (Data URL) Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 32px;
+        background: #f5f7fb;
+      }
+      .card {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 10px 40px rgba(18, 38, 63, 0.08);
+        max-width: 800px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      th,
+      td {
+        border: 1px solid #dfe3eb;
+        padding: 12px;
+        vertical-align: top;
+      }
+      img {
+        max-width: 64px;
+        max-height: 64px;
+      }
+      .expected {
+        margin-top: 16px;
+        padding: 12px;
+        background: #f0f4ff;
+        border: 1px dashed #8ba8ff;
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Table with Data URL Image</h1>
+      <p>
+        Clip this page to verify that table cells are flattened into paragraph
+        lines, the data URL image uploads, and each row is separated by a
+        horizontal divider in the final Notion page.
+      </p>
+
+      <table>
+        <tr>
+          <th>Icon</th>
+          <th>Details</th>
+        </tr>
+        <tr>
+          <td>
+            <img
+              src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/xcAAn8B9sV5SwAAAABJRU5ErkJggg=="
+              alt="Data icon"
+            />
+          </td>
+          <td>
+            This is a data: URL image. The output should include the image and
+            this descriptive text on separate lines within the paragraph block.
+          </td>
+        </tr>
+      </table>
+
+      <div class="expected">
+        <strong>Expected Notion output:</strong>
+        <ul>
+          <li>Paragraph lines for each table cell, image first then text.</li>
+          <li>
+            Row break represented as a horizontal rule (---) after this row.
+          </li>
+          <li>Image uploaded/visible (placeholder replaced post-save).</li>
+        </ul>
+      </div>
+    </div>
+  </body>
+</html>
