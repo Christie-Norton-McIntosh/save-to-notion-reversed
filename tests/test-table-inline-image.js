@@ -30,16 +30,19 @@ function sanitizeCell(cell) {
         ? img.parentElement
         : null;
     const alt = img.getAttribute("alt") || "Image";
-    // force placeholder for inline images
+    // force placeholder for inline images - check if the image (or its anchor parent)
+    // has text siblings
     const prev = img.previousSibling;
     const next = img.nextSibling;
     const hasTextSibling =
       (prev && prev.nodeType === Node.TEXT_NODE && prev.textContent.trim()) ||
       (next && next.nodeType === Node.TEXT_NODE && next.textContent.trim()) ||
       (parentAnchor &&
-        Array.from(parentAnchor.childNodes).some(
-          (n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim(),
-        ));
+        ((parentAnchor.previousSibling && parentAnchor.previousSibling.nodeType === Node.TEXT_NODE && parentAnchor.previousSibling.textContent.trim()) ||
+         (parentAnchor.nextSibling && parentAnchor.nextSibling.nodeType === Node.TEXT_NODE && parentAnchor.nextSibling.textContent.trim()) ||
+         Array.from(parentAnchor.childNodes).some(
+           (n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim(),
+         )));
     if (hasTextSibling) {
       const preserved = img.cloneNode(true);
       preserved.setAttribute("data-stn-preserve", "1");

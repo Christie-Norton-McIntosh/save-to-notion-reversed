@@ -41,8 +41,17 @@ function tableToListFlatten(table) {
 
       const paras = Array.from(clone.querySelectorAll("p"));
       if (paras.length > 0) {
-        paras.forEach((p) => {
-          outParts.push((p.textContent || "").trim());
+        // When there are <p> elements, we need to preserve orphan text nodes
+        // and process all content in document order
+        Array.from(clone.childNodes).forEach((node) => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            const text = node.textContent.trim();
+            if (text) {
+              outParts.push(text);
+            }
+          } else if (node.nodeType === Node.ELEMENT_NODE && node.tagName === "P") {
+            outParts.push((node.textContent || "").trim());
+          }
         });
       } else {
         outParts.push((clone.textContent || "").trim());

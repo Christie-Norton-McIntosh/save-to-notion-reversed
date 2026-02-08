@@ -25,9 +25,14 @@ function sanitizeCell(cell) {
     img.replaceWith(placeholder);
   });
 
-  // Convert anchors to text
+  // Convert anchors to their content (preserving any text nodes we just created)
   cellClone.querySelectorAll('a').forEach((a) => {
-    a.replaceWith(document.createTextNode(a.textContent || ''));
+    // Replace the anchor with its child nodes (which may include our placeholder text)
+    const fragment = document.createDocumentFragment();
+    while (a.firstChild) {
+      fragment.appendChild(a.firstChild);
+    }
+    a.replaceWith(fragment);
   });
 
   // Wrap orphan text nodes so they become paragraph-like
@@ -67,7 +72,7 @@ function sanitizeCell(cell) {
 
 // Minimal popup expansion that consumes the structured payload (same logic as main.js)
 function popupExpand(marker) {
-  const m = marker.match(/XCELLIDX(CELL_[A-Z0-9]+)XCELLIDX/);
+  const m = marker.match(/XCELLIDX(CELL_[A-Z0-9_]+)XCELLIDX/);
   if (!m) return [marker];
   const id = m[1];
   const payload = window.__TABLE_CELL_CONTENT_MAP__[id];
