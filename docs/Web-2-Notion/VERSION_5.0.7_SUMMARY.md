@@ -88,7 +88,7 @@ February 6, 2026
 
 **Files:** `Web-2-Notion/scanWebpage.js` (unwrapping and extraction logic)
 
-**Test:** `test/test-itemgroup-nesting.js` ✅ PASSING
+**Test:** `tests/test-itemgroup-nesting.js` ✅ PASSING
 
 ## Final Processing Order
 
@@ -112,7 +112,7 @@ Manual testing on target sites required.
 
 ### Custom Format Rules
 
-**Test:** `test/test-note-formatting-order.js` ✅ PASSING
+**Test:** `tests/test-note-formatting-order.js` ✅ PASSING
 
 Verifies:
 
@@ -123,7 +123,7 @@ Verifies:
 
 ### itemgroup Nesting
 
-**Test:** `test/test-itemgroup-nesting.js` ✅ PASSING
+**Test:** `tests/test-itemgroup-nesting.js` ✅ PASSING
 
 Verifies:
 

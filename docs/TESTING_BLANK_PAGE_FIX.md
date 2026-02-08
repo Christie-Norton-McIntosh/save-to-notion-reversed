@@ -80,4 +80,4 @@ Please share:
 ## Documentation
 
 - `CUSTOM_SELECTOR_FIX_V2.md` - Complete technical details
-- `test/custom-selector-test.html` - Test page for custom selector feature
+- `tests/custom-selector-test.html` - Test page for custom selector feature

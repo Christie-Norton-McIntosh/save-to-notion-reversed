@@ -24,7 +24,7 @@ cd Web-2-Notion
 npm run test-line-breaks
 ```
 
-The test uses the sample HTML from `test/table-content-line-breaks.html` and should show:
+The test uses the sample HTML from `tests/table-content-line-breaks.html` and should show:
 
 - ✅ PASSED tests indicate line breaks ARE preserved
 - ❌ FAILED tests indicate line breaks are MISSING

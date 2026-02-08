@@ -39,7 +39,7 @@ Created comprehensive tests that verify:
 - ✅ Multiple spaces: Correctly normalized to single spaces
 - ✅ Non-breaking spaces (`&nbsp;`): Correctly handled
 
-All tests in `test/test-menucascade-comprehensive.js` pass successfully.
+All tests in `tests/test-menucascade-comprehensive.js` pass successfully.
 
 ## Conclusion
 
@@ -80,6 +80,6 @@ Since our tests show the code works correctly, the issue may be:
 ## Files Created
 
 - `/Web-2-Notion/DIAGNOSTIC_MENUCASCADE_SPACING.js` (browser console diagnostic)
-- `/Web-2-Notion/test/test-menucascade-comprehensive.js` (comprehensive test suite)
-- `/Web-2-Notion/test/test-menucascade-simple.js` (simple textContent test)
-- `/Web-2-Notion/test/test-table-cell-menucascade.js` (table cell simulation)
+- `/Web-2-Notion/tests/test-menucascade-comprehensive.js` (comprehensive test suite)
+- `/Web-2-Notion/tests/test-menucascade-simple.js` (simple textContent test)
+- `/Web-2-Notion/tests/test-table-cell-menucascade.js` (table cell simulation)

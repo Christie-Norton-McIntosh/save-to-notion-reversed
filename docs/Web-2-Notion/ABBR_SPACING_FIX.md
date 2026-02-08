@@ -69,8 +69,8 @@ while ((node = walker.nextNode())) {
 
 ### Unit Tests
 
-- `test/test-scanwebpage-abbr-spacing.js` - Tests stripMultispaces function
-- `test/test-applyCustomFormatting-abbr-spacing.js` - Tests applyCustomFormatting whitespace cleanup
+`tests/test-scanwebpage-abbr-spacing.js` - Tests stripMultispaces function
+`tests/test-applyCustomFormatting-abbr-spacing.js` - Tests applyCustomFormatting whitespace cleanup
 
 ### Test Cases Covered
 
@@ -116,8 +116,8 @@ The fix applies to these inline elements when they contain special characters:
 ### 1. Run Unit Tests
 
 ```bash
-node test/test-scanwebpage-abbr-spacing.js
-node test/test-applyCustomFormatting-abbr-spacing.js
+node tests/test-scanwebpage-abbr-spacing.js
+node tests/test-applyCustomFormatting-abbr-spacing.js
 ```
 
 ### 2. Test in Browser
@@ -138,8 +138,8 @@ node test/test-applyCustomFormatting-abbr-spacing.js
 
 Before making changes to whitespace handling code:
 
-- [ ] Run `test/test-scanwebpage-abbr-spacing.js`
-- [ ] Run `test/test-applyCustomFormatting-abbr-spacing.js`
+- [ ] Run `tests/test-scanwebpage-abbr-spacing.js`
+- [ ] Run `tests/test-applyCustomFormatting-abbr-spacing.js`
 - [ ] Test with actual ServiceNow page
 - [ ] Check console logs for abbr innerHTML patterns
 - [ ] Verify both `stripMultispaces` and `applyCustomFormatting` preserve spaces
@@ -149,8 +149,8 @@ Before making changes to whitespace handling code:
 
 - `scanWebpage.js` - Contains both fixes
 - `manifest.json` - Version tracking
-- `test/test-scanwebpage-abbr-spacing.js` - stripMultispaces tests
-- `test/test-applyCustomFormatting-abbr-spacing.js` - applyCustomFormatting tests
+`tests/test-scanwebpage-abbr-spacing.js` - stripMultispaces tests
+`tests/test-applyCustomFormatting-abbr-spacing.js` - applyCustomFormatting tests
 - `DIAGNOSTIC_MENUCASCADE_SPACING.js` - Browser diagnostic tool
 
 ## Version History

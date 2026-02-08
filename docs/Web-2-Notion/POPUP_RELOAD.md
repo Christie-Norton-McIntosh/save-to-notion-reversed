@@ -45,7 +45,7 @@ The `pageReloadListener.js` script:
 
 ### Test Pages Included
 
-Three test pages are provided in `Web-2-Notion/test/`:
+Three test pages are provided in `Web-2-Notion/tests/`:
 
 1. **`popup-reload-test-page-1.html`** - Starting page with navigation buttons
 2. **`popup-reload-test-page-2.html`** - Destination page to test navigation
