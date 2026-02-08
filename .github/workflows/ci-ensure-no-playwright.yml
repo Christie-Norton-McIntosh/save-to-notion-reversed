@@ -19,14 +19,24 @@ jobs:
       - name: Search repository for Playwright references
         run: |
           set -euo pipefail
-          echo "Looking for 'playwright' in repository (workflows, package.json, lockfiles, scripts)..."
-          # Check workflow files first (these would be the CI jobs we want removed)
-          if grep -R --line-number --exclude-dir=node_modules --exclude='*.lock' -E "playwright" . ; then
-            echo "\nERROR: repository contains references to 'playwright'.\n"
-            echo "If Playwright was intentionally removed, delete or disable CI jobs that reference it and remove the dependency from package.json/package-lock.json." >&2
+          echo "Searching tracked files for 'playwright' (exclude docs and this guard)..."
+
+          # Use git grep so we only scan tracked files (avoids scanning .git, node_modules,
+          # and other untracked/vendored content). Exclude documentation and this
+          # workflow file itself because both legitimately mention 'playwright'.
+          matches=$(git grep -n --full-name -I -e "playwright" || true)
+
+          # Remove allowed occurrences (docs + this guard file) from the results.
+          filtered=$(printf '%s\n' "$matches" | grep -vE '(^docs/|\.github/workflows/ci-ensure-no-playwright.yml|docs/PLAYWRIGHT_REMOVAL.md)' || true)
+
+          if [ -n "$filtered" ]; then
+            echo "\nERROR: Playwright references found outside allowed exclusions:\n"
+            printf '%s\n' "$filtered"
+            echo "\nIf Playwright was intentionally removed, delete or disable CI jobs that reference it and remove the dependency from package.json/package-lock.json." >&2
             exit 1
           fi
-          echo "No Playwright references found."
+
+          echo "No Playwright references found (outside excluded paths)."
 
   validate-web-2-notion:
     runs-on: ubuntu-latest
