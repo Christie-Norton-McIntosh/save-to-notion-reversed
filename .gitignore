@@ -12,3 +12,7 @@ node_modules/
 # VS Code workspace settings
 *.code-workspace
 .vscode/tasks.json
+
+# Test duplicates and temporary files
+*\ 2.*
+/tmp/
