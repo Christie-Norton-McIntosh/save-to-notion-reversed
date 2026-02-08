@@ -52,6 +52,15 @@ function sanitizeCell(cell) {
     a.replaceWith(document.createTextNode(a.textContent || ""));
   });
 
+  // Add spacing before block elements to prevent text from running together
+  cellClone
+    .querySelectorAll("p, div, h1, h2, h3, h4, h5, h6, li, br")
+    .forEach((el) => {
+      // Insert a space marker before each block element
+      const spaceMarker = document.createTextNode(" ");
+      el.parentNode.insertBefore(spaceMarker, el);
+    });
+
   const text = (cellClone.textContent || "").replace(/\s+/g, " ").trim();
   return text;
 }
