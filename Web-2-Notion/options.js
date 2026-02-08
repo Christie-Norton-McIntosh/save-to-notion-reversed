@@ -17071,7 +17071,8 @@ function Wv(e) {
 
             // Prefer anchor href when present (often points to full-res image)
             if (parentAnchor) {
-              const anchorHref = parentAnchor.getAttribute("href") || parentAnchor.href || "";
+              const anchorHref =
+                parentAnchor.getAttribute("href") || parentAnchor.href || "";
               if (anchorHref) {
                 console.debug(
                   `[tableWithHeading] Image wrapped in anchor, using href: ${anchorHref.substring(0, 50)}...`,
@@ -17086,13 +17087,18 @@ function Wv(e) {
                 const prev = img.previousSibling;
                 const next = img.nextSibling;
                 if (
-                  (prev && prev.nodeType === Node.TEXT_NODE && prev.textContent.trim()) ||
-                  (next && next.nodeType === Node.TEXT_NODE && next.textContent.trim())
+                  (prev &&
+                    prev.nodeType === Node.TEXT_NODE &&
+                    prev.textContent.trim()) ||
+                  (next &&
+                    next.nodeType === Node.TEXT_NODE &&
+                    next.textContent.trim())
                 )
                   return true;
                 if (parentAnchor)
                   return Array.from(parentAnchor.childNodes).some(
-                    (n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim(),
+                    (n) =>
+                      n.nodeType === Node.TEXT_NODE && n.textContent.trim(),
                   );
               } catch (err) {
                 return false;
@@ -17108,7 +17114,12 @@ function Wv(e) {
             let linkedAlt = alt || "";
 
             if (isValidUrl || hasTextSibling) {
-              if (alt && parentAnchor && parentAnchor.href && parentAnchor.href !== src) {
+              if (
+                alt &&
+                parentAnchor &&
+                parentAnchor.href &&
+                parentAnchor.href !== src
+              ) {
                 linkedAlt = `[${alt}](${pageUrl}) → [Link](${parentAnchor.href})`;
               } else if (alt) {
                 linkedAlt = `[${alt}](${pageUrl})`;
@@ -17122,8 +17133,10 @@ function Wv(e) {
                 if (parentAnchor) {
                   const preservedImg = img.cloneNode(true);
                   preservedImg.setAttribute("data-stn-preserve", "1");
-                  const preservedSrc = preservedImg.getAttribute("src") || preservedImg.src || "";
-                  if (preservedSrc) preservedImg.setAttribute("src", preservedSrc);
+                  const preservedSrc =
+                    preservedImg.getAttribute("src") || preservedImg.src || "";
+                  if (preservedSrc)
+                    preservedImg.setAttribute("src", preservedSrc);
                   preservedImg.removeAttribute("alt");
                   preservedImg.style.cssText =
                     "width:0;height:0;border:0;opacity:0;position:relative;left:0;";
@@ -17131,7 +17144,9 @@ function Wv(e) {
                   const wrapper = document.createElement("span");
                   wrapper.className = "stn-inline-image";
                   wrapper.appendChild(preservedImg);
-                  wrapper.appendChild(document.createTextNode(" • " + (alt || "Image") + " • "));
+                  wrapper.appendChild(
+                    document.createTextNode(" • " + (alt || "Image") + " • "),
+                  );
                   img.replaceWith(wrapper);
                 } else {
                   const placeholderAlt = (alt && alt.trim()) || "Image";
@@ -17141,9 +17156,13 @@ function Wv(e) {
                     replacement.href = parentAnchor.href;
                     replacement.textContent = ` • ${placeholderAlt} • `;
                   } else if (isValidUrl && src) {
-                    replacement = document.createTextNode(` • ${placeholderAlt} • `);
+                    replacement = document.createTextNode(
+                      ` • ${placeholderAlt} • `,
+                    );
                   } else {
-                    replacement = document.createTextNode(` • ${placeholderAlt} • `);
+                    replacement = document.createTextNode(
+                      ` • ${placeholderAlt} • `,
+                    );
                   }
                   img.replaceWith(replacement);
                 }
@@ -17154,10 +17173,14 @@ function Wv(e) {
             } else {
               // Not a usable URL — remove element but keep spacing
               if (parentAnchor) {
-                const replacement = document.createTextNode(` • ${alt || "Image"} • `);
+                const replacement = document.createTextNode(
+                  ` • ${alt || "Image"} • `,
+                );
                 parentAnchor.replaceWith(replacement);
               } else {
-                const replacement = document.createTextNode(` • ${alt || "Image"} • `);
+                const replacement = document.createTextNode(
+                  ` • ${alt || "Image"} • `,
+                );
                 img.replaceWith(replacement);
               }
             }
