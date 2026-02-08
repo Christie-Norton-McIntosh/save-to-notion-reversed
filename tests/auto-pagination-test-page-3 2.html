@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Page 3 - Auto Pagination</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .content {
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+      .navigation {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      button {
+        padding: 12px 24px;
+        font-size: 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+      .prev-btn {
+        background: #6c757d;
+        color: white;
+      }
+      .prev-btn:hover {
+        background: #5a6268;
+      }
+      .next-btn {
+        background: #007bff;
+        color: white;
+      }
+      .next-btn:hover {
+        background: #0056b3;
+      }
+      .page-indicator {
+        font-weight: bold;
+        color: #333;
+      }
+      h1 {
+        color: #2c3e50;
+      }
+      .highlight {
+        background: #d4edda;
+        padding: 2px 4px;
+        border-radius: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="content">
+      <h1>Test Page 3 of 5</h1>
+      <p>
+        You're now at the <span class="highlight">third page</span> - the
+        automation is working!
+      </p>
+
+      <h2>Midpoint Check</h2>
+      <p>By now, the extension should have:</p>
+      <ul>
+        <li>✓ Saved pages 1 and 2 to your Notion database</li>
+        <li>✓ Successfully navigated between pages</li>
+        <li>✓ Maintained automation state across page loads</li>
+        <li>⏳ Currently saving this page (page 3)</li>
+      </ul>
+
+      <h2>Advanced Testing Scenarios</h2>
+      <p>This page tests the extension's ability to handle:</p>
+
+      <h3>1. Dynamic Content</h3>
+      <p>
+        The extension must correctly identify and extract content even when page
+        structure varies slightly between pages.
+      </p>
+
+      <h3>2. State Persistence</h3>
+      <p>
+        The automation state (including the CSS selector and page count) must
+        persist across navigations using localStorage.
+      </p>
+
+      <h3>3. Error Recovery</h3>
+      <p>
+        If any issues occur, the automation should log them clearly and allow
+        the user to resume or stop.
+      </p>
+
+      <blockquote
+        style="border-left: 4px solid #007bff; padding-left: 15px; color: #555"
+      >
+        <strong>Tip:</strong> Check the browser console for detailed logs about
+        the automation process.
+      </blockquote>
+    </div>
+
+    <div class="navigation">
+      <button
+        class="prev-btn"
+        onclick="window.location.href = 'auto-pagination-test-page-2.html'"
+      >
+        ← Previous Page
+      </button>
+      <span class="page-indicator">Page 3 of 5</span>
+      <button
+        class="next-btn"
+        onclick="window.location.href = 'auto-pagination-test-page-4.html'"
+      >
+        Next Page →
+      </button>
+    </div>
+  </body>
+</html>

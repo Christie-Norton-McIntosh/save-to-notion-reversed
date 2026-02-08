@@ -1,0 +1,340 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Extension Markdown Conversion Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background: #f5f5f5;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+      }
+      h1 {
+        color: #333;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 10px;
+      }
+      .controls {
+        margin: 20px 0;
+        padding: 15px;
+        background: #e9ecef;
+        border-radius: 4px;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 5px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      .output {
+        margin: 20px 0;
+        padding: 15px;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        white-space: pre-wrap;
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+        max-height: 500px;
+        overflow-y: auto;
+      }
+      .test-content {
+        margin: 20px 0;
+        padding: 15px;
+        background: #f9f9f9;
+        border: 2px dashed #007bff;
+      }
+      .pass {
+        color: #28a745;
+      }
+      .fail {
+        color: #dc3545;
+      }
+      table {
+        border-collapse: collapse;
+        margin: 10px 0;
+      }
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+      }
+      img {
+        max-width: 50px;
+        max-height: 50px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🧪 Extension Markdown Conversion Test</h1>
+
+      <div class="controls">
+        <button onclick="triggerExtension()">
+          🚀 Trigger Extension (Open Popup)
+        </button>
+        <button onclick="checkConsoleForLogs()">
+          📋 Check Console Instructions
+        </button>
+        <button onclick="clearOutput()">🗑️ Clear Output</button>
+      </div>
+
+      <div id="output" class="output">
+        Click "Trigger Extension" to test, then check browser console for debug
+        logs.
+      </div>
+
+      <h2>Test Content Below (Will be clipped)</h2>
+
+      <!-- Test 1: Inline Images -->
+      <div class="test-content">
+        <h3>📝 Test 1: Inline Images</h3>
+        <p>
+          Please select the home icon
+          <img
+            src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+            alt="home icon"
+            class="icon"
+          />
+          from the menu.
+        </p>
+        <p>
+          Click the settings
+          <img src="/images/settings.png" alt="settings icon" /> to configure.
+        </p>
+      </div>
+
+      <!-- Test 2: Table with Images -->
+      <div class="test-content">
+        <h3>📊 Test 2: Table with Images</h3>
+        <table>
+          <tr>
+            <td><img src="https://example.com/image1.png" alt="Image 1" /></td>
+            <td>Description for Image 1</td>
+          </tr>
+          <tr>
+            <td>
+              <img
+                src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+                alt="Image 2"
+              />
+            </td>
+            <td>Description for Image 2</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Test 3: Image in Anchor -->
+      <div class="test-content">
+        <h3>🔗 Test 3: Image in Anchor</h3>
+        <p>
+          Click here:
+          <a href="https://example.com/full-image.png"
+            ><img
+              src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+              alt="thumbnail"
+          /></a>
+          to view full size.
+        </p>
+      </div>
+
+      <h2>📋 Expected Results</h2>
+      <div class="test-content">
+        <h4>In Browser Console (F12), you should see:</h4>
+        <pre><strong>[Image Rule] Processing image:</strong> {
+  alt: "home icon",
+  srcAttr: "data:image/png;base64,...",
+  finalSrc: "data:image/png;base64,...",
+  ...
+}
+<strong>[Image Rule] Final markdown:</strong> ![home icon](data:image/png;base64,...)
+
+<strong>[tableToList] Processing table</strong>
+<strong>[tableToList] Processing table image:</strong> {
+  srcAttr: "https://example.com/image1.png",
+  alt: "Image 1",
+  ...
+}
+<strong>[tableToList] ✓ Added image markdown:</strong> ![Image 1](https://example.com/image1.png)</pre>
+      </div>
+    </div>
+
+    <script>
+      function triggerExtension() {
+        const output = document.getElementById("output");
+        output.textContent = `✅ Instructions:
+
+1. Make sure Web-2-Notion extension is installed and enabled (v5.2.3)
+2. Open Chrome DevTools (F12 or Cmd+Option+I)
+3. Go to "Console" tab
+4. Enable "Verbose" logging (click "Default levels" dropdown, check "Verbose")
+5. Click the Web-2-Notion extension icon or use keyboard shortcut to clip this page
+6. Watch the console for logs starting with [Image Rule] and [tableToList]
+
+What to look for:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ SUCCESS - You should see:
+   [Image Rule] Processing image: { ... }
+   [Image Rule] Final markdown: ![alt](url)
+   
+   [tableToList] Processing table image: { ... }
+   [tableToList] ✓ Added image markdown: ![alt](url)
+
+❌ EMPTY PARENTHESES - Inline images missing:
+   [Image Rule] Final markdown: ![alt]()
+   → Image URL is empty or filtered
+
+❌ SKIPPED IMAGES - Table images missing:
+   [tableToList] ✗ Skipped image (URL not accepted): ...
+   → URL doesn't pass http/https/data: filter
+
+❌ NO LOGS - Images not processed at all:
+   → Check if images are in Shadow DOM
+   → Check scanWebpage timing (30 second wait for ServiceNow)
+
+Copy the console logs and share them for diagnosis!`;
+      }
+
+      function checkConsoleForLogs() {
+        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        console.log("📋 IMAGE PROCESSING TEST - CONSOLE GUIDE");
+        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+
+        console.log(
+          "%c1. Enable Verbose Logging",
+          "font-weight: bold; font-size: 14px;",
+        );
+        console.log('   Click "Default levels" dropdown → Check "Verbose"');
+        console.log("   This shows console.debug() messages\n");
+
+        console.log(
+          "%c2. Trigger Extension",
+          "font-weight: bold; font-size: 14px;",
+        );
+        console.log("   Click Web-2-Notion icon or use keyboard shortcut\n");
+
+        console.log(
+          "%c3. Watch for These Logs",
+          "font-weight: bold; font-size: 14px;",
+        );
+        console.log("%c   [Image Rule] Processing image:", "color: blue;");
+        console.log("   Shows what the extension found for inline images\n");
+        console.log(
+          "%c   [tableToList] Processing table image:",
+          "color: green;",
+        );
+        console.log("   Shows what the extension found in tables\n");
+
+        console.log(
+          "%c4. Check Results",
+          "font-weight: bold; font-size: 14px;",
+        );
+        console.log('   Look at "Final markdown" or "Added image markdown"');
+        console.log("   Should have URLs, NOT empty parentheses: ![]() ❌\n");
+
+        console.log(
+          "%c5. Inspect Images in DOM",
+          "font-weight: bold; font-size: 14px;",
+        );
+        console.log("   Run: window.__inspectImages() (see below)\n");
+
+        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+      }
+
+      function clearOutput() {
+        document.getElementById("output").textContent =
+          'Output cleared. Click "Trigger Extension" to start test.';
+      }
+
+      // Helper function to inspect images
+      window.__inspectImages = function () {
+        console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        console.log("🔍 CURRENT PAGE IMAGE INSPECTION");
+        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+
+        const allImages = document.querySelectorAll("img");
+        console.log(`Total images found: ${allImages.length}\n`);
+
+        allImages.forEach((img, i) => {
+          console.log(`Image ${i + 1}:`);
+          console.log(
+            '  getAttribute("src"):',
+            img.getAttribute("src")?.substring(0, 80) + "...",
+          );
+          console.log("  img.src property:", img.src?.substring(0, 80) + "...");
+          console.log(
+            "  data-original-src:",
+            img.getAttribute("data-original-src"),
+          );
+          console.log("  alt:", img.alt);
+          console.log("  parent:", img.parentElement?.tagName);
+          if (img.parentElement?.tagName === "A") {
+            console.log("  parent href:", img.parentElement.href);
+          }
+
+          // Check what type of URL it is
+          const src = img.getAttribute("src") || img.src;
+          if (src?.startsWith("data:")) {
+            console.log("  %c✓ Data URL (should be accepted)", "color: green;");
+          } else if (
+            src?.startsWith("http://") ||
+            src?.startsWith("https://")
+          ) {
+            console.log(
+              "  %c✓ HTTP(S) URL (should be accepted)",
+              "color: green;",
+            );
+          } else if (src?.startsWith("/")) {
+            console.log(
+              "  %c⚠️  Relative URL (should be converted to absolute)",
+              "color: orange;",
+            );
+          } else {
+            console.log("  %c❌ Unknown URL type", "color: red;");
+          }
+          console.log("");
+        });
+
+        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+
+        return {
+          totalImages: allImages.length,
+          images: Array.from(allImages).map((img) => ({
+            src: img.getAttribute("src"),
+            srcProp: img.src,
+            dataOriginalSrc: img.getAttribute("data-original-src"),
+            alt: img.alt,
+            parent: img.parentElement?.tagName,
+            parentHref:
+              img.parentElement?.tagName === "A"
+                ? img.parentElement.href
+                : null,
+          })),
+        };
+      };
+
+      // Auto-show instructions on load
+      window.addEventListener("load", () => {
+        setTimeout(() => {
+          checkConsoleForLogs();
+          console.log(
+            "\n💡 TIP: Run window.__inspectImages() to see all images on this page\n",
+          );
+        }, 500);
+      });
+    </script>
+  </body>
+</html>

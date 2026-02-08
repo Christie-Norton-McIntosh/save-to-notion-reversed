@@ -1,0 +1,373 @@
+<!DOCTYPE html><!doctype html>
+
+<html lang="en"><html lang="en">
+
+<head>  <head>
+
+    <meta charset="UTF-8">    <meta charset="UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Data URL Image Test - Dual Placeholder System v5.2.18</title>    <title>Data URL Image Test - Placeholder Replacement</title>
+
+    <style>    <style>
+
+        body {      body {
+
+            font-family: Arial, sans-serif;        font-family: Arial, sans-serif;
+
+            max-width: 900px;        max-width: 800px;
+
+            margin: 50px auto;        margin: 50px auto;
+
+            padding: 20px;        padding: 20px;
+
+            line-height: 1.8;        line-height: 1.6;
+
+        }      }
+
+        h1 { color: #2c3e50; }      h1 {
+
+        h2 { color: #34495e; margin-top: 30px; }        color: #333;
+
+        .test-section {      }
+
+            margin: 30px 0;      .test-section {
+
+            padding: 25px;        margin: 30px 0;
+
+            background: #f8f9fa;        padding: 20px;
+
+            border-radius: 8px;        background: #f5f5f5;
+
+            border-left: 4px solid #3498db;        border-radius: 8px;
+
+        }      }
+
+        .example-box {      img {
+
+            background: white;        max-width: 100%;
+
+            padding: 15px;        margin: 10px 0;
+
+            border: 1px solid #ddd;      }
+
+            border-radius: 4px;      code {
+
+            margin: 15px 0;        background: #e0e0e0;
+
+        }        padding: 2px 6px;
+
+        .result-box {        border-radius: 3px;
+
+            background: #e8f5e9;      }
+
+            padding: 15px;    </style>
+
+            border-left: 4px solid #4caf50;  </head>
+
+            margin: 15px 0;  <body>
+
+        }    <h1>Data URL Image Placeholder Test</h1>
+
+        code {
+
+            background: #f4f4f4;    <div class="test-section">
+
+            padding: 3px 8px;      <h2>Test Instructions</h2>
+
+            border-radius: 3px;      <ol>
+
+            font-family: 'Courier New', monospace;        <li>
+
+            font-size: 0.9em;          Load this page in Chrome with the Web-2-Notion extension installed
+
+        }          (v5.2.16+)
+
+        img {        </li>
+
+            vertical-align: middle;        <li>Click the extension icon to capture this page</li>
+
+        }        <li>Save the page to Notion</li>
+
+        .highlight {        <li>
+
+            background: #fff3cd;          After the page is saved, the placeholders should be replaced with
+
+            padding: 2px 4px;          actual images
+
+            font-weight: bold;        </li>
+
+        }        <li>Open your browser console (F12) to see the processing logs</li>
+
+    </style>        <li>
+
+</head>          In the console, after save completes, manually call:
+
+<body>          <code>processDataUrlPlaceholders('PAGE_ID', 'SPACE_ID')</code>
+
+    <h1>🎯 Data URL Image Test - Dual Placeholder System</h1>        </li>
+
+    <p><strong>Version 5.2.18</strong> | Automatic Image Upload with Inline + Child Placeholders</p>      </ol>
+
+        </div>
+
+    <div class="test-section">
+
+        <h2>📋 Test Instructions</h2>    <div class="test-section">
+
+        <ol>      <h2>Test Image 1: Small Red Square</h2>
+
+            <li>Open this page in Chrome with Web-2-Notion extension (v5.2.18+)</li>      <p>This is a small red square (16x16) embedded as a data: URL</p>
+
+            <li>Click the extension icon and save to Notion</li>      <img
+
+            <li>Observe the dual placeholder system in action</li>        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAE0lEQVR42mP8z8AAQ4G2CQcBCAAAwWgA34iAhwAAAABJRU5ErkJggg=="
+
+            <li>Wait 2-3 seconds for automatic image upload</li>        alt="Red Square"
+
+            <li>Refresh Notion page to see final result</li>      />
+
+        </ol>    </div>
+
+    </div>
+
+    <div class="test-section">
+
+    <div class="test-section">      <h2>Test Image 2: Small Blue Square</h2>
+
+        <h2>🔄 How the Dual Placeholder System Works</h2>      <p>This is a small blue square (16x16) embedded as a data: URL</p>
+
+              <img
+
+        <p><strong>Original Text with Inline Image:</strong></p>        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGklEQVR42mNgYGD4z4AH/CF0QJjqBmAzAAADQwDYwFb7yAAAAABJRU5ErkJggg=="
+
+        <div class="example-box">        alt="Blue Square"
+
+            In Service Operations Workspace, you can access the landing page by selecting the home icon (<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAnElEQVR42mNgGAWjYBQMKmBgYPjPQCYYVTMKRsHQAgwMDP8ZwQZRogakBmCxgYGB4T/YBSBJkBqoARA+yACwC0AuAEkwQNWA1IDYyGuAATA+SA3IJSAJBqgakBq0MCD1yGoYoGpAahhgakBqGOBqQGoYEGpAamhigKhJ0fjfWI2RgRH1bAKMj3o2QcUnHvVsAs4m+LNp1LOJ4M8mADUPvuSMCxsqAAAAAElFTkSuQmCC" alt="Home icon" style="width: 16px; height: 16px;">) from the left navigation pane.      />
+
+        </div>    </div>
+
+        
+
+        <p><strong>Step 1 - Immediately After Save (in Notion):</strong></p>    <div class="test-section">
+
+        <div class="result-box">      <h2>Expected Behavior</h2>
+
+            In Service Operations Workspace, you can access the landing page by selecting the home icon (<span class="highlight">[Home icon]</span>) from the left navigation pane.<br><br>      <p><strong>Version 5.2.16+:</strong></p>
+
+            <code>__IMG1707321234567_0__</code> ← Temporary unique ID block      <ul>
+
+        </div>        <li>
+
+                  During page capture: Images are replaced with placeholder text like
+
+        <p><strong>Step 2 - After Automatic Upload (2 seconds later):</strong></p>          <code>[🖼️ Image placeholder: Red Square]</code>
+
+        <div class="result-box">        </li>
+
+            In Service Operations Workspace, you can access the landing page by selecting the home icon (<span class="highlight">[Home icon]</span>) from the left navigation pane.<br><br>        <li>
+
+            🖼️ <em>[Actual uploaded home icon image appears here]</em>          After page creation: Call
+
+        </div>          <code>processDataUrlPlaceholders(pageId, spaceId)</code> to replace
+
+                  placeholders with actual images
+
+        <h3>Two Placeholders Explained:</h3>        </li>
+
+        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">        <li>
+
+            <tr style="background: #34495e; color: white;">          Check console for logs starting with
+
+                <th style="padding: 10px; text-align: left;">Placeholder Type</th>          <code>[processDataUrlPlaceholders]</code> and
+
+                <th style="padding: 10px; text-align: left;">Format</th>          <code>[ServiceWorker]</code>
+
+                <th style="padding: 10px; text-align: left;">Status</th>        </li>
+
+            </tr>      </ul>
+
+            <tr style="background: white;">      <p><strong>Manual Trigger:</strong></p>
+
+                <td style="padding: 10px; border: 1px solid #ddd;"><strong>Inline (Permanent)</strong></td>      <p>
+
+                <td style="padding: 10px; border: 1px solid #ddd;"><code>[Home icon]</code></td>        After saving to Notion, you can manually trigger the replacement by
+
+                <td style="padding: 10px; border: 1px solid #ddd;">✅ Stays in text forever</td>        running this in the console:
+
+            </tr>      </p>
+
+            <tr style="background: #f8f9fa;">      <pre><code>// Get the page ID and space ID from the saved page URL
+
+                <td style="padding: 10px; border: 1px solid #ddd;"><strong>Child Block (Temporary)</strong></td>// URL format: https://www.notion.so/workspace/Page-Title-{PAGE_ID}?v={VIEW_ID}
+
+                <td style="padding: 10px; border: 1px solid #ddd;"><code>__IMG1234567890_0__</code></td>// Or from Notion's internal state
+
+                <td style="padding: 10px; border: 1px solid #ddd;">🔄 Replaced with actual image</td>
+
+            </tr>// Example (replace with actual values):
+
+        </table>const pageId = "YOUR_PAGE_ID_HERE";
+
+    </div>const spaceId = "YOUR_SPACE_ID_HERE";
+
+
+
+    <div class="test-section">// Trigger the replacement
+
+        <h2>🧪 Test Case 1: Red Square in Sentence</h2>window.processDataUrlPlaceholders(pageId, spaceId);
+
+        <div class="example-box"></code></pre>
+
+            <p>This paragraph contains a red square <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAE0lEQVR42mP8z8AAQ4G2CQcBCAAAwWgA34iAhwAAAABJRU5ErkJggg==" alt="Red Square" style="width: 16px; height: 16px;"> embedded in the text flow.</p>    </div>
+
+        </div>
+
+        <p><strong>Expected Result in Notion:</strong></p>    <div class="test-section">
+
+        <div class="result-box">      <h2>Automatic Trigger (Future Enhancement)</h2>
+
+            This paragraph contains a red square <span class="highlight">[Red Square]</span> embedded in the text flow.<br><br>      <p>
+
+            🖼️ <em>[Red square image block]</em>        Currently, you need to manually call
+
+        </div>        <code>processDataUrlPlaceholders()</code> after the page is saved. A
+
+    </div>        future enhancement would be to automatically call this function when the
+
+        save operation completes.
+
+    <div class="test-section">      </p>
+
+        <h2>🧪 Test Case 2: Blue Square in Instructions</h2>      <p>
+
+        <div class="example-box">        To make it automatic, we would need to hook into the save completion
+
+            <p>Click the blue icon <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGklEQVR42mNgYGD4z4AH/CF0QJjqBmAzAAADQwDYwNb7yAAAAABJRU5ErkJggg==" alt="Blue Square" style="width: 16px; height: 16px;"> to continue to the next step.</p>        callback in the extension's save flow.
+
+        </div>      </p>
+
+        <p><strong>Expected Result in Notion:</strong></p>    </div>
+
+        <div class="result-box">
+
+            Click the blue icon <span class="highlight">[Blue Square]</span> to continue to the next step.<br><br>    <div class="test-section">
+
+            🖼️ <em>[Blue square image block]</em>      <h2>Console Logs to Watch For</h2>
+
+        </div>      <ul>
+
+    </div>        <li><code>[tB] Found X data: URLs to process as placeholders</code></li>
+
+        <li><code>[tB] Created placeholder DATA_IMAGE_... for: ...</code></li>
+
+    <div class="test-section">        <li>
+
+        <h2>🧪 Test Case 3: Multiple Icons in One Paragraph</h2>          <code
+
+        <div class="example-box">            >[processDataUrlPlaceholders] Processing placeholders for page:
+
+            <p>To configure your workspace, first click the home icon <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAnElEQVR42mNgGAWjYBQMKmBgYPjPQCYYVTMKRsHQAgwMDP8ZwQZRogakBmCxgYGB4T/YBSBJkBqoARA+yACwC0AuAEkwQNWA1IDYyGuAATA+SA3IJSAJBqgakBq0MCD1yGoYoGpAahhgakBqGOBqQGoYEGpAamhigKhJ0fjfWI2RgRH1bAKMj3o2QcUnHvVsAs4m+LNp1LOJ4M8mADUPvuSMCxsqAAAAAElFTkSuQmCC" alt="Home icon" style="width: 14px; height: 14px;">, then navigate to settings using the gear icon <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAvklEQVR42mNgGAVDGjAwMPxnYoASMAJeAYOBgYHh/0DEAGpkAAYYRrQAUaGi0QEJoWLUgBhQg2yYUQMaGKiBAaIGrAYsBlUDUgNXA1YDVgNSA1cDcQFYDUgN1ACwGpAakBqoGrAasBqwGpAakAGgNSA1YDlQNWgBSA1YDVgNSA1EDlQNVA1YDVgNVA1UDVgNWA1IDVgOSA1cDVgNSA1EDkgNXA1YDUgNWA1IDUgNRAxIDUgN" alt="Settings icon" style="width: 14px; height: 14px;">, and finally save your changes by clicking the checkmark <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAu0lEQVR42mNgGAWDFjAwMPxnYiADMDAwMPxHxiA2A1gNSA1YDlQNAwMDw/9RgwYNGjRo0KBBgwYNGjRo0KBBgwYNGjSIqAGpAamBqgGrAasBqwGpgYiBqgGpAasBqQGpgYiBqgGpAasBqwGpgYiBqgGpAakBqwGpgYiBqgGpAamBqoGogakBqQGpAamBqIGpAakBqQGpgYiBqQGpAakBqYGqgakBqQGpAakBq4GIgakBqQGpAYuBqBk1aBQMHgAAx7VU1TtDLyQAAAAASUVORK5CYII=" alt="Checkmark" style="width: 14px; height: 14px;">.</p>            ...</code
+
+        </div>          >
+
+        <p><strong>Expected Result in Notion:</strong></p>        </li>
+
+        <div class="result-box">        <li>
+
+            To configure your workspace, first click the home icon <span class="highlight">[Home icon]</span>, then navigate to settings using the gear icon <span class="highlight">[Settings icon]</span>, and finally save your changes by clicking the checkmark <span class="highlight">[Checkmark]</span>.<br><br>          <code
+
+            🖼️ <em>[Home icon image]</em><br>            >[ServiceWorker] replaceDataUrlPlaceholders message received</code
+
+            🖼️ <em>[Settings icon image]</em><br>          >
+
+            🖼️ <em>[Checkmark image]</em>        </li>
+
+        </div>        <li>
+
+    </div>          <code>[ServiceWorker] Found X placeholder blocks to replace</code>
+
+        </li>
+
+    <div class="test-section">        <li><code>[ServiceWorker] Upload successful: ...</code></li>
+
+        <h2>📊 Expected Console Output</h2>        <li>
+
+        <pre style="background: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 4px; overflow-x: auto;"><code>[tB] Found 3 data: URLs to process as placeholders          <code>[ServiceWorker] Replaced placeholder with image: ...</code>
+
+[tB] Created dual placeholder for: Home icon - Inline: [Home icon] Child ID: __IMG1707321234567_0__        </li>
+
+[tB] Created dual placeholder for: Settings icon - Inline: [Settings icon] Child ID: __IMG1707321234567_1__      </ul>
+
+[tB] Created dual placeholder for: Checkmark - Inline: [Checkmark] Child ID: __IMG1707321234567_2__    </div>
+
+[tB] Stored 3 placeholder mappings for post-page-creation upload  </body>
+
+[_saveItemV2] Page saved successfully, triggering data: URL placeholder replacement</html>
+
+[_saveItemV2] Auto-calling processDataUrlPlaceholders with pageId: abc123... spaceId: xyz789...
+[ServiceWorker] replaceDataUrlPlaceholders message received
+[ServiceWorker] Searching 18 blocks for placeholders
+[ServiceWorker] Found placeholder block: block-id-1 uniqueId: __IMG1707321234567_0__ alt: Home icon
+[ServiceWorker] Found placeholder block: block-id-2 uniqueId: __IMG1707321234567_1__ alt: Settings icon
+[ServiceWorker] Found placeholder block: block-id-3 uniqueId: __IMG1707321234567_2__ alt: Checkmark
+[ServiceWorker] Upload successful: https://s3.amazonaws.com/...
+[ServiceWorker] Replaced placeholder with image: block-id-1
+[ServiceWorker] Upload successful: https://s3.amazonaws.com/...
+[ServiceWorker] Replaced placeholder with image: block-id-2
+[ServiceWorker] Upload successful: https://s3.amazonaws.com/...
+[ServiceWorker] Replaced placeholder with image: block-id-3
+[processDataUrlPlaceholders] Successfully replaced 3 placeholder blocks</code></pre>
+    </div>
+
+    <div class="test-section">
+        <h2>✅ Verification Checklist</h2>
+        <ol>
+            <li>✓ Save this page to Notion</li>
+            <li>✓ Check Notion page immediately - see <code>[Image Name]</code> in text</li>
+            <li>✓ Look below paragraphs - see <code>__IMG123__</code> temporary blocks</li>
+            <li>✓ Wait 2-3 seconds for automatic processing</li>
+            <li>✓ Refresh Notion page</li>
+            <li>✓ Verify: <code>[Image Name]</code> still in text (permanent)</li>
+            <li>✓ Verify: <code>__IMG123__</code> replaced with actual images</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>💡 Why This Design?</h2>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+            <tr style="background: #34495e; color: white;">
+                <th style="padding: 10px; text-align: left;">Aspect</th>
+                <th style="padding: 10px; text-align: left;">Benefit</th>
+            </tr>
+            <tr style="background: white;">
+                <td style="padding: 10px; border: 1px solid #ddd;"><strong>Inline Placeholder</strong></td>
+                <td style="padding: 10px; border: 1px solid #ddd;">Preserves reading flow and context ("click the <span class="highlight">[Home icon]</span> button")</td>
+            </tr>
+            <tr style="background: #f8f9fa;">
+                <td style="padding: 10px; border: 1px solid #ddd;"><strong>Child Image Block</strong></td>
+                <td style="padding: 10px; border: 1px solid #ddd;">Shows the actual image for visual reference</td>
+            </tr>
+            <tr style="background: white;">
+                <td style="padding: 10px; border: 1px solid #ddd;"><strong>Notion Limitation</strong></td>
+                <td style="padding: 10px; border: 1px solid #ddd;">Notion doesn't support true inline images - this is the best workaround</td>
+            </tr>
+            <tr style="background: #f8f9fa;">
+                <td style="padding: 10px; border: 1px solid #ddd;"><strong>User Experience</strong></td>
+                <td style="padding: 10px; border: 1px solid #ddd;">Best of both worlds - readable text + visible images</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="test-section">
+        <h2>🐛 Troubleshooting</h2>
+        <ul>
+            <li><strong>Images not appearing:</strong> Wait 3-5 seconds and refresh Notion page</li>
+            <li><strong>Still seeing __IMG123__:</strong> Check console for errors, ensure logged into Notion</li>
+            <li><strong>Console errors:</strong> Verify extension version is 5.2.18+</li>
+            <li><strong>Manual trigger:</strong> Run <code>window.processDataUrlPlaceholders(pageId, spaceId)</code> in console</li>
+        </ul>
+    </div>
+</body>
+</html>
