@@ -149,8 +149,8 @@ Before making changes to whitespace handling code:
 
 - `scanWebpage.js` - Contains both fixes
 - `manifest.json` - Version tracking
-`tests/test-scanwebpage-abbr-spacing.js` - stripMultispaces tests
-`tests/test-applyCustomFormatting-abbr-spacing.js` - applyCustomFormatting tests
+  `tests/test-scanwebpage-abbr-spacing.js` - stripMultispaces tests
+  `tests/test-applyCustomFormatting-abbr-spacing.js` - applyCustomFormatting tests
 - `DIAGNOSTIC_MENUCASCADE_SPACING.js` - Browser diagnostic tool
 
 ## Version History
