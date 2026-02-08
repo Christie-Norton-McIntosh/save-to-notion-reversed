@@ -1,0 +1,7 @@
+feat: Update error logging policy and enhance image handling
+
+- Added error window logging policy to show only blocking errors and key lines for active issues.
+- Incremented version number in manifest.json to 5.2.39.
+- Improved image handling in main.js to prefer anchor hrefs that look like images and handle data URLs more effectively.
+- Enhanced service worker with crash guards and improved placeholder replacement logic.
+- Added test HTML files for inline images with data URLs and URLs, as well as for table images with data URLs and URLs.
