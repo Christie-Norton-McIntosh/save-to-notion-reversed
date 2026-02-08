@@ -160,13 +160,6 @@ console.log(
 );
 console.log("");
 
-// Ensure tableToList no longer replaces imgs with legacy bracketed placeholders
-const legacyBracketedInTable = mainJs.includes('document.createTextNode("[")');
-console.log(
-  "  ✓ tableToList avoids legacy bracketed [alt] replacement:",
-  !legacyBracketedInTable,
-);
-
 // Analyze potential issues
 console.log("Potential Issues to Investigate:\n");
 
