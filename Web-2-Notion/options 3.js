@@ -47,31 +47,29 @@ function P(e, t, n) {
   return A(e, a, r, o, null);
 }
 function A(e, t, n, r, o) {
-  var i = {
-    type: e,
-    props: t,
-    key: n,
-    ref: r,
-    __k: null,
-    __: null,
-    __b: 0,
-    __e: null,
-    __d: void 0,
-    __c: null,
-    constructor: void 0,
-    __v: null == o ? ++p : o,
-    __i: -1,
-    __u: 0,
-  };
-  return (null == o && null != u.vnode && u.vnode(i), i);
-}
-function E() {
-  return { current: null };
-}
-function O(e) {
-  return e.children;
-}
-function T(e, t) {
+                    if (alt) {
+                      if (parentAnchor) {
+                        // Keep the anchor element but replace the <img>
+                        // with a wrapper that contains a hidden/preserved
+                        // IMG (so later extraction finds it) and the
+                        // textual placeholder used in markdown.
+                        var preservedImg = img.cloneNode(true);
+                        preservedImg.setAttribute("data-stn-preserve", "1");
+                        var preservedSrc =
+                          preservedImg.getAttribute("src") || preservedImg.src || "";
+                        if (preservedSrc) preservedImg.setAttribute("src", preservedSrc);
+                        preservedImg.style.cssText = "width:0;height:0;border:0;opacity:0;position:relative;left:0;";
+
+                        var wrapper = document.createElement("span");
+                        wrapper.className = "stn-inline-image";
+                        wrapper.appendChild(preservedImg);
+                        wrapper.appendChild(document.createTextNode("[" + alt + "]"));
+
+                        img.replaceWith(wrapper);
+                      } else {
+                        var replacement = document.createTextNode("[" + alt + "]");
+                        img.replaceWith(replacement);
+                      }
   ((this.props = e), (this.context = t));
 }
 function F(e, t) {
@@ -9813,7 +9811,7 @@ const Mp =
       : r.MAX_ITEMS) || 512;
 async function jp(e) {
   return new Promise((t) => {
-    chrome.storage.local.get([e], function (n) {
+    chrome.storage.sync.get([e], function (n) {
       t(n[e]);
     });
   });
@@ -9836,7 +9834,7 @@ function zp(e, t) {
 async function Up(e, t) {
   return new Promise((n) => {
     !(function r(e, t, n) {
-      chrome.storage.local.get([e, `${e}_1`], async function (r) {
+      chrome.storage.sync.get([e, `${e}_1`], async function (r) {
         let o;
         if (null != r[`${e}_1`]) {
           for (
@@ -9863,7 +9861,7 @@ async function Up(e, t) {
 }
 async function Hp(e) {
   return new Promise((t) => {
-    chrome.storage.local.get(null, function (n) {
+    chrome.storage.sync.get(null, function (n) {
       const r = Object.keys(n)
         .filter(
           (t) =>
@@ -9893,7 +9891,7 @@ async function Wp(e, t = null) {
           (a[o] = r),
           (s = s.substr(Mp - o.length - 2)),
           i++);
-      (chrome.storage.local.set(a, n), chrome.storage.local.remove(Np(e, i)));
+      (chrome.storage.sync.set(a, n), chrome.storage.sync.remove(Np(e, i)));
     })(e, t, () => {
       n();
     });
@@ -9902,7 +9900,7 @@ async function Wp(e, t = null) {
 async function Vp(e) {
   new Promise((t) => {
     !(function n(e, t) {
-      chrome.storage.local.get([e, `${e}_1`], async function (n) {
+      chrome.storage.sync.get([e, `${e}_1`], async function (n) {
         var r = [];
         if ((null != n[e] && r.push(e), null != n[`${e}_1`])) {
           r.push(`${e}_1`);
@@ -9915,7 +9913,7 @@ async function Vp(e) {
           )
             r.push(`${e}_${t}`);
         }
-        chrome.storage.local.remove(r, () => {
+        chrome.storage.sync.remove(r, () => {
           t();
         });
       });
@@ -16841,23 +16839,24 @@ function Wv(e) {
             // Store the parent anchor if the image is wrapped in one
             const parentAnchor =
               img.parentElement?.tagName === "A" ? img.parentElement : null;
+            
+            // Store the original anchor href if image is a link
+            const imageLink = parentAnchor ? (parentAnchor.getAttribute("href") || parentAnchor.href) : null;
 
             // If getAttribute returns base64 but we have an anchor, try the anchor href
             // (ServiceNow wraps images in viewer links)
-            if (src.startsWith("data:") && parentAnchor && parentAnchor.href) {
-              const anchorHref =
-                parentAnchor.getAttribute("href") || parentAnchor.href;
+            if (src.startsWith("data:") && imageLink) {
               console.debug(
-                `[tableWithoutHeading] Src is base64, trying anchor href: ${anchorHref?.substring(0, 70)}...`,
+                `[tableWithoutHeading] Src is base64, trying anchor href: ${imageLink?.substring(0, 70)}...`,
               );
-              // Only use anchor if it points to an actual image URL, not a viewer page
+              // Use anchor href even if it's a viewer page - better than no link at all
+              // ServiceNow's /viewer/attachment/ URLs are valid image sources
               if (
-                anchorHref &&
-                !anchorHref.includes("/viewer/attachment/") &&
-                (anchorHref.includes("/resources/") ||
-                  anchorHref.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i))
+                imageLink &&
+                (imageLink.startsWith("http://") ||
+                  imageLink.startsWith("https://"))
               ) {
-                src = anchorHref;
+                src = imageLink;
                 console.debug(
                   `[tableWithoutHeading] Using anchor href as image URL`,
                 );
@@ -16870,13 +16869,59 @@ function Wv(e) {
 
             if (isValidUrl) {
               const titlePart = title ? ` "${title}"` : "";
-              extractedImages.push(`![${alt}](${src}${titlePart})`);
-              // Replace with alt text if available, otherwise just remove
+              // Add hyperlink to source page in alt text label (same as inline images)
+              const pageUrl = window.location.href;
+              // If image is a link, include that in the alt text too
+              let linkedAlt = alt || "";
+              if (alt && imageLink && imageLink !== src) {
+                // Image has both an alt and is a link to different content
+                linkedAlt = `[${alt}](${pageUrl}) → [Link](${imageLink})`;
+              } else if (alt) {
+                // Just alt text with source page link
+                linkedAlt = `[${alt}](${pageUrl})`;
+              }
+              extractedImages.push(`![${linkedAlt}](${src}${titlePart})`);
+              
+              // Replace with text placeholder in cell
+              // Preserve textual siblings when image is in anchor
               if (alt) {
-                const replacement = document.createTextNode(`[${alt}]`);
                 if (parentAnchor) {
-                  parentAnchor.replaceWith(replacement);
+                  // Preserve the original anchor element but replace the
+                  // <img> with a small wrapper that contains both a
+                  // hidden/trackable IMG (so later extraction can find
+                  // it) and the textual placeholder used in markdown.
+                  // This keeps the image as a child of the original
+                  // anchor (so callers can use anchor.href) while
+                  // still producing the expected "[alt]" text for
+                  // downstream markdown conversion.
+                  const preservedImg = img.cloneNode(true);
+                  preservedImg.setAttribute("data-stn-preserve", "1");
+                  // Keep a discoverable src so later collectors pick it up
+                  const preservedSrc =
+                    preservedImg.getAttribute("src") ||
+                    preservedImg.src ||
+                    "";
+                  if (preservedSrc)
+                    preservedImg.setAttribute("src", preservedSrc);
+                  // Remove alt to prevent textContent from picking it up
+                  preservedImg.removeAttribute("alt");
+                  // Hide the preserved image in the text-to-markdown flow
+                  preservedImg.style.cssText =
+                    "width:0;height:0;border:0;opacity:0;position:relative;left:0;";
+
+                  const wrapper = document.createElement("span");
+                  wrapper.className = "stn-inline-image";
+                  wrapper.appendChild(preservedImg);
+                  wrapper.appendChild(
+                    document.createTextNode(" [" + alt + "] "),
+                  );
+
+                  // Replace only the image node so the anchor element
+                  // remains in the DOM with the wrapper as its child.
+                  img.replaceWith(wrapper);
                 } else {
+                  // Just replace the image with the textual placeholder
+                  const replacement = document.createTextNode(`[${alt}]`);
                   img.replaceWith(replacement);
                 }
               } else {
@@ -17061,104 +17106,99 @@ function Wv(e) {
             let src = img.getAttribute("src") || img.src || "";
             const alt = img.getAttribute("alt") || "";
             const title = img.getAttribute("title") || "";
-
             console.debug(
               `[tableWithHeading] Image src attribute: ${src?.substring(0, 50)}...`,
             );
 
+            // Store the parent anchor if the image is wrapped in one
             const parentAnchor =
               img.parentElement?.tagName === "A" ? img.parentElement : null;
+            
+            // Store the original anchor href if image is a link
+            const imageLink = parentAnchor ? (parentAnchor.getAttribute("href") || parentAnchor.href) : null;
 
-            // Prefer anchor href when present (often points to full-res image)
-            if (parentAnchor) {
-              const anchorHref = parentAnchor.getAttribute("href") || parentAnchor.href || "";
-              if (anchorHref) {
-                console.debug(
-                  `[tableWithHeading] Image wrapped in anchor, using href: ${anchorHref.substring(0, 50)}...`,
-                );
-                src = anchorHref;
-              }
+            // If image is wrapped in anchor, prefer the anchor href (often points to full-res image)
+            // This avoids base64-converted proxied/resized image URLs
+            if (imageLink) {
+              console.debug(
+                `[tableWithHeading] Image wrapped in anchor, using href: ${imageLink?.substring(0, 50)}...`,
+              );
+              src = imageLink;
             }
 
-            // Detect inline-image siblings so we can force a visible placeholder
-            const hasTextSibling = (() => {
-              try {
-                const prev = img.previousSibling;
-                const next = img.nextSibling;
-                if (
-                  (prev && prev.nodeType === Node.TEXT_NODE && prev.textContent.trim()) ||
-                  (next && next.nodeType === Node.TEXT_NODE && next.textContent.trim())
-                )
-                  return true;
-                if (parentAnchor)
-                  return Array.from(parentAnchor.childNodes).some(
-                    (n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim(),
-                  );
-              } catch (err) {
-                return false;
-              }
-              return false;
-            })();
-
+            // Only extract images with http/https URLs (Notion doesn't support base64/data URLs)
             const isValidUrl =
               src && (src.startsWith("http://") || src.startsWith("https://"));
 
-            const titlePart = title ? ` "${title}"` : "";
-            const pageUrl = window.location.href;
-            let linkedAlt = alt || "";
-
-            if (isValidUrl || hasTextSibling) {
-              if (alt && parentAnchor && parentAnchor.href && parentAnchor.href !== src) {
-                linkedAlt = `[${alt}](${pageUrl}) → [Link](${parentAnchor.href})`;
+            if (isValidUrl) {
+              const titlePart = title ? ` "${title}"` : "";
+              // Add hyperlink to source page in alt text label (same as inline images)
+              const pageUrl = window.location.href;
+              // If image is a link, include that in the alt text too
+              let linkedAlt = alt || "";
+              if (alt && imageLink && imageLink !== src) {
+                // Image has both an alt and is a link to different content
+                linkedAlt = `[${alt}](${pageUrl}) → [Link](${imageLink})`;
               } else if (alt) {
+                // Just alt text with source page link
                 linkedAlt = `[${alt}](${pageUrl})`;
               }
-
               extractedImages.push(`![${linkedAlt}](${src}${titlePart})`);
-
-              // Preserve clickable anchors but replace the image with a small
-              // wrapper containing a hidden discoverable IMG and a textual placeholder
-              if (alt || hasTextSibling) {
+              
+              // Replace with text placeholder in cell
+              // Preserve textual siblings when image is in anchor
+              if (alt) {
                 if (parentAnchor) {
+                  // Preserve the original anchor element but replace the
+                  // <img> with a small wrapper that contains both a
+                  // hidden/trackable IMG (so later extraction can find
+                  // it) and the textual placeholder used in markdown.
+                  // This keeps the image as a child of the original
+                  // anchor (so callers can use anchor.href) while
+                  // still producing the expected "[alt]" text for
+                  // downstream markdown conversion.
                   const preservedImg = img.cloneNode(true);
                   preservedImg.setAttribute("data-stn-preserve", "1");
-                  const preservedSrc = preservedImg.getAttribute("src") || preservedImg.src || "";
-                  if (preservedSrc) preservedImg.setAttribute("src", preservedSrc);
+                  // Keep a discoverable src so later collectors pick it up
+                  const preservedSrc =
+                    preservedImg.getAttribute("src") ||
+                    preservedImg.src ||
+                    "";
+                  if (preservedSrc)
+                    preservedImg.setAttribute("src", preservedSrc);
+                  // Remove alt to prevent textContent from picking it up
                   preservedImg.removeAttribute("alt");
+                  // Hide the preserved image in the text-to-markdown flow
                   preservedImg.style.cssText =
                     "width:0;height:0;border:0;opacity:0;position:relative;left:0;";
 
                   const wrapper = document.createElement("span");
                   wrapper.className = "stn-inline-image";
                   wrapper.appendChild(preservedImg);
-                  wrapper.appendChild(document.createTextNode(" • " + (alt || "Image") + " • "));
+                  wrapper.appendChild(
+                    document.createTextNode(" [" + alt + "] "),
+                  );
+
+                  // Replace only the image node so the anchor element
+                  // remains in the DOM with the wrapper as its child.
                   img.replaceWith(wrapper);
                 } else {
-                  const placeholderAlt = (alt && alt.trim()) || "Image";
-                  let replacement;
-                  if (parentAnchor && parentAnchor.href) {
-                    replacement = document.createElement("a");
-                    replacement.href = parentAnchor.href;
-                    replacement.textContent = ` • ${placeholderAlt} • `;
-                  } else if (isValidUrl && src) {
-                    replacement = document.createTextNode(` • ${placeholderAlt} • `);
-                  } else {
-                    replacement = document.createTextNode(` • ${placeholderAlt} • `);
-                  }
+                  // Just replace the image with the textual placeholder
+                  const replacement = document.createTextNode(`[${alt}]`);
                   img.replaceWith(replacement);
                 }
               } else {
-                if (parentAnchor) parentAnchor.remove();
-                else img.remove();
+                if (parentAnchor) {
+                  parentAnchor.remove();
+                } else {
+                  img.remove();
+                }
               }
             } else {
-              // Not a usable URL — remove element but keep spacing
               if (parentAnchor) {
-                const replacement = document.createTextNode(` • ${alt || "Image"} • `);
-                parentAnchor.replaceWith(replacement);
+                parentAnchor.remove();
               } else {
-                const replacement = document.createTextNode(` • ${alt || "Image"} • `);
-                img.replaceWith(replacement);
+                img.remove();
               }
             }
           });
