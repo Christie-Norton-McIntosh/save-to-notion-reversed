@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Page 5 - Auto Pagination (Final)</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .content {
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+      .navigation {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      button {
+        padding: 12px 24px;
+        font-size: 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+      .prev-btn {
+        background: #6c757d;
+        color: white;
+      }
+      .prev-btn:hover {
+        background: #5a6268;
+      }
+      .next-btn {
+        background: #28a745;
+        color: white;
+      }
+      .next-btn:hover {
+        background: #218838;
+      }
+      .next-btn:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+      .page-indicator {
+        font-weight: bold;
+        color: #333;
+      }
+      h1 {
+        color: #2c3e50;
+      }
+      .success-box {
+        background: #d4edda;
+        border: 2px solid #28a745;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px 0;
+      }
+      .success-box h2 {
+        color: #155724;
+        margin-top: 0;
+      }
+      .checklist {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 20px 0;
+      }
+      .checklist li {
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="content">
+      <h1>🎉 Test Page 5 of 5 (Final)</h1>
+
+      <div class="success-box">
+        <h2>✓ Automation Complete!</h2>
+        <p>
+          Congratulations! If you're seeing this page, the auto-pagination
+          feature successfully navigated through all 5 test pages.
+        </p>
+      </div>
+
+      <h2>What Should Have Happened</h2>
+      <div class="checklist">
+        <ul>
+          <li>✓ Extension saved page 1 to Notion</li>
+          <li>✓ Automatically clicked "Next Page" button</li>
+          <li>✓ Saved page 2 and navigated to page 3</li>
+          <li>✓ Saved page 3 and navigated to page 4</li>
+          <li>✓ Saved page 4 and navigated to page 5</li>
+          <li>⏳ Currently saving this final page</li>
+          <li>⏹️ Automation will stop (no more "Next" button to click)</li>
+        </ul>
+      </div>
+
+      <h2>Verification Steps</h2>
+      <ol>
+        <li>
+          <strong>Check your Notion database:</strong> You should have 5 new
+          pages, one for each test page
+        </li>
+        <li>
+          <strong>Review the console logs:</strong> Look for messages indicating
+          successful saves and navigations
+        </li>
+        <li>
+          <strong>Check the extension popup:</strong> Status should show
+          "Automation complete" or similar
+        </li>
+        <li>
+          <strong>Verify content accuracy:</strong> Each saved page should
+          contain the correct content from each test page
+        </li>
+      </ol>
+
+      <h2>Expected Console Output</h2>
+      <pre
+        style="
+          background: #f8f9fa;
+          padding: 15px;
+          border-radius: 4px;
+          overflow-x: auto;
+        "
+      >
+[Auto-Pagination] Starting automation...
+[Auto-Pagination] Page 1: Saving...
+[Auto-Pagination] Page 1: Save complete, navigating...
+[Auto-Pagination] Page 2: Saving...
+[Auto-Pagination] Page 2: Save complete, navigating...
+[Auto-Pagination] Page 3: Saving...
+[Auto-Pagination] Page 3: Save complete, navigating...
+[Auto-Pagination] Page 4: Saving...
+[Auto-Pagination] Page 4: Save complete, navigating...
+[Auto-Pagination] Page 5: Saving...
+[Auto-Pagination] Page 5: Save complete
+[Auto-Pagination] No next button found - automation complete!
+        </pre
+      >
+
+      <h2>Troubleshooting</h2>
+      <p>If something didn't work as expected:</p>
+      <ul>
+        <li>
+          <strong>Check the CSS selector:</strong> Make sure you used
+          <code>.next-btn</code> as the selector
+        </li>
+        <li>
+          <strong>Check timing:</strong> Default delay is 3 seconds; increase if
+          pages are saving too slowly
+        </li>
+        <li>
+          <strong>Check max pages:</strong> Default is 10; should be sufficient
+          for this 5-page test
+        </li>
+        <li>
+          <strong>Review console errors:</strong> Any errors will be logged with
+          [Auto-Pagination] prefix
+        </li>
+      </ul>
+
+      <h2>Next Steps</h2>
+      <p>
+        Now that you've tested the feature with these simple pages, try it on
+        real websites:
+      </p>
+      <ul>
+        <li>Documentation sites with "Next" buttons</li>
+        <li>Blog archives with pagination</li>
+        <li>Tutorial series spread across multiple pages</li>
+        <li>Any site with sequential content navigation</li>
+      </ul>
+
+      <div class="success-box">
+        <h3>🎯 Testing Complete!</h3>
+        <p>
+          You can now close this test sequence and start using the
+          auto-pagination feature on real websites. Remember to adjust the CSS
+          selector for each site's specific "Next" button.
+        </p>
+      </div>
+    </div>
+
+    <div class="navigation">
+      <button
+        class="prev-btn"
+        onclick="window.location.href = 'auto-pagination-test-page-4.html'"
+      >
+        ← Previous Page
+      </button>
+      <span class="page-indicator">Page 5 of 5 (Final)</span>
+      <button class="next-btn" disabled title="This is the last page">
+        Next Page →
+      </button>
+    </div>
+
+    <script>
+      // Log completion for debugging
+      console.log(
+        "[Test Page] Final page loaded - Auto-pagination should complete here",
+      );
+      console.log(
+        "[Test Page] No next button available (disabled) - automation should stop gracefully",
+      );
+    </script>
+  </body>
+</html>

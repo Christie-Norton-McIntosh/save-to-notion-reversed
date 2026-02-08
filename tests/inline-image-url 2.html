@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Inline Image (URL) Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 32px;
+        background: #f5f7fb;
+      }
+      .card {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 10px 40px rgba(18, 38, 63, 0.08);
+        max-width: 800px;
+      }
+      img.inline-icon {
+        width: 32px;
+        height: 32px;
+        vertical-align: middle;
+      }
+      .expected {
+        margin-top: 16px;
+        padding: 12px;
+        background: #f0f4ff;
+        border: 1px dashed #8ba8ff;
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Inline Image with URL</h1>
+      <p>
+        The status badge
+        <img
+          class="inline-icon"
+          src="https://via.placeholder.com/32x32.png?text=URL"
+          alt="URL badge"
+        />
+        should appear as a child image block under this paragraph in Notion. The
+        inline text should remain intact.
+      </p>
+
+      <div class="expected">
+        <strong>Expected Notion output:</strong>
+        <ul>
+          <li>Paragraph containing the text of this sentence.</li>
+          <li>
+            Child image block for the inline URL image (not inline markdown).
+          </li>
+          <li>
+            No empty <code>![alt]()</code> markdown; image visible after upload.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </body>
+</html>

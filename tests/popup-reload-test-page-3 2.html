@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Popup Reload Test - Page 3</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 50px auto;
+        padding: 20px;
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+      }
+      .container {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 30px;
+        border-radius: 10px;
+        backdrop-filter: blur(10px);
+      }
+      h1 {
+        margin-top: 0;
+      }
+      .test-buttons {
+        display: flex;
+        gap: 15px;
+        margin-top: 30px;
+        flex-wrap: wrap;
+      }
+      button {
+        padding: 12px 24px;
+        font-size: 16px;
+        font-weight: 600;
+        border: none;
+        border-radius: 6px;
+        background: white;
+        color: #4facfe;
+        cursor: pointer;
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s;
+      }
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+      button:active {
+        transform: translateY(0);
+      }
+      .info {
+        margin-top: 20px;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+      }
+      .auto-reload {
+        background: rgba(255, 255, 0, 0.3);
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 20px;
+      }
+      #countdown {
+        font-size: 24px;
+        font-weight: bold;
+        margin: 10px 0;
+      }
+      code {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: "Courier New", monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>⏰ Popup Reload Test - Page 3 (Auto-Reload)</h1>
+
+      <div class="auto-reload">
+        <h3>🔄 Automatic Reload Test</h3>
+        <p>This page will automatically reload in:</p>
+        <div id="countdown">5</div>
+        <p>The popup should reload each time this page reloads.</p>
+        <button
+          onclick="
+            clearInterval(timer);
+            document.getElementById('status').textContent =
+              'Auto-reload cancelled';
+          "
+        >
+          Cancel Auto-Reload
+        </button>
+        <div id="status" style="margin-top: 10px; font-weight: bold"></div>
+      </div>
+
+      <div class="info">
+        <h3>Test Status:</h3>
+        <p>Page reload count: <strong id="reloadCount">1</strong></p>
+        <p>Last reload: <strong id="lastReload">-</strong></p>
+      </div>
+
+      <div class="test-buttons">
+        <button
+          onclick="window.location.href = 'popup-reload-test-page-1.html'"
+        >
+          ← Back to Page 1
+        </button>
+        <button
+          onclick="window.location.href = 'popup-reload-test-page-2.html'"
+        >
+          ← Back to Page 2
+        </button>
+      </div>
+
+      <div class="info" style="margin-top: 30px">
+        <h3>✅ All Tests Complete!</h3>
+        <p>If you've seen the popup reload successfully:</p>
+        <ul>
+          <li>When navigating between pages 1, 2, and 3</li>
+          <li>When manually reloading any page</li>
+          <li>When this page auto-reloads (watch the countdown)</li>
+        </ul>
+        <p>
+          <strong
+            >Then the popup reload functionality is working correctly!
+            🎉</strong
+          >
+        </p>
+      </div>
+    </div>
+
+    <script>
+      // Track reload count using sessionStorage
+      let reloadCount =
+        parseInt(sessionStorage.getItem("reloadCount") || "0") + 1;
+      sessionStorage.setItem("reloadCount", reloadCount.toString());
+      document.getElementById("reloadCount").textContent = reloadCount;
+      document.getElementById("lastReload").textContent =
+        new Date().toLocaleTimeString();
+
+      // Countdown timer
+      let countdown = 5;
+      const countdownEl = document.getElementById("countdown");
+      const statusEl = document.getElementById("status");
+
+      const timer = setInterval(() => {
+        countdown--;
+        countdownEl.textContent = countdown;
+
+        if (countdown <= 0) {
+          statusEl.textContent = "Reloading now...";
+          setTimeout(() => {
+            window.location.reload();
+          }, 500);
+        }
+      }, 1000);
+
+      // Display page load time for verification
+      window.addEventListener("load", () => {
+        console.log("Page 3 loaded at:", new Date().toISOString());
+      });
+
+      // Add visual indicator of recent load
+      const loadTime = document.createElement("div");
+      loadTime.style.cssText =
+        "position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; font-size: 12px;";
+      loadTime.textContent = `Loaded: ${new Date().toLocaleTimeString()}`;
+      document.body.appendChild(loadTime);
+    </script>
+  </body>
+</html>

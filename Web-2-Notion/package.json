@@ -9,7 +9,7 @@
     "test-table-edge-cases": "node ../tests/test-table-edge-cases.js",
     "test-table-edge-more": "node ../tests/test-table-edge-more.js",
     "test-inline-images": "node ../tests/test-inline-images.js",
-  "test-e2e-servicenow": "node ../tests/test-e2e-servicenow-table.js",
+    "test-e2e-servicenow": "node ../tests/test-e2e-servicenow-table.js",
     "test-gt-spacing": "node ../tests/test-gt-spacing.js",
     "test-notion-utils": "node ../tests/test-notion-api-utils.js",
     "test-abbr-spacing-stripMultispaces": "node ../tests/test-scanwebpage-abbr-spacing.js",

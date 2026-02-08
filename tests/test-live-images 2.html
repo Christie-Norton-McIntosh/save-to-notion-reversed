@@ -1,0 +1,466 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Live Image Processing Test - Web-2-Notion</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background: #f5f5f5;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+      }
+      h1 {
+        color: #333;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 10px;
+      }
+      .test-section {
+        margin: 30px 0;
+        padding: 20px;
+        background: #f9f9f9;
+        border-left: 4px solid #007bff;
+      }
+      .test-section h2 {
+        margin-top: 0;
+        color: #007bff;
+      }
+      .controls {
+        margin: 20px 0;
+        padding: 15px;
+        background: #e9ecef;
+        border-radius: 4px;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 5px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      button:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+      }
+      .output {
+        margin: 20px 0;
+        padding: 15px;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        white-space: pre-wrap;
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+      }
+      .pass {
+        color: #28a745;
+        font-weight: bold;
+      }
+      .fail {
+        color: #dc3545;
+        font-weight: bold;
+      }
+      .info {
+        color: #17a2b8;
+      }
+      table {
+        border-collapse: collapse;
+        margin: 10px 0;
+      }
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+      }
+      img {
+        max-width: 50px;
+        max-height: 50px;
+      }
+      .sample-content {
+        padding: 15px;
+        background: white;
+        border: 2px solid #007bff;
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔍 Live Image Processing Test</h1>
+      <p>
+        <strong>Purpose:</strong> Test how Web-2-Notion extension processes
+        images in various scenarios
+      </p>
+
+      <div class="controls">
+        <button onclick="testInlineImages()">Test 1: Inline Images</button>
+        <button onclick="testTableImages()">Test 2: Table Images</button>
+        <button onclick="testImageInAnchor()">Test 3: Image in Anchor</button>
+        <button onclick="testAllScenarios()">Run All Tests</button>
+        <button onclick="clearResults()">Clear Results</button>
+      </div>
+
+      <div id="results" class="output">Results will appear here...</div>
+
+      <!-- Test Content Sections (hidden from view but available for inspection) -->
+      <div style="display: none">
+        <div id="test-inline" class="test-content">
+          <p>
+            Please select the home icon
+            <img
+              src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+              alt="home icon"
+              class="icon"
+            />
+            from the menu.
+          </p>
+          <p>
+            Click the settings
+            <img src="/images/settings.png" alt="settings icon" /> to configure
+            options.
+          </p>
+        </div>
+
+        <div id="test-table" class="test-content">
+          <table>
+            <tr>
+              <td>
+                <img src="https://example.com/image1.png" alt="Image 1" />
+              </td>
+              <td>Description for Image 1</td>
+            </tr>
+            <tr>
+              <td>
+                <img
+                  src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+                  alt="Image 2"
+                />
+              </td>
+              <td>Description for Image 2</td>
+            </tr>
+          </table>
+        </div>
+
+        <div id="test-anchor" class="test-content">
+          <p>
+            Click here:
+            <a href="https://example.com/full-image.png"
+              ><img
+                src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                alt="thumbnail"
+            /></a>
+            to view the full image.
+          </p>
+        </div>
+      </div>
+
+      <!-- Visible Test Samples -->
+      <div class="test-section">
+        <h2>📝 Test Scenario 1: Inline Images</h2>
+        <div class="sample-content">
+          <p>
+            Please select the home icon
+            <img
+              src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+              alt="home icon"
+              class="icon"
+            />
+            from the menu.
+          </p>
+        </div>
+        <p><strong>Expected Behavior:</strong></p>
+        <ul>
+          <li>Data URL should be preserved in markdown</li>
+          <li>
+            Should output: <code>![home icon](data:image/png;base64,...)</code>
+          </li>
+          <li>NOT empty parentheses: <code>![home icon]()</code></li>
+        </ul>
+      </div>
+
+      <div class="test-section">
+        <h2>📊 Test Scenario 2: Table with Images</h2>
+        <div class="sample-content">
+          <table>
+            <tr>
+              <td>
+                <img
+                  src="https://example.com/image1.png"
+                  alt="Image 1"
+                  style="width: 30px"
+                />
+              </td>
+              <td>Description for Image 1</td>
+            </tr>
+            <tr>
+              <td>
+                <img
+                  src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+                  alt="Image 2"
+                  style="width: 30px"
+                />
+              </td>
+              <td>Description for Image 2</td>
+            </tr>
+          </table>
+        </div>
+        <p><strong>Expected Behavior:</strong></p>
+        <ul>
+          <li>Both http:// and data: URLs should be preserved</li>
+          <li>Table converts to list format with <code>---</code> dividers</li>
+          <li>Images appear before cell text</li>
+          <li>NOT blank placeholders</li>
+        </ul>
+      </div>
+
+      <div class="test-section">
+        <h2>🔗 Test Scenario 3: Image in Anchor</h2>
+        <div class="sample-content">
+          <p>
+            Click here:
+            <a href="https://example.com/full-image.png"
+              ><img
+                src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                alt="thumbnail"
+                style="width: 30px"
+            /></a>
+            to view.
+          </p>
+        </div>
+        <p><strong>Expected Behavior:</strong></p>
+        <ul>
+          <li>Should use anchor's href instead of data URL</li>
+          <li>
+            Should output:
+            <code>![thumbnail](https://example.com/full-image.png)</code>
+          </li>
+          <li>NOT the data URL from the img tag</li>
+        </ul>
+      </div>
+    </div>
+
+    <script>
+      let testResults = [];
+
+      function log(message, type = "info") {
+        const timestamp = new Date().toLocaleTimeString();
+        const prefix = type === "pass" ? "✅" : type === "fail" ? "❌" : "ℹ️";
+        testResults.push(`[${timestamp}] ${prefix} ${message}`);
+        updateResults();
+      }
+
+      function updateResults() {
+        document.getElementById("results").textContent = testResults.join("\n");
+      }
+
+      function clearResults() {
+        testResults = [];
+        updateResults();
+      }
+
+      function inspectImage(img) {
+        const info = {
+          tagName: img.tagName,
+          src: img.src,
+          getAttribute_src: img.getAttribute("src"),
+          data_original_src: img.getAttribute("data-original-src"),
+          alt: img.alt,
+          parent: img.parentElement ? img.parentElement.tagName : null,
+          parentIsAnchor:
+            img.parentElement && img.parentElement.tagName === "A",
+          parentHref:
+            img.parentElement && img.parentElement.tagName === "A"
+              ? img.parentElement.href
+              : null,
+        };
+        return info;
+      }
+
+      function testInlineImages() {
+        log("=== Testing Inline Images ===");
+        const container = document.getElementById("test-inline");
+        const images = container.querySelectorAll("img");
+
+        log(`Found ${images.length} inline images`);
+
+        images.forEach((img, index) => {
+          log(`\nImage ${index + 1}:`);
+          const info = inspectImage(img);
+          log(`  Tag: ${info.tagName}`);
+          log(
+            `  src attribute: ${info.getAttribute_src ? info.getAttribute_src.substring(0, 50) + "..." : "null"}`,
+          );
+          log(
+            `  img.src property: ${info.src ? info.src.substring(0, 50) + "..." : "null"}`,
+          );
+          log(`  alt: ${info.alt}`);
+          log(`  parent: ${info.parent}`);
+
+          // Check expected behavior
+          if (
+            info.getAttribute_src &&
+            info.getAttribute_src.startsWith("data:")
+          ) {
+            log("  ✓ Has data URL in src attribute", "pass");
+          } else if (
+            info.getAttribute_src &&
+            info.getAttribute_src.startsWith("/")
+          ) {
+            log(
+              "  ⚠️  Has relative URL - should be converted to absolute",
+              "info",
+            );
+          } else {
+            log("  ✗ Unexpected src format", "fail");
+          }
+        });
+      }
+
+      function testTableImages() {
+        log("=== Testing Table Images ===");
+        const container = document.getElementById("test-table");
+        const images = container.querySelectorAll("img");
+
+        log(`Found ${images.length} images in table`);
+
+        images.forEach((img, index) => {
+          log(`\nTable Image ${index + 1}:`);
+          const info = inspectImage(img);
+          log(
+            `  src attribute: ${info.getAttribute_src ? info.getAttribute_src.substring(0, 50) + "..." : "null"}`,
+          );
+          log(`  alt: ${info.alt}`);
+
+          // Check if in table cell
+          let cell = img.parentElement;
+          while (cell && cell.tagName !== "TD" && cell.tagName !== "TH") {
+            cell = cell.parentElement;
+          }
+
+          if (cell) {
+            log(`  ✓ Found in table cell (${cell.tagName})`, "pass");
+            const cellText = cell.textContent.trim();
+            log(
+              `  Cell text: "${cellText.substring(0, 50)}${cellText.length > 50 ? "..." : ""}"`,
+            );
+          } else {
+            log("  ✗ Not in a table cell", "fail");
+          }
+
+          // Check URL type
+          const src = info.getAttribute_src || info.src;
+          if (src.startsWith("data:")) {
+            log("  ✓ Has data URL", "pass");
+          } else if (src.startsWith("http://") || src.startsWith("https://")) {
+            log("  ✓ Has HTTP(S) URL", "pass");
+          } else {
+            log(`  ⚠️  Has relative URL: ${src}`, "info");
+          }
+        });
+      }
+
+      function testImageInAnchor() {
+        log("=== Testing Image in Anchor ===");
+        const container = document.getElementById("test-anchor");
+        const images = container.querySelectorAll("img");
+
+        log(`Found ${images.length} images in anchors`);
+
+        images.forEach((img, index) => {
+          log(`\nAnchored Image ${index + 1}:`);
+          const info = inspectImage(img);
+          log(
+            `  img src: ${info.getAttribute_src ? info.getAttribute_src.substring(0, 50) + "..." : "null"}`,
+          );
+          log(`  alt: ${info.alt}`);
+          log(`  parent is anchor: ${info.parentIsAnchor}`);
+
+          if (info.parentIsAnchor) {
+            log(`  ✓ Parent is an anchor tag`, "pass");
+            log(`  anchor href: ${info.parentHref}`);
+
+            // Expected: extension should use anchor href instead of img src
+            if (info.parentHref && info.parentHref.includes("full-image.png")) {
+              log("  ✓ Anchor has better URL (full-image.png)", "pass");
+              log(
+                "  → Extension should use anchor href, NOT img data URL",
+                "info",
+              );
+            } else {
+              log("  ✗ Anchor href not as expected", "fail");
+            }
+          } else {
+            log("  ✗ Parent is not an anchor", "fail");
+          }
+        });
+      }
+
+      function testAllScenarios() {
+        clearResults();
+        log("🚀 Running all image processing tests...\n");
+        testInlineImages();
+        log("\n");
+        testTableImages();
+        log("\n");
+        testImageInAnchor();
+        log("\n=== Tests Complete ===");
+        log("\nIMPORTANT: These tests only show what's in the DOM.");
+        log("To test actual markdown conversion:");
+        log("1. Load this page with the extension installed");
+        log("2. Open DevTools Console");
+        log("3. Run: window.__testImageConversion()");
+      }
+
+      // Expose a test function that can be called from the extension
+      window.__testImageConversion = function () {
+        console.log("🧪 Testing image conversion with extension...");
+
+        // This function would need access to the extension's JZ function
+        // For now, just log what we can inspect
+        console.log("\n=== DOM Inspection ===");
+
+        const allImages = document.querySelectorAll("img");
+        console.log(`Total images on page: ${allImages.length}`);
+
+        allImages.forEach((img, i) => {
+          console.log(`\nImage ${i + 1}:`);
+          console.log('  getAttribute("src"):', img.getAttribute("src"));
+          console.log(
+            '  getAttribute("data-original-src"):',
+            img.getAttribute("data-original-src"),
+          );
+          console.log("  img.src:", img.src);
+          console.log("  alt:", img.alt);
+          console.log("  parent:", img.parentElement?.tagName);
+          if (img.parentElement?.tagName === "A") {
+            console.log("  parent href:", img.parentElement.href);
+          }
+        });
+
+        return {
+          totalImages: allImages.length,
+          images: Array.from(allImages).map((img) => inspectImage(img)),
+        };
+      };
+
+      // Auto-run tests on page load
+      window.addEventListener("load", () => {
+        setTimeout(() => {
+          log(
+            'Page loaded. Click "Run All Tests" to begin, or test individually.',
+          );
+        }, 100);
+      });
+    </script>
+  </body>
+</html>

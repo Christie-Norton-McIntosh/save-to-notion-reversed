@@ -16807,8 +16807,6 @@ function Wv(e) {
 
           // Clone the cell to avoid modifying the DOM
           const cellClone = cell.cloneNode(true);
-          
-          cellClone.insertBefore(marker, cellClone.firstChild);
 
           // Remove script and style tags
           cellClone
@@ -16826,11 +16824,8 @@ function Wv(e) {
             const srcAttr = img.getAttribute("src") || "";
             const srcProp = img.src || "";
             let src = originalSrcAttr || srcAttr || srcProp;
-            const alt = img.getAttribute("alt") || "Image"; // Use "Image" as default placeholder
+            const alt = img.getAttribute("alt") || "";
             const title = img.getAttribute("title") || "";
-            console.debug(
-              `[tableWithoutHeading] Image alt: "${alt}"`,
-            );
             console.debug(
               `[tableWithoutHeading] Image data-original-src: ${originalSrcAttr?.substring(0, 70)}...`,
             );
@@ -16844,30 +16839,6 @@ function Wv(e) {
             // Store the parent anchor if the image is wrapped in one
             const parentAnchor =
               img.parentElement?.tagName === "A" ? img.parentElement : null;
-
-            // Detect whether this image is inline with surrounding text
-            // (e.g. "text <img/> text"). If so, we must always emit a
-            // visible placeholder to preserve spacing — even if other
-            // URL/alt conditions would otherwise skip insertion.
-            const hasTextSibling = (() => {
-              try {
-                const prev = img.previousSibling;
-                const next = img.nextSibling;
-                if (
-                  (prev && prev.nodeType === Node.TEXT_NODE && prev.textContent.trim()) ||
-                  (next && next.nodeType === Node.TEXT_NODE && next.textContent.trim())
-                )
-                  return true;
-                if (parentAnchor) {
-                  return Array.from(parentAnchor.childNodes).some(
-                    (n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim(),
-                  );
-                }
-              } catch (err) {
-                return false;
-              }
-              return false;
-            })();
             
             // Store the original anchor href if image is a link
             const imageLink = parentAnchor ? (parentAnchor.getAttribute("href") || parentAnchor.href) : null;
@@ -16895,9 +16866,8 @@ function Wv(e) {
             // Only extract images with http/https URLs (Notion doesn't support base64/data URLs)
             const isValidUrl =
               src && (src.startsWith("http://") || src.startsWith("https://"));
-            console.debug(`[tableWithoutHeading] isValidUrl: ${isValidUrl}, src: ${src?.substring(0, 70)}...`);
 
-            if (isValidUrl || hasTextSibling) {
+            if (isValidUrl) {
               const titlePart = title ? ` "${title}"` : "";
               // Add hyperlink to source page in alt text label (same as inline images)
               const pageUrl = window.location.href;
@@ -16914,10 +16884,7 @@ function Wv(e) {
               
               // Replace with text placeholder in cell
               // Preserve textual siblings when image is in anchor
-              // If the image is inline with text (hasTextSibling) we
-              // force insertion of a visible placeholder even when
-              // other conditions would not have inserted one.
-              if (alt || hasTextSibling) {
+              if (alt) {
                 if (parentAnchor) {
                   // Preserve the original anchor element but replace the
                   // <img> with a small wrapper that contains both a
@@ -16945,10 +16912,8 @@ function Wv(e) {
                   const wrapper = document.createElement("span");
                   wrapper.className = "stn-inline-image";
                   wrapper.appendChild(preservedImg);
-                  
-                  // Parent anchor will provide the link, just add text
                   wrapper.appendChild(
-                    document.createTextNode(" • " + alt + " • "),
+                    document.createTextNode(" [" + alt + "] "),
                   );
 
                   // Replace only the image node so the anchor element
@@ -16956,15 +16921,7 @@ function Wv(e) {
                   img.replaceWith(wrapper);
                 } else {
                   // Just replace the image with the textual placeholder
-                  // If image has a link, make [alt] clickable; otherwise plain text
-                  let replacement;
-                  if (imageLink) {
-                    replacement = document.createElement("a");
-                    replacement.href = imageLink;
-                    replacement.textContent = ` • ${alt} • `;
-                  } else {
-                    replacement = document.createTextNode(` • ${alt} • `);
-                  }
+                  const replacement = document.createTextNode(`[${alt}]`);
                   img.replaceWith(replacement);
                 }
               } else {
@@ -16975,16 +16932,10 @@ function Wv(e) {
                 }
               }
             } else {
-              // Invalid URL - don't extract but still add placeholder to prevent text from running together
-              console.debug(`[tableWithoutHeading] Invalid URL, adding placeholder for alt: "${alt}"`);
               if (parentAnchor) {
-                // Replace entire anchor with text placeholder
-                const replacement = document.createTextNode(` • ${alt} • `);
-                parentAnchor.replaceWith(replacement);
+                parentAnchor.remove();
               } else {
-                // Replace image with text placeholder
-                const replacement = document.createTextNode(` • ${alt} • `);
-                img.replaceWith(replacement);
+                img.remove();
               }
             }
           });
@@ -17001,114 +16952,18 @@ function Wv(e) {
             }
           });
 
-          // Convert anchor elements to markdown [text](url) format
-          cellClone.querySelectorAll("a").forEach((anchor) => {
-            const href = anchor.getAttribute("href") || anchor.href || "";
-            const text = anchor.textContent || "";
-            if (href && text) {
-              const markdownLink = document.createTextNode(`[${text}](${href})`);
-              anchor.replaceWith(markdownLink);
-            } else {
-              // If no href or text, just keep the text content
-              anchor.replaceWith(document.createTextNode(text));
-            }
-          });
-
-          // Replace any bracketed alt-text placeholders ("[alt]") that may have
-          // been injected earlier with the bullet-style placeholder so they
-          // won't be stripped by paragraph post-processing. This is a
-          // hardening step for table flows where multiple code paths can
-          // introduce bracketed placeholders.
-          (function replaceBracketedPlaceholders(root) {
-            const walker = document.createTreeWalker(
-              root,
-              NodeFilter.SHOW_TEXT,
-              null,
-              false,
-            );
-            const re = /^\s*\[([^\]]+)\]\s*$/;
-            const toReplace = [];
-            while (walker.nextNode()) {
-              const node = walker.currentNode;
-              const m = node.nodeValue && node.nodeValue.match(re);
-              if (m) toReplace.push({ node, alt: m[1] });
-            }
-            toReplace.forEach(({ node, alt }) => {
-              const replacement = document.createTextNode(` • ${alt} • `);
-              node.parentNode.replaceChild(replacement, node);
-            });
-          })(cellClone);
-
           // Handle line breaks
           cellClone.querySelectorAll("br").forEach((br) => {
             br.replaceWith(document.createTextNode(" "));
           });
 
-          // Extract text content (legacy flattened form)
+          // Extract text content
           text = cellClone.textContent || "";
 
-          // Also build a newline-preserving representation used for
-          // paragraph-level XCELLIDX payloads. This preserves orphan
-          // text nodes and <p>-level boundaries so the popup can map
-          // each HTML <p> to its own Notion text block.
-          try {
-            var tmpForParagraphs = cellClone.cloneNode(true);
-
-            // Wrap orphan text nodes so they become paragraph-like
-            (function wrapOrphanTextNodes(parent) {
-              var children = Array.from(parent.childNodes);
-              children.forEach(function (node) {
-                if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
-                  var wrapper = document.createElement("p");
-                  wrapper.textContent = node.textContent;
-                  parent.replaceChild(wrapper, node);
-                }
-              });
-            })(tmpForParagraphs);
-
-            // Insert explicit markers after block elements to preserve
-            // paragraph boundaries when we extract textContent.
-            var blockEls = tmpForParagraphs.querySelectorAll(
-              "div, p, h1, h2, h3, h4, h5, h6, section, article, header, footer",
-            );
-            for (var _i = 0; _i < blockEls.length; _i++) {
-              var markerAfter = document.createTextNode("__BLOCK_END__");
-              if (blockEls[_i].nextSibling) {
-                blockEls[_i].parentNode.insertBefore(markerAfter, blockEls[_i].nextSibling);
-              } else {
-                blockEls[_i].parentNode.appendChild(markerAfter);
-              }
-            }
-
-            // Replace br tags with markers
-            tmpForParagraphs.querySelectorAll("br").forEach(function (br) {
-              var brMarker = document.createTextNode("__BR__");
-              br.parentNode.replaceChild(brMarker, br);
-            });
-
-            var textWithNewlines = tmpForParagraphs.textContent || "";
-            textWithNewlines = textWithNewlines
-              .replace(/(\s*)__BLOCK_END__(\s*)/g, "$1\n$2")
-              .replace(/__BR__/g, "\n");
-            // Collapse multiple consecutive newlines and trim
-            textWithNewlines = textWithNewlines.replace(/\n+/g, "\n").trim();
-
-            // Normalize intra-line whitespace but preserve newlines
-            textWithNewlines = textWithNewlines
-              .split("\n")
-              .map(function (s) {
-                return s.replace(/[ \t]+/g, " ").trim();
-              })
-              .filter(Boolean)
-              .join("\n");
-
-            // Keep a flattened legacy version for other consumers
-            text = text.replace(/[ \t]+/g, " ").replace(/\n+/g, " ").trim();
-          } catch (err) {
-            // Best-effort; fall back to the flattened text
-            textWithNewlines = (cellClone.textContent || "").replace(/\s+/g, " ").trim();
-            text = textWithNewlines;
-          }
+          // Normalize whitespace
+          text = text.replace(/[ \t]+/g, " ");
+          text = text.replace(/\n+/g, " ");
+          text = text.trim();
 
           // Escape pipe characters
           text = text.replace(/\|/g, "\\|");
@@ -17119,46 +16974,6 @@ function Wv(e) {
           // Limit cell length
           if (text.length > 500) {
             text = text.substring(0, 497) + "...";
-          }
-
-          // If the original cell contains images, publish a cell-marker so
-          // the popup-side paragraph processor can detect that this text
-          // originated from a table cell and must preserve image placeholders.
-          try {
-            // Always publish a structured payload for table cells so the
-            // popup can reliably expand paragraph-level content. Keep a
-            // flattened legacy string for backward compatibility.
-            window.__TABLE_CELL_CONTENT_MAP__ = window.__TABLE_CELL_CONTENT_MAP__ || {};
-            var _cellId = "CELL_" + Math.random().toString(36).substr(2, 9);
-
-            // Build paragraphs array from the newline-preserving text
-            // we produced earlier. If that isn't available, fall back to
-            // a single-element array containing the flattened text.
-            var paragraphs = [];
-            if (typeof textWithNewlines === "string" && textWithNewlines.length) {
-              paragraphs = textWithNewlines.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
-            } else if (text && text.length) {
-              paragraphs = [text];
-            }
-
-            // Derive some lightweight metadata to help consumer heuristics
-            var imgs = (cell.querySelectorAll && cell.querySelectorAll("img")) || [];
-            var links = (cell.querySelectorAll && cell.querySelectorAll("a")) || [];
-            var meta = {
-              containsImage: !!imgs.length,
-              hasLinks: !!links.length,
-              approxLength: (text || "").length,
-            };
-
-            window.__TABLE_CELL_CONTENT_MAP__[_cellId] = {
-              paragraphs: paragraphs,
-              flattened: (text || "").trim(),
-              meta: meta,
-            };
-
-            return "XCELLIDX" + _cellId + "XCELLIDX";
-          } catch (err) {
-            /* ignore - best-effort marker insertion */
           }
 
           return text;
@@ -17275,8 +17090,6 @@ function Wv(e) {
 
           // Clone the cell to avoid modifying the DOM
           const cellClone = cell.cloneNode(true);
-          
-          cellClone.insertBefore(marker, cellClone.firstChild);
 
           // Remove script and style tags
           cellClone
@@ -17291,39 +17104,21 @@ function Wv(e) {
           );
           images.forEach((img) => {
             let src = img.getAttribute("src") || img.src || "";
-            const alt = img.getAttribute("alt") || "Image";
+            const alt = img.getAttribute("alt") || "";
             const title = img.getAttribute("title") || "";
-
-            console.debug(`[tableWithHeading] Image alt: "${alt}"`);
             console.debug(
               `[tableWithHeading] Image src attribute: ${src?.substring(0, 50)}...`,
             );
 
+            // Store the parent anchor if the image is wrapped in one
             const parentAnchor =
               img.parentElement?.tagName === "A" ? img.parentElement : null;
-
-            const hasTextSibling = (() => {
-              try {
-                const prev = img.previousSibling;
-                const next = img.nextSibling;
-                if (
-                  (prev && prev.nodeType === Node.TEXT_NODE && prev.textContent.trim()) ||
-                  (next && next.nodeType === Node.TEXT_NODE && next.textContent.trim())
-                )
-                  return true;
-                if (parentAnchor) {
-                  return Array.from(parentAnchor.childNodes).some(
-                    (n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim(),
-                  );
-                }
-              } catch (err) {
-                return false;
-              }
-              return false;
-            })();
-
+            
+            // Store the original anchor href if image is a link
             const imageLink = parentAnchor ? (parentAnchor.getAttribute("href") || parentAnchor.href) : null;
 
+            // If image is wrapped in anchor, prefer the anchor href (often points to full-res image)
+            // This avoids base64-converted proxied/resized image URLs
             if (imageLink) {
               console.debug(
                 `[tableWithHeading] Image wrapped in anchor, using href: ${imageLink?.substring(0, 50)}...`,
@@ -17331,69 +17126,82 @@ function Wv(e) {
               src = imageLink;
             }
 
+            // Only extract images with http/https URLs (Notion doesn't support base64/data URLs)
             const isValidUrl =
               src && (src.startsWith("http://") || src.startsWith("https://"));
-            console.debug(`[tableWithHeading] isValidUrl: ${isValidUrl}, src: ${src?.substring(0, 70)}...`);
 
-            const titlePart = title ? ` "${title}"` : "";
-            const pageUrl = window.location.href;
-            let linkedAlt = alt || "";
-
-            if (isValidUrl || hasTextSibling) {
+            if (isValidUrl) {
+              const titlePart = title ? ` "${title}"` : "";
+              // Add hyperlink to source page in alt text label (same as inline images)
+              const pageUrl = window.location.href;
+              // If image is a link, include that in the alt text too
+              let linkedAlt = alt || "";
               if (alt && imageLink && imageLink !== src) {
+                // Image has both an alt and is a link to different content
                 linkedAlt = `[${alt}](${pageUrl}) → [Link](${imageLink})`;
               } else if (alt) {
+                // Just alt text with source page link
                 linkedAlt = `[${alt}](${pageUrl})`;
               }
-
-              // record extracted image for rendering after the table
               extractedImages.push(`![${linkedAlt}](${src}${titlePart})`);
-
-              // Replace with textual placeholder (preserve anchors when present)
-              if (alt || hasTextSibling) {
+              
+              // Replace with text placeholder in cell
+              // Preserve textual siblings when image is in anchor
+              if (alt) {
                 if (parentAnchor) {
+                  // Preserve the original anchor element but replace the
+                  // <img> with a small wrapper that contains both a
+                  // hidden/trackable IMG (so later extraction can find
+                  // it) and the textual placeholder used in markdown.
+                  // This keeps the image as a child of the original
+                  // anchor (so callers can use anchor.href) while
+                  // still producing the expected "[alt]" text for
+                  // downstream markdown conversion.
                   const preservedImg = img.cloneNode(true);
                   preservedImg.setAttribute("data-stn-preserve", "1");
+                  // Keep a discoverable src so later collectors pick it up
                   const preservedSrc =
-                    preservedImg.getAttribute("src") || preservedImg.src || "";
-                  if (preservedSrc) preservedImg.setAttribute("src", preservedSrc);
+                    preservedImg.getAttribute("src") ||
+                    preservedImg.src ||
+                    "";
+                  if (preservedSrc)
+                    preservedImg.setAttribute("src", preservedSrc);
+                  // Remove alt to prevent textContent from picking it up
                   preservedImg.removeAttribute("alt");
+                  // Hide the preserved image in the text-to-markdown flow
                   preservedImg.style.cssText =
                     "width:0;height:0;border:0;opacity:0;position:relative;left:0;";
 
                   const wrapper = document.createElement("span");
                   wrapper.className = "stn-inline-image";
                   wrapper.appendChild(preservedImg);
-                  wrapper.appendChild(document.createTextNode(" • " + alt + " • "));
+                  wrapper.appendChild(
+                    document.createTextNode(" [" + alt + "] "),
+                  );
+
+                  // Replace only the image node so the anchor element
+                  // remains in the DOM with the wrapper as its child.
                   img.replaceWith(wrapper);
                 } else {
-                  let replacement;
-                  const placeholderAlt = (alt && alt.trim()) || "Image";
-                  if (imageLink) {
-                    replacement = document.createElement("a");
-                    replacement.href = imageLink;
-                    replacement.textContent = ` • ${placeholderAlt} • `;
-                  } else {
-                    replacement = document.createTextNode(` • ${placeholderAlt} • `);
-                  }
+                  // Just replace the image with the textual placeholder
+                  const replacement = document.createTextNode(`[${alt}]`);
                   img.replaceWith(replacement);
                 }
               } else {
-                if (parentAnchor) parentAnchor.remove();
-                else img.remove();
+                if (parentAnchor) {
+                  parentAnchor.remove();
+                } else {
+                  img.remove();
+                }
               }
             } else {
-              console.debug(`[tableWithHeading] Invalid URL, adding placeholder for alt: "${alt}"`);
               if (parentAnchor) {
-                const replacement = document.createTextNode(` • ${alt} • `);
-                parentAnchor.replaceWith(replacement);
+                parentAnchor.remove();
               } else {
-                const replacement = document.createTextNode(` • ${alt} • `);
-                img.replaceWith(replacement);
+                img.remove();
               }
             }
           });
-          
 
           // Handle nested lists - convert to inline comma-separated
           const lists = cellClone.querySelectorAll("ul, ol");
@@ -17404,19 +17212,6 @@ function Wv(e) {
             if (items.length) {
               const replacement = document.createTextNode(items.join(", "));
               list.parentNode.replaceChild(replacement, list);
-            }
-          });
-
-          // Convert anchor elements to markdown [text](url) format
-          cellClone.querySelectorAll("a").forEach((anchor) => {
-            const href = anchor.getAttribute("href") || anchor.href || "";
-            const text = anchor.textContent || "";
-            if (href && text) {
-              const markdownLink = document.createTextNode(`[${text}](${href})`);
-              anchor.replaceWith(markdownLink);
-            } else {
-              // If no href or text, just keep the text content
-              anchor.replaceWith(document.createTextNode(text));
             }
           });
 
@@ -17442,22 +17237,6 @@ function Wv(e) {
           // Limit cell length to prevent extremely long cells (Notion has limits)
           if (text.length > 500) {
             text = text.substring(0, 497) + "...";
-          }
-
-          // If the original cell contains images, publish a cell-marker so
-          // the popup-side paragraph processor can detect that this text
-          // originated from a table cell and must preserve image placeholders.
-          try {
-            var imgs = cell.querySelectorAll && cell.querySelectorAll("img");
-            if (imgs && imgs.length) {
-              window.__TABLE_CELL_CONTENT_MAP__ =
-                window.__TABLE_CELL_CONTENT_MAP__ || {};
-              var _cellId2 = "CELL_" + Math.random().toString(36).substr(2, 9);
-              window.__TABLE_CELL_CONTENT_MAP__[_cellId2] = text;
-              return "XCELLIDX" + _cellId2 + "XCELLIDX";
-            }
-          } catch (err) {
-            /* ignore - best-effort marker insertion */
           }
 
           return text;
