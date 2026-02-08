@@ -30,7 +30,7 @@ testImageReplacement("YOUR_PAGE_ID", "YOUR_SPACE_ID")
 
 ## ⚡ Why Console Test?
 
-The original `test-image-replacement.html` couldn't access `chrome.runtime.sendMessage` because it's loaded as a regular web page. The console test works because it runs in the context of an already-loaded page where the extension is active.
+The original `tests/test-image-replacement.html` couldn't access `chrome.runtime.sendMessage` because it's loaded as a regular web page. The console test works because it runs in the context of an already-loaded page where the extension is active.
 
 ## 🔍 What Gets Tested
 
