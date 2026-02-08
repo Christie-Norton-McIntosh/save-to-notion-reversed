@@ -185,7 +185,7 @@ The fix adds detailed console logging to help debug selector issues:
 ## Related Files
 
 - `Web-2-Notion/clipContent.js` - Main fix (lines 1578, 3132-3154)
-- `Web-2-Notion/tests/custom-selector-test.html` - Test page
+- `tests/custom-selector-test.html` - Test page
 
 ## Known Limitations
 

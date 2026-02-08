@@ -80,6 +80,6 @@ Since our tests show the code works correctly, the issue may be:
 ## Files Created
 
 - `/Web-2-Notion/DIAGNOSTIC_MENUCASCADE_SPACING.js` (browser console diagnostic)
-- `/Web-2-Notion/tests/test-menucascade-comprehensive.js` (comprehensive test suite)
-- `/Web-2-Notion/tests/test-menucascade-simple.js` (simple textContent test)
-- `/Web-2-Notion/tests/test-table-cell-menucascade.js` (table cell simulation)
+- `/tests/test-menucascade-comprehensive.js` (comprehensive test suite)
+- `/tests/test-menucascade-simple.js` (simple textContent test)
+- `/tests/test-table-cell-menucascade.js` (table cell simulation)

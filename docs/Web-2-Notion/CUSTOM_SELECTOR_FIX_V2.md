@@ -180,7 +180,7 @@ return null;
 ## Related Files
 
 - `Web-2-Notion/clipContent.js` - Main content script with extraction logic
-- `Web-2-Notion/tests/custom-selector-test.html` - Test page for verification
+- `tests/custom-selector-test.html` - Test page for verification
 
 ## Impact
 

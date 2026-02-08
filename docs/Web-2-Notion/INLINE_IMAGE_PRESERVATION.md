@@ -233,7 +233,7 @@ This approach ensures compatibility with Notion while maintaining readability an
 ## Related Files
 
 - `Web-2-Notion/popup/static/js/main.js` - Main implementation
-  `Web-2-Notion/tests/test-inline-images.js` - Test suite
+  `tests/test-inline-images.js` - Test suite
 - `Web-2-Notion/package.json` - Test scripts
 
 ## Future Considerations
