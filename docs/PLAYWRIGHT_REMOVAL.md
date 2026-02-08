@@ -14,3 +14,11 @@ If you need the E2E harness back
 Notes for maintainers
 - After merging, run `npm install` in `Web-2-Notion/` to regenerate `package-lock.json` without Playwright.
 - CI that relied on the Playwright tests should be updated to remove those jobs.
+
+CI guard added
+----------------
+- A GitHub Actions guard workflow was added at `.github/workflows/ci-ensure-no-playwright.yml`.
+	- It fails PRs that reintroduce the `playwright` dependency or Playwright-based workflow jobs.
+	- It also runs a quick install + unit-test sanity check for `Web-2-Notion`.
+
+If your external CI (organization-level templates, self-hosted pipelines, or other repos) still defines Playwright jobs, remove or disable them there as well.
