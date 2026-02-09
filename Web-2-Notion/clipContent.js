@@ -3610,7 +3610,21 @@ z-index: 2;
           "[extractContentData] Final fallback: extracting from rootElement directly",
         );
         const text = rootElement.textContent?.trim();
-        const html = rootElement.outerHTML;
+        // If the runtime annotation helper exists, run it on a clone so we can
+        // serialize a version that contains XCELLIDX/placeholders without
+        // mutating the live DOM.
+        let html;
+        try {
+          if (typeof window.__stn_annotateTableCells === "function") {
+            const _clone = rootElement.cloneNode(true);
+            window.__stn_annotateTableCells(_clone);
+            html = _clone.outerHTML;
+          } else {
+            html = rootElement.outerHTML;
+          }
+        } catch (err) {
+          html = rootElement.outerHTML;
+        }
 
         // Accept any element with content (lowered threshold from 100 to 10 characters)
         if (text && text.length > 10 && html) {

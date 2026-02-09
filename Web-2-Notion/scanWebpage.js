@@ -16386,6 +16386,144 @@ async function scanWebpage() {
       // Clone the element before applying ignore selectors to avoid modifying the live DOM
       const hostname = getHostname();
       const clonedElement = liveElement.cloneNode(true);
+      // Ensure table cells that contain images are annotated so the popup can
+      // expand them into paragraph-level payloads without requiring edits to
+      // the large generated bundle (safe runtime shim).
+      try {
+        function stnAnnotateTableCells(root) {
+          if (!root || !root.querySelectorAll) return;
+          root.querySelectorAll("td,th").forEach((cell) => {
+            try {
+              // skip if already instrumented
+              if (/(XCELLIDX|data-stn-preserve)/i.test(cell.innerHTML)) return;
+
+              const imgs = Array.from(cell.querySelectorAll("img"));
+              if (!imgs.length) return;
+
+              // build a structured payload from the cell's paragraphs/text
+              const cellClone = cell.cloneNode(true);
+              cellClone
+                .querySelectorAll("script,style")
+                .forEach((n) => n.remove());
+
+              // wrap orphan text nodes into <p>
+              Array.from(cellClone.childNodes).forEach((node) => {
+                if (
+                  node.nodeType === Node.TEXT_NODE &&
+                  node.textContent.trim()
+                ) {
+                  const p = document.createElement("p");
+                  p.textContent = node.textContent;
+                  cellClone.replaceChild(p, node);
+                }
+              });
+
+              // mark paragraph boundaries so we can reconstruct them as an array
+              Array.from(cellClone.querySelectorAll("p")).forEach((p) => {
+                const marker = document.createTextNode("__BLOCK_END__");
+                if (p.nextSibling)
+                  p.parentNode.insertBefore(marker, p.nextSibling);
+                else p.parentNode.appendChild(marker);
+              });
+
+              const textWithNewlines = (cellClone.textContent || "")
+                .replace(/__BLOCK_END__/g, "\n")
+                .trim();
+              const paragraphs = textWithNewlines
+                .split(/\n+/)
+                .map((s) => s.trim())
+                .filter(Boolean);
+
+              // generate an id and register the payload on window so the popup
+              // (consumer) can expand XCELLIDX markers into multiple paragraphs
+              const cellId = "CELL_" + Math.random().toString(36).slice(2, 10);
+              window.__TABLE_CELL_CONTENT_MAP__ =
+                window.__TABLE_CELL_CONTENT_MAP__ || {};
+              window.__TABLE_CELL_CONTENT_MAP__[cellId] = {
+                paragraphs: paragraphs,
+                flattened: paragraphs.join(" "),
+                meta: {
+                  containsImage: true,
+                  hasLinks: !!cell.querySelector("a"),
+                  approxLength: (paragraphs.join(" ") || "").length,
+                },
+              };
+
+              // Replace each image with the canonical TABLE:bullet placeholder
+              // and preserve a tiny hidden <img data-stn-preserve="1"> for
+              // downstream extraction (consumer will prefer XCELLIDX payload).
+              imgs.forEach((img) => {
+                try {
+                  const alt = (img.getAttribute("alt") || "image").trim();
+                  const parentA =
+                    img.parentElement && img.parentElement.tagName === "A"
+                      ? img.parentElement
+                      : null;
+                  const placeholderText = ` • ${alt} • `;
+                  const placeholderNode =
+                    document.createTextNode(placeholderText);
+
+                  // insert visible placeholder (prefer preserving anchor href)
+                  if (parentA) {
+                    const a = document.createElement("a");
+                    try {
+                      a.setAttribute(
+                        "href",
+                        parentA.getAttribute("href") || "",
+                      );
+                    } catch (e) {}
+                    a.appendChild(placeholderNode);
+                    img.replaceWith(a);
+                    // also insert a hidden preserved image inside the anchor
+                    const preserved = document.createElement("img");
+                    preserved.setAttribute("data-stn-preserve", "1");
+                    preserved.setAttribute("alt", "");
+                    preserved.setAttribute(
+                      "src",
+                      img.getAttribute("src") || "",
+                    );
+                    preserved.style.display = "none";
+                    a.appendChild(preserved);
+                  } else {
+                    img.replaceWith(placeholderNode);
+                    const preserved = document.createElement("img");
+                    preserved.setAttribute("data-stn-preserve", "1");
+                    preserved.setAttribute("alt", "");
+                    preserved.setAttribute(
+                      "src",
+                      img.getAttribute("src") || "",
+                    );
+                    preserved.style.display = "none";
+                    cell.appendChild(preserved);
+                  }
+                } catch (err) {
+                  /* best-effort: don't break the scan if an image can't be processed */
+                }
+              });
+
+              // finally prepend the XCELLIDX marker so the popup will expand it
+              cell.innerHTML =
+                "XCELLIDX" + cellId + "XCELLIDX" + cell.innerHTML;
+            } catch (err) {
+              /* swallow per-cell errors */
+            }
+          });
+        }
+        try {
+          stnAnnotateTableCells(clonedElement);
+          // expose for unit tests / debugging
+          if (typeof window !== "undefined" && !window.__stn_annotateTableCells)
+            window.__stn_annotateTableCells = stnAnnotateTableCells;
+        } catch (err) {
+          /* swallow */
+        }
+      } catch (err) {
+        console.__stn_originalLog &&
+          console.__stn_originalLog(
+            "[scanWebpage] table-annotation shim failed:",
+            err,
+          );
+      }
       applyIgnoreSelectors(clonedElement, hostname);
 
       // Wrap in a complete HTML document structure for parsing
