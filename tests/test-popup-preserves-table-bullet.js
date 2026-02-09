@@ -1,7 +1,9 @@
 // Ensure popup expansion + downstream text processing preserves the
 // canonical TABLE:bullet placeholder when XCELLIDX provenance is present.
 
-console.log("🧪 test-popup-preserves-table-bullet — preserve TABLE:bullet when XCELLIDX present");
+console.log(
+  "🧪 test-popup-preserves-table-bullet — preserve TABLE:bullet when XCELLIDX present",
+);
 
 global.window = {};
 window.__TABLE_CELL_CONTENT_MAP__ = {};
@@ -34,7 +36,8 @@ function expand(rtArray) {
             type: rt.type,
             annotations: rt.annotations,
             text: {
-              content: part + (idx < original.paragraphs.length - 1 ? "\n" : ""),
+              content:
+                part + (idx < original.paragraphs.length - 1 ? "\n" : ""),
               link: null,
             },
           });
@@ -53,7 +56,10 @@ if (!Array.isArray(out) || out.length !== 2) {
   process.exit(1);
 }
 if (!out[0].text.content.includes("• Example ALT •")) {
-  console.error("❌ Bullet placeholder missing after expansion", out[0].text.content);
+  console.error(
+    "❌ Bullet placeholder missing after expansion",
+    out[0].text.content,
+  );
   process.exit(1);
 }
 
