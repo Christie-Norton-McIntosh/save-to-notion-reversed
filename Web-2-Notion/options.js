@@ -16871,27 +16871,57 @@ function Wv(e) {
             if (isValidUrl) {
               const titlePart = title ? ` "${title}"` : "";
               extractedImages.push(`![${alt}](${src}${titlePart})`);
-              // Replace with alt text if available, otherwise just remove
-              if (alt) {
-                const replacement = document.createTextNode(`[${alt}]`);
+
+              // Detect inline text siblings so we can preserve spacing and show
+              // a visible placeholder instead of collapsing the cell text.
+              const hasTextSibling = (() => {
+                try {
+                  const prev = img.previousSibling;
+                  const next = img.nextSibling;
+                  if (
+                    (prev && prev.nodeType === Node.TEXT_NODE && prev.textContent.trim()) ||
+                    (next && next.nodeType === Node.TEXT_NODE && next.textContent.trim())
+                  )
+                    return true;
+                  if (parentAnchor)
+                    return Array.from(parentAnchor.childNodes).some(
+                      (n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim(),
+                    );
+                } catch (err) {
+                  return false;
+                }
+                return false;
+              })();
+
+              // Preserve clickable anchors but replace the image with a small
+              // wrapper containing a hidden discoverable IMG and a textual bullet placeholder
+              if (alt || hasTextSibling) {
                 if (parentAnchor) {
-                  parentAnchor.replaceWith(replacement);
+                  const preservedImg = img.cloneNode(true);
+                  preservedImg.setAttribute("data-stn-preserve", "1");
+                  const preservedSrc = preservedImg.getAttribute("src") || preservedImg.src || "";
+                  if (preservedSrc) preservedImg.setAttribute("src", preservedSrc);
+                  preservedImg.removeAttribute("alt");
+                  preservedImg.style.cssText =
+                    "width:0;height:0;border:0;opacity:0;position:relative;left:0;";
+
+                  const wrapper = document.createElement("span");
+                  wrapper.className = "stn-inline-image";
+                  wrapper.appendChild(preservedImg);
+                  wrapper.appendChild(document.createTextNode(" • " + (alt || "Image") + " • "));
+                  img.replaceWith(wrapper);
                 } else {
+                  const placeholderAlt = (alt && alt.trim()) || "Image";
+                  const replacement = document.createTextNode(" • " + placeholderAlt + " • ");
                   img.replaceWith(replacement);
                 }
               } else {
-                if (parentAnchor) {
-                  parentAnchor.remove();
-                } else {
-                  img.remove();
-                }
+                if (parentAnchor) parentAnchor.remove();
+                else img.remove();
               }
             } else {
-              if (parentAnchor) {
-                parentAnchor.remove();
-              } else {
-                img.remove();
-              }
+              if (parentAnchor) parentAnchor.remove();
+              else img.remove();
             }
           });
 
