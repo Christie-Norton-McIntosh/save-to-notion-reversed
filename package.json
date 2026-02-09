@@ -1,0 +1,27 @@
+{
+  "name": "save-to-notion-reversed",
+  "version": "1.0.0",
+  "description": "",
+  "main": "eslint.config.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Christie-Norton-McIntosh/save-to-notion-reversed.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Christie-Norton-McIntosh/save-to-notion-reversed/issues"
+  },
+  "homepage": "https://github.com/Christie-Norton-McIntosh/save-to-notion-reversed#readme",
+  "devDependencies": {
+    "jsdom": "^24.1.0"
+  }
+}
