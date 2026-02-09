@@ -77,7 +77,7 @@ function sanitizeCell(cell) {
 
 // Minimal popup expansion that consumes the structured payload (same logic as main.js)
 function popupExpand(marker) {
-  const m = marker.match(/XCELLIDX(CELL_[A-Z0-9]+)XCELLIDX/);
+  const m = marker.match(/XCELLIDX(CELL_[A-Z0-9_]+)XCELLIDX/);
   if (!m) return [marker];
   const id = m[1];
   const payload = window.__TABLE_CELL_CONTENT_MAP__[id];

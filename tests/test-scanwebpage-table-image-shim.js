@@ -9,11 +9,11 @@ global.window = dom.window;
 global.document = dom.window.document;
 global.Node = dom.window.Node;
 
-// fixture: linked image in first cell, paragraphs in second
+// fixture: linked image with descriptive text in first cell, paragraphs in second
 const html = `
 <table>
   <tr>
-    <td><a href="https://example.com/p/1"><img alt="Sample image" src="https://example.com/img.png"></a></td>
+    <td>Icon: <a href="https://example.com/p/1"><img alt="Sample image" src="https://example.com/img.png"></a></td>
     <td>Lead text<p>First para</p><p>Second para</p></td>
   </tr>
 </table>
@@ -88,9 +88,7 @@ function runShim(root) {
       }
     });
 
-    cell.innerHTML =
-      `XCELLIDX${Object.keys(window.__TABLE_CELL_CONTENT_MAP__)[0]}XCELLIDX` +
-      cell.innerHTML;
+    cell.innerHTML = `XCELLIDX${id}XCELLIDX` + cell.innerHTML;
   });
 }
 
