@@ -1,6 +1,25 @@
 # Changelog
 
-## [Unreleased]
+## [Unreleased] - 2026-02-09
+
+### Changed
+- **Major Reorganization**: Reduced Web-2-Notion folder size from ~50MB to 27MB
+  - Removed duplicate options.js files (options 2.js through 8.js) - saved ~22MB
+  - Removed duplicate package-lock 2.json
+  - Moved diagnostic and development files to new `/dev-tools/` directory
+  - Moved screenshot images to `/dev-tools/images/`
+  - Moved bookmarklets to `/dev-tools/bookmarklets/`
+  - Moved scripts to `/dev-tools/scripts/`
+  - Moved favicon backup files to `/dev-tools/images/favicon-backup/`
+  - Moved ESLint configuration to root level
+  - Moved package.json and dependencies to root level for easier management
+  - All Chrome extension core functionality remains intact and unchanged
+
+### Added
+- Created organized `/dev-tools/` directory structure for development files
+- Added README.md in dev-tools to document the structure
+
+## Previous Entries
 
 ### Added
 
