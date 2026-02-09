@@ -1,4 +1,4 @@
-const u = require("../lib/notion-api-utils");
+const u = require("../Web-2-Notion/lib/notion-api-utils");
 
 // chunkArray
 let arr = Array.from({ length: 250 }, (_, i) => i);
