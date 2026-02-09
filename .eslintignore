@@ -1,7 +1,0 @@
-# Ignore minified and bundled files for ESLint
-Web-2-Notion/popup/static/js/main.js
-Web-2-Notion/clipContent.js
-Web-2-Notion/serviceWorker.js
-
-# Ignore dev-tools directory
-dev-tools/
