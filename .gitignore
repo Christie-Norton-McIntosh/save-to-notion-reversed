@@ -12,3 +12,32 @@ node_modules/
 # VS Code workspace settings
 *.code-workspace
 .vscode/tasks.json
+tests/log/001
+tests/log/002
+tests/log/003
+tests/log/004
+tests/log/005
+tests/log/006
+tests/log/007
+tests/log/008
+tests/log/009
+tests/log/010
+tests/log/011
+tests/log/012
+tests/log/013
+tests/log/full-log
+tests/log/itsm table console
+tests/diagnostic-table-cell-expansion.js
+tests/diagnostic-table-cell-images.js
+tests/test-e2e-servicenow-r_ITServiceManagement.js
+tests/test-paragraph-xcellidx-expansion.js
+tests/test-popup-empty-cell-guard.js
+tests/test-popup-xcellidx-missing-map-fallback.js
+tests/test-scanWithRetry-integration.js
+tests/test-scanWithRetry.js
+tests/test-table-image-empty-alt.js
+tests/test-table-multi-paragraph-cell.js
+tests/test-table-to-bullet-list-with-images.js
+tests/test-tabletoList-inserts-fallback-xcellidx.js
+tests/fixtures/servicenow-r_ITServiceManagement.html
+tests/test-table-multi-paragraph-cell.js

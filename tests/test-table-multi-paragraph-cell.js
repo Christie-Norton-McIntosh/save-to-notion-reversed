@@ -32,17 +32,35 @@ function tableToListFlatten(table) {
       const clone = cell.cloneNode(true);
       clone.querySelectorAll("script, style").forEach((s) => s.remove());
 
-      // Replace imgs with bullet placeholder
+      // Replace imgs with bullet placeholder and preserve hidden img emulation
       const imgs = Array.from(clone.querySelectorAll("img"));
       imgs.forEach((img) => {
         const alt = img.getAttribute("alt") || "Image";
         img.replaceWith(document.createTextNode(" • " + alt + " • "));
       });
 
+      // If the cell contains <p> elements, emit each <p> as its own part
+      // but also include any orphan text nodes that appear before/after the <p>s.
       const paras = Array.from(clone.querySelectorAll("p"));
       if (paras.length > 0) {
-        paras.forEach((p) => {
-          outParts.push((p.textContent || "").trim());
+        // Walk the cell's childNodes in order and collect text from
+        // text nodes and <p> nodes to preserve original ordering.
+        Array.from(clone.childNodes).forEach((node) => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            const t = (node.textContent || "").trim();
+            if (t) outParts.push(t);
+          } else if (
+            node.nodeType === Node.ELEMENT_NODE &&
+            node.tagName === "P"
+          ) {
+            const t = (node.textContent || "").trim();
+            if (t) outParts.push(t);
+          } else if (node.nodeType === Node.ELEMENT_NODE) {
+            // For other elements (anchors that now wrap placeholders),
+            // include their text content.
+            const t = (node.textContent || "").trim();
+            if (t) outParts.push(t);
+          }
         });
       } else {
         outParts.push((clone.textContent || "").trim());
