@@ -118,5 +118,14 @@ if (!/Automate support for common requests/.test(flattened)) {
   process.exit(1);
 }
 
+// Regression guard: when the producer marker is present the popup must not
+// inject data: URL image markdown that can be lost later in the pipeline.
+if (/data:image\//.test(flattened)) {
+  console.error(
+    "❌ Unexpected data: URL image markdown present in flattened output when XCELLIDX was used",
+  );
+  process.exit(1);
+}
+
 console.log("✅ E2E PASSED");
 process.exit(0);
