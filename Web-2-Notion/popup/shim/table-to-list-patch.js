@@ -116,7 +116,10 @@
               // delegate to the module's preprocessTableHtmlString for safety
               const mod = module && module.exports;
               if (mod && mod.preprocessTableHtmlString)
-                html = mod.preprocessTableHtmlString(html, root.location && root.location.href);
+                html = mod.preprocessTableHtmlString(
+                  html,
+                  root.location && root.location.href,
+                );
             } catch (err) {}
             return orig(html, opts);
           };
@@ -140,7 +143,10 @@
             // quick string-level handling for common anchor+img & img+alt
             const mod = module && module.exports;
             if (mod && mod.preprocessTableHtmlString)
-              html = mod.preprocessTableHtmlString(html, root.location && root.location.href);
+              html = mod.preprocessTableHtmlString(
+                html,
+                root.location && root.location.href,
+              );
           }
         } catch (err) {}
         return orig(html, opts);
@@ -149,8 +155,17 @@
 
       // if images exist but there's no TABLE_CELL_CONTENT_MAP__ then warn —
       // this typically indicates the content-script didn't run on the page.
-      if ((root.__imageUrlArray && root.__imageUrlArray.length) && !(root.__TABLE_CELL_CONTENT_MAP__ && Object.keys(root.__TABLE_CELL_CONTENT_MAP__).length)) {
-        console.warn("[tableToList guard] images present but no __TABLE_CELL_CONTENT_MAP__ — content-script may not have run on the source page. Using fallback preprocessing.");
+      if (
+        root.__imageUrlArray &&
+        root.__imageUrlArray.length &&
+        !(
+          root.__TABLE_CELL_CONTENT_MAP__ &&
+          Object.keys(root.__TABLE_CELL_CONTENT_MAP__).length
+        )
+      ) {
+        console.warn(
+          "[tableToList guard] images present but no __TABLE_CELL_CONTENT_MAP__ — content-script may not have run on the source page. Using fallback preprocessing.",
+        );
       }
 
       return true;
@@ -165,8 +180,9 @@
   function preprocessTableHtmlString(html, baseHref) {
     if (!html || typeof html !== "string") return html;
 
-    // If XCELLIDX present in the cell, don't modify that region.
-    if (/XCELLIDX\(/i.test(html)) return html;
+  // If XCELLIDX present in the cell (either legacy or canonical form),
+  // don't modify that region — producer is authoritative.
+  if (/XCELLIDX/i.test(html)) return html;
 
     // Replace <a ...><img ...></a> where anchor href looks like image: add data-original-src
     html = html.replace(
@@ -249,11 +265,14 @@
       if (attempts >= max) {
         clearInterval(iv);
         // final best-effort attempt and diagnostic
-        try { ensurePatchWithFallback(window); } catch (e) {}
+        try {
+          ensurePatchWithFallback(window);
+        } catch (e) {}
       }
     }, 200);
   })();
 
   // Export guard for unit tests
-  if (typeof module !== "undefined" && module.exports) module.exports.ensurePatchWithFallback = ensurePatchWithFallback;
+  if (typeof module !== "undefined" && module.exports)
+    module.exports.ensurePatchWithFallback = ensurePatchWithFallback;
 })();
