@@ -15250,6 +15250,15 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
   );
   var image = metaImg ? absolutify(bestUrl, metaImg) : "";
   var favicon = metaFav ? absolutify(bestUrl, metaFav) : "";
+
+  // CRITICAL: Include the table cell content map so popup can expand XCELLIDX markers
+  var tableCellMap = window.__TABLE_CELL_CONTENT_MAP__ || {};
+  console.log(
+    "[scanWebpage] Including table cell map with",
+    Object.keys(tableCellMap).length,
+    "entries",
+  );
+
   return {
     url: bestUrl,
     title,
@@ -15262,6 +15271,7 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
     source: getDomain(bestUrl),
     published,
     ttr: getTimeToRead(textContent2, wordsPerMinute),
+    tableCellMap: tableCellMap, // NEW: Include the map for XCELLIDX expansion
   };
 };
 function preEnrichHtml(doc) {
@@ -16398,13 +16408,66 @@ async function scanWebpage() {
               if (/(XCELLIDX|data-stn-preserve)/i.test(cell.innerHTML)) return;
 
               const imgs = Array.from(cell.querySelectorAll("img"));
-              if (!imgs.length) return;
+              // Process ALL cells to ensure proper structure
+              // if (!imgs.length) return;
 
               // build a structured payload from the cell's paragraphs/text
               const cellClone = cell.cloneNode(true);
               cellClone
                 .querySelectorAll("script,style")
                 .forEach((n) => n.remove());
+
+              // CRITICAL: Capture image data BEFORE processing text
+              // Resolve lazy attributes (data-src, data-original), srcset, and inline background-image
+              const resolveImgSrc = (el) => {
+                if (!el) return "";
+                const candidates = [
+                  el.getAttribute && el.getAttribute("data-src"),
+                  el.getAttribute && el.getAttribute("data-original"),
+                  el.getAttribute && el.getAttribute("data-lazy-src"),
+                  el.getAttribute && el.getAttribute("data-actualsrc"),
+                  el.getAttribute && el.getAttribute("src"),
+                  el.src,
+                ].filter(Boolean);
+                // srcset -> pick the largest candidate (last) or first
+                const srcset = el.getAttribute && el.getAttribute("srcset");
+                if (srcset) {
+                  try {
+                    const parts = srcset
+                      .split(/,\s*/)
+                      .map((s) => s.split(/\s+/)[0]);
+                    if (parts.length) candidates.unshift(parts[0]);
+                  } catch (e) {}
+                }
+                // inline style background-image
+                try {
+                  const bg = (el.style && el.style.backgroundImage) || "";
+                  const m = bg && bg.match(/url\(["']?(.*?)["']?\)/);
+                  if (m && m[1]) candidates.push(m[1]);
+                } catch (e) {}
+                return (candidates.find(Boolean) || "").trim();
+              };
+
+              const imageData = [];
+              Array.from(cellClone.querySelectorAll("img")).forEach((img) => {
+                const src = resolveImgSrc(img);
+                const alt = img.getAttribute("alt") || img.alt || "";
+                if (src) {
+                  imageData.push({
+                    src: src,
+                    alt: alt,
+                    markdown: `![${alt}](${src})`,
+                  });
+                  console.log(
+                    "[scanWebpage/tableCell] Captured image for XCELLIDX payload:",
+                    {
+                      srcLength: src.length,
+                      isDataUrl: src.startsWith("data:"),
+                      alt: alt,
+                    },
+                  );
+                }
+              });
 
               // wrap orphan text nodes into <p>
               Array.from(cellClone.childNodes).forEach((node) => {
@@ -16426,13 +16489,174 @@ async function scanWebpage() {
                 else p.parentNode.appendChild(marker);
               });
 
-              const textWithNewlines = (cellClone.textContent || "")
-                .replace(/__BLOCK_END__/g, "\n")
-                .trim();
-              const paragraphs = textWithNewlines
-                .split(/\n+/)
-                .map((s) => s.trim())
-                .filter(Boolean);
+              console.log(
+                "[scanWebpage/tableCell] cellClone HTML:",
+                cellClone.innerHTML.substring(0, 200),
+              );
+              console.log(
+                "[scanWebpage/tableCell] Number of <p> tags:",
+                cellClone.querySelectorAll("p").length,
+              );
+
+              // CRITICAL: Extract paragraphs with markdown formatting preserved
+              // Don't use textContent which strips <strong>, <em>, etc.
+              const pTags = Array.from(cellClone.querySelectorAll("p"));
+              const paragraphs = [];
+
+              if (pTags.length > 0) {
+                // Process each <p> tag separately to preserve structure
+                pTags.forEach((p, pIndex) => {
+                  // Simple markdown conversion for bold/italic
+                  let html = p.innerHTML;
+
+                  console.log(
+                    "[scanWebpage/tableCell] <p> tag",
+                    pIndex,
+                    "- class:",
+                    p.className,
+                    "style:",
+                    p.getAttribute("style"),
+                    "outerHTML:",
+                    p.outerHTML.substring(0, 200),
+                  );
+                  console.log(
+                    "[scanWebpage/tableCell] Raw <p> innerHTML:",
+                    html.substring(0, 150),
+                  );
+
+                  // Convert <strong> and <b> to **bold** (handle nested/whitespace/attributes)
+                  html = html.replace(
+                    /<(strong|b)[^>]*>\s*(.*?)\s*<\/(strong|b)>/gis,
+                    "**$2**",
+                  );
+                  // Convert <em> and <i> to *italic*
+                  html = html.replace(
+                    /<(em|i)[^>]*>\s*(.*?)\s*<\/(em|i)>/gis,
+                    "*$2*",
+                  );
+                  // Remove line breaks and normalize whitespace
+                  html = html.replace(/<br\s*\/?>/gi, " ");
+                  html = html.replace(/\n/g, " ");
+                  html = html.replace(/\r/g, " ");
+                  // Remove remaining tags
+                  html = html.replace(/<[^>]+>/g, "");
+                  // Decode entities
+                  const text = html
+                    .replace(/&amp;/g, "&")
+                    .replace(/&lt;/g, "<")
+                    .replace(/&gt;/g, ">")
+                    .replace(/&quot;/g, '"')
+                    .replace(/&#39;/g, "'")
+                    .replace(/&nbsp;/g, " ")
+                    .replace(/\s+/g, " ") // Collapse ALL multiple spaces/newlines
+                    .trim();
+
+                  console.log(
+                    "[scanWebpage/tableCell] Processed text:",
+                    text.substring(0, 150),
+                  );
+
+                  if (text) {
+                    // HEURISTIC: If this is the first <p> and it's short (likely a heading), mark it as bold
+                    // ServiceNow uses CSS for styling, not <strong> tags
+                    if (pIndex === 0 && text.length < 100 && pTags.length > 1) {
+                      console.log(
+                        "[scanWebpage/tableCell] First <p> is short, treating as heading - adding **bold**",
+                      );
+                      const out = "**" + text + "**";
+                      try {
+                        p.setAttribute("data-stn-text", out);
+                      } catch (e) {}
+                      paragraphs.push(out);
+                    } else {
+                      try {
+                        p.setAttribute("data-stn-text", text);
+                      } catch (e) {}
+                      paragraphs.push(text);
+                    }
+                  }
+                });
+              } else {
+                // Fallback: no <p> tags, use textContent
+                const text = (cellClone.textContent || "")
+                  .replace(/\s+/g, " ")
+                  .trim();
+                if (text) paragraphs.push(text);
+              }
+
+              console.log(
+                "[scanWebpage/tableCell] paragraphs array with markdown:",
+                paragraphs,
+              );
+
+              // Build DOM-ordered node sequence (preserve images/text order)
+              const nodes = [];
+              Array.from(cellClone.childNodes).forEach((child) => {
+                if (child.nodeType === 1) {
+                  const tag = (child.tagName || "").toLowerCase();
+                  if (tag === "p") {
+                    const t =
+                      child.getAttribute("data-stn-text") ||
+                      (child.textContent || "").replace(/\s+/g, " ").trim();
+                    if (t) nodes.push({ type: "p", text: t });
+                  } else if (tag === "img") {
+                    const src = (
+                      child.getAttribute("data-src") ||
+                      child.getAttribute("data-original") ||
+                      child.getAttribute("src") ||
+                      ""
+                    ).trim();
+                    const alt = (child.getAttribute("alt") || "").trim();
+                    if (src)
+                      nodes.push({
+                        type: "img",
+                        image: {
+                          src: src,
+                          alt: alt,
+                          markdown: `![${alt}](${src})`,
+                        },
+                      });
+                  } else {
+                    const imgs = Array.from(
+                      (child.querySelectorAll &&
+                        child.querySelectorAll("img")) ||
+                        [],
+                    );
+                    if (imgs.length) {
+                      imgs.forEach((img) => {
+                        const src = (
+                          img.getAttribute("data-src") ||
+                          img.getAttribute("data-original") ||
+                          img.getAttribute("src") ||
+                          ""
+                        ).trim();
+                        const alt = (img.getAttribute("alt") || "").trim();
+                        if (src)
+                          nodes.push({
+                            type: "img",
+                            image: {
+                              src: src,
+                              alt: alt,
+                              markdown: `![${alt}](${src})`,
+                            },
+                          });
+                      });
+                    } else {
+                      const txt = (child.textContent || "")
+                        .replace(/\s+/g, " ")
+                        .trim();
+                      if (txt) nodes.push({ type: "p", text: txt });
+                    }
+                  }
+                } else if (child.nodeType === 3) {
+                  const txt = (child.textContent || "")
+                    .replace(/\s+/g, " ")
+                    .trim();
+                  if (txt) nodes.push({ type: "p", text: txt });
+                }
+              });
+
+              console.log("[scanWebpage/tableCell] DOM-ordered nodes:", nodes);
 
               // generate an id and register the payload on window so the popup
               // (consumer) can expand XCELLIDX markers into multiple paragraphs
@@ -16442,16 +16666,30 @@ async function scanWebpage() {
               window.__TABLE_CELL_CONTENT_MAP__[cellId] = {
                 paragraphs: paragraphs,
                 flattened: paragraphs.join(" "),
+                images: imageData, // preserved for backward-compat
+                nodes: typeof nodes !== "undefined" ? nodes : [], // DOM-ordered sequence
                 meta: {
-                  containsImage: true,
+                  containsImage:
+                    !!imageData.length ||
+                    (typeof nodes !== "undefined" &&
+                      nodes.some((n) => n.type === "img")),
+                  imageCount: imageData.length, // NEW: Track count
                   hasLinks: !!cell.querySelector("a"),
                   approxLength: (paragraphs.join(" ") || "").length,
                 },
               };
 
+              console.log("[scanWebpage/tableCell] Stored XCELLIDX payload:", {
+                cellId: cellId,
+                paragraphCount: paragraphs.length,
+                imageCount: imageData.length,
+                hasDataUrls: imageData.some((img) =>
+                  img.src.startsWith("data:"),
+                ),
+              });
+
               // Replace each image with the canonical TABLE:bullet placeholder
-              // and preserve a tiny hidden <img data-stn-preserve="1"> for
-              // downstream extraction (consumer will prefer XCELLIDX payload).
+              // IMPORTANT: Don't create hidden preserved images since we're storing images in XCELLIDX payload
               imgs.forEach((img) => {
                 try {
                   const alt = (img.getAttribute("alt") || "image").trim();
@@ -16463,7 +16701,7 @@ async function scanWebpage() {
                   const placeholderNode =
                     document.createTextNode(placeholderText);
 
-                  // insert visible placeholder (prefer preserving anchor href)
+                  // Just replace with text placeholder, no hidden preserved image
                   if (parentA) {
                     const a = document.createElement("a");
                     try {
@@ -16474,27 +16712,10 @@ async function scanWebpage() {
                     } catch (e) {}
                     a.appendChild(placeholderNode);
                     img.replaceWith(a);
-                    // also insert a hidden preserved image inside the anchor
-                    const preserved = document.createElement("img");
-                    preserved.setAttribute("data-stn-preserve", "1");
-                    preserved.setAttribute("alt", "");
-                    preserved.setAttribute(
-                      "src",
-                      img.getAttribute("src") || "",
-                    );
-                    preserved.style.display = "none";
-                    a.appendChild(preserved);
+                    // REMOVED: Don't create hidden preserved image - using XCELLIDX payload instead
                   } else {
                     img.replaceWith(placeholderNode);
-                    const preserved = document.createElement("img");
-                    preserved.setAttribute("data-stn-preserve", "1");
-                    preserved.setAttribute("alt", "");
-                    preserved.setAttribute(
-                      "src",
-                      img.getAttribute("src") || "",
-                    );
-                    preserved.style.display = "none";
-                    cell.appendChild(preserved);
+                    // REMOVED: Don't create hidden preserved image - using XCELLIDX payload instead
                   }
                 } catch (err) {
                   /* best-effort: don't break the scan if an image can't be processed */
