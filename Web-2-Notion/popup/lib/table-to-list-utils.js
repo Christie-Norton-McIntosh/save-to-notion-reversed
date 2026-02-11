@@ -10,6 +10,82 @@
     if (!cell || cell.nodeType !== 1) return "";
     var cellClone = cell.cloneNode(true);
 
+    // Post-processing: safely strip legacy visible bracketed placeholders
+    // (e.g. "[alt]") when they are clearly the legacy placeholder that
+    // accompanies preserved images or XCELLIDX markers. This is a
+    // conservative removal that only deletes bracketed text when it's
+    // standalone and colocated with a preserved image/marker so we don't
+    // accidentally remove legitimate bracketed text like "see [Section 2]".
+    (function stripLegacyBracketedPlaceholders(root) {
+      if (!root || !root.querySelector) return;
+      var SHOW_TEXT = (typeof NodeFilter !== "undefined" && NodeFilter.SHOW_TEXT) || 4;
+      var walker = document.createTreeWalker(root, SHOW_TEXT, null, false);
+      var toRemove = [];
+      var bracketRe = /^\s*\[([^\]]+)\]\s*$/;
+      while (walker.nextNode()) {
+        var tn = walker.currentNode;
+        var txt = tn.textContent || "";
+        var m = txt.match(bracketRe);
+        if (!m) continue;
+
+        var parent = tn.parentNode;
+        if (!parent) continue;
+
+        // If parent is an explicit preserved-wrapper, remove the bracketed text.
+        if (parent.classList && parent.classList.contains("stn-inline-image")) {
+          toRemove.push(tn);
+          continue;
+        }
+
+        // If the same parent (or its ancestors) contains a preserved IMG or
+        // an XCELLIDX marker, it's safe to remove the visible bracketed
+        // placeholder.
+        var hasPreservedImg = !!(
+          parent.querySelector &&
+          parent.querySelector('img[data-stn-preserve], .stn-inline-image')
+        );
+        var containsXcell = /XCELLIDX\(CELL_[A-Za-z0-9_]+\)XCELLIDX/i.test(
+          parent.innerHTML || "",
+        );
+        if (hasPreservedImg || containsXcell) {
+          toRemove.push(tn);
+          continue;
+        }
+
+        // Also remove if an adjacent sibling is a preserved image or a
+        // marker (covers cases like: <img ...></img> [alt] or [alt] <img ...>)
+        var prev = tn.previousSibling;
+        var next = tn.nextSibling;
+        var siblingHasPreservedImg = function (n) {
+          if (!n) return false;
+          if (n.nodeType === Node.ELEMENT_NODE) {
+            return !!(
+              n.matches &&
+              n.matches('img[data-stn-preserve], .stn-inline-image')
+            );
+          }
+          if (n.nodeType === Node.TEXT_NODE) {
+            return /XCELLIDX\(CELL_[A-Za-z0-9_]+\)XCELLIDX/i.test(n.textContent || "");
+          }
+          return false;
+        };
+        if (siblingHasPreservedImg(prev) || siblingHasPreservedImg(next)) {
+          toRemove.push(tn);
+          continue;
+        }
+
+        // Otherwise treat as user text and keep it.
+      }
+
+      toRemove.forEach(function (n) {
+        try {
+          n.parentNode && n.parentNode.removeChild(n);
+        } catch (err) {
+          /* ignore */
+        }
+      });
+    })(cellClone);
+
     var hasProducerMarker = /XCELLIDX\(CELL_[A-Za-z0-9_]+\)XCELLIDX/i.test(
       cellClone.textContent || "",
     );
