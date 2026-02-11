@@ -180,9 +180,9 @@
   function preprocessTableHtmlString(html, baseHref) {
     if (!html || typeof html !== "string") return html;
 
-  // If XCELLIDX present in the cell (either legacy or canonical form),
-  // don't modify that region — producer is authoritative.
-  if (/XCELLIDX/i.test(html)) return html;
+    // If XCELLIDX present in the cell (either legacy or canonical form),
+    // don't modify that region — producer is authoritative.
+    if (/XCELLIDX/i.test(html)) return html;
 
     // Replace <a ...><img ...></a> where anchor href looks like image: add data-original-src
     html = html.replace(

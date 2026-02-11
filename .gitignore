@@ -41,3 +41,6 @@ tests/test-table-to-bullet-list-with-images.js
 tests/test-tabletoList-inserts-fallback-xcellidx.js
 tests/fixtures/servicenow-r_ITServiceManagement.html
 tests/test-table-multi-paragraph-cell.js
+tests/log/015
+tests/log/014
+tests/log/chat

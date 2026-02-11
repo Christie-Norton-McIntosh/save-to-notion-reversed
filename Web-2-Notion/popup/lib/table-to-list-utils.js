@@ -29,20 +29,32 @@
 
       var paras = Array.from(cellClone.querySelectorAll("p"));
       if (paras && paras.length) {
+        // First process images that are direct children of the cell (not in <p>)
+        var directImages = Array.from(cellClone.childNodes).filter(
+          function (n) {
+            return n.nodeType === 1 && n.nodeName === "IMG";
+          },
+        );
+        directImages.forEach(function (img) {
+          var isrc = img.getAttribute("src") || img.src || "";
+          var ialt = img.getAttribute("alt") || "";
+          img.remove();
+          if (isrc) output += "![" + ialt + "](" + isrc + ")\n\n";
+        });
+
+        // Then process paragraphs
         paras.forEach(function (p) {
           var pImageMarkdowns = [];
           Array.from(p.querySelectorAll("img")).forEach(function (pi) {
             var psrc = pi.getAttribute("src") || pi.src || "";
             var palt = pi.getAttribute("alt") || "";
-            if (palt && palt.trim()) {
-              pi.replaceWith(document.createTextNode(" • " + palt + " • "));
-            } else {
-              pi.remove();
-            }
+            // Remove image but don't add placeholder text
+            pi.remove();
             if (psrc) pImageMarkdowns.push("![" + palt + "](" + psrc + ")");
           });
           var ptext = (p.textContent || "").trim();
-          if (pImageMarkdowns.length) output += pImageMarkdowns.join("\n\n") + "\n\n";
+          if (pImageMarkdowns.length)
+            output += pImageMarkdowns.join("\n\n") + "\n\n";
           if (ptext) output += ptext + "\n\n";
         });
 
@@ -56,11 +68,8 @@
         Array.from(cellClone.querySelectorAll("img")).forEach(function (ii) {
           var isrc = ii.getAttribute("src") || ii.src || "";
           var ialt = ii.getAttribute("alt") || "";
-          if (ialt && ialt.trim()) {
-            ii.replaceWith(document.createTextNode(" • " + ialt + " • "));
-          } else {
-            ii.remove();
-          }
+          // Remove image but don't add placeholder text
+          ii.remove();
           if (isrc) output += "![" + ialt + "](" + isrc + ")\n\n";
         });
         var text = (cellClone.textContent || "").trim();
@@ -77,7 +86,9 @@
     var markerRe = /XCELLIDX(CELL_[a-z0-9]+)XCELLIDX/gi;
     var found = [
       ...new Set(
-        (htmlStr.match(markerRe) || []).map((m) => (m.match(/CELL_[a-z0-9]+/i) || [])[0]),
+        (htmlStr.match(markerRe) || []).map(
+          (m) => (m.match(/CELL_[a-z0-9]+/i) || [])[0],
+        ),
       ),
     ];
     var mapKeys = tableCellContentMap ? Object.keys(tableCellContentMap) : [];
@@ -87,7 +98,7 @@
     return { found: found, missing: missing };
   }
 
-  if (typeof module !== 'undefined' && module.exports) {
+  if (typeof module !== "undefined" && module.exports) {
     module.exports = {
       processCellForTableToList: processCellForTableToList,
       checkXcellMarkers: checkXcellMarkers,
