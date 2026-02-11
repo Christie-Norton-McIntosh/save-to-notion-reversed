@@ -46,6 +46,78 @@ This shows:
 - Popup's `__TABLE_CELL_CONTENT_MAP__` is empty (0 keys)
 - Markers found but no map entries to expand them
 
+## Solution - IMPLEMENTED ✅
+
+The fix has been applied in three locations in `Web-2-Notion/popup/static/js/main.js`:
+
+### 1. Modified `sB` function (line ~99380) - Added tableCellMap assignment
+
+```javascript
+case 0:
+  // CRITICAL FIX: Assign tableCellMap to global before Turndown conversion
+  if (n && n.tableCellMap) {
+    window.__TABLE_CELL_CONTENT_MAP__ = n.tableCellMap;
+    console.log(
+      "[sB/Fix] Assigned tableCellMap with",
+      Object.keys(n.tableCellMap).length,
+      "entries to window.__TABLE_CELL_CONTENT_MAP__"
+    );
+  } else {
+    console.warn(
+      "[sB/Fix] No tableCellMap in options, XCELLIDX markers will not be expanded"
+    );
+  }
+  return (
+    (r = oB(
+      (r = JZ(t, iB)),
+      ...
+```
+
+### 2. Modified call to `Z1` (line ~136679) - Pass tableCellMap in options
+
+```javascript
+Z1(
+  {
+    html: i.payload.html,
+    previewString: i.payload.previewString,
+  },
+  {
+    userId: null === t || void 0 === t ? void 0 : t.userId,
+    spaceId: null === t || void 0 === t ? void 0 : t.spaceId,
+    pageUrl: i.payload.pageUrl,
+    tableCellMap: i.payload.tableCellMap, // CRITICAL: Pass tableCellMap
+  },
+);
+```
+
+### 3. Modified `N1` function (line ~136607) - Pass tableCellMap through to aB
+
+```javascript
+aB(t.html, {
+  userId: n.userId,
+  spaceId: n.spaceId,
+  pageUrl: n.pageUrl,
+  tableCellMap: n.tableCellMap, // CRITICAL: Pass tableCellMap through
+});
+```
+
+## Verification
+
+After applying the fix, you should see in the browser console:
+
+```
+[sB/Fix] Assigned tableCellMap with 10 entries to window.__TABLE_CELL_CONTENT_MAP__
+[JZ/Turndown] __TABLE_CELL_CONTENT_MAP__ keys (count=10): ['CELL_x4iymmla', ...]
+[JZ/Turndown] ✓ No warnings about missing map entries
+```
+
+And in Notion output:
+
+- ✅ Text blocks with paragraph content
+- ✅ Image blocks
+- ✅ Horizontal dividers between rows
+- ❌ NO raw XCELLIDX markers in output
+
 ## Solution
 
 Need to assign `scanResult.tableCellMap` to `window.__TABLE_CELL_CONTENT_MAP__` in the popup before calling `JZ()` for HTML-to-markdown conversion.
