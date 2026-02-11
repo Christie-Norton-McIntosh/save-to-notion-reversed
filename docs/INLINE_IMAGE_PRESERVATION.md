@@ -96,10 +96,10 @@ if (alt) {
         var txt = node.textContent.trim();
         if (txt) textParts.push(txt);
       } else if (node === img) {
-      // Do NOT push a visible bracketed placeholder. Keep alt/caption in
-      // the preserved image metadata so the upload/caption lifecycle can
-      // surface it in Notion, but avoid adding `[alt]` to visible text.
-      // textParts.push("[" + alt + "]"); // (legacy)
+        // Do NOT push a visible bracketed placeholder. Keep alt/caption in
+        // the preserved image metadata so the upload/caption lifecycle can
+        // surface it in Notion, but avoid adding `[alt]` to visible text.
+        // textParts.push("[" + alt + "]"); // (legacy)
       }
     });
 

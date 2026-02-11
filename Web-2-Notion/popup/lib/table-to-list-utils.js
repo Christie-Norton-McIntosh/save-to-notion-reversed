@@ -18,10 +18,20 @@
     // accidentally remove legitimate bracketed text like "see [Section 2]".
     (function stripLegacyBracketedPlaceholders(root) {
       if (!root || !root.querySelector) return;
-      var SHOW_TEXT = (typeof NodeFilter !== "undefined" && NodeFilter.SHOW_TEXT) || 4;
+      var SHOW_TEXT =
+        (typeof NodeFilter !== "undefined" && NodeFilter.SHOW_TEXT) || 4;
       var walker = document.createTreeWalker(root, SHOW_TEXT, null, false);
       var toRemove = [];
       var bracketRe = /^\s*\[([^\]]+)\]\s*$/;
+      // Precompute cell-level signals so we can make ancestor-level
+      // decisions (text nodes may be wrapped in <span> etc.).
+      var cellLevelHasPreservedImg = !!(
+        root.querySelector &&
+        root.querySelector("img[data-stn-preserve], .stn-inline-image")
+      );
+      var cellLevelContainsXcell =
+        /XCELLIDX\(CELL_[A-Za-z0-9_]+\)XCELLIDX/i.test(root.innerHTML || "");
+
       while (walker.nextNode()) {
         var tn = walker.currentNode;
         var txt = tn.textContent || "";
@@ -37,17 +47,25 @@
           continue;
         }
 
-        // If the same parent (or its ancestors) contains a preserved IMG or
-        // an XCELLIDX marker, it's safe to remove the visible bracketed
-        // placeholder.
-        var hasPreservedImg = !!(
-          parent.querySelector &&
-          parent.querySelector('img[data-stn-preserve], .stn-inline-image')
-        );
-        var containsXcell = /XCELLIDX\(CELL_[A-Za-z0-9_]+\)XCELLIDX/i.test(
-          parent.innerHTML || "",
-        );
-        if (hasPreservedImg || containsXcell) {
+        // If the same parent (or its ancestors) contains a preserved IMG
+        // or an XCELLIDX marker, it's safe to remove the visible
+        // bracketed placeholder. Prefer cell-level signals because the
+        // bracketed text is often wrapped in its own inline element so
+        // parent.querySelector won't find the preserved IMG.
+        if (cellLevelHasPreservedImg || cellLevelContainsXcell) {
+          // If the bracketed placeholder is wrapped in an inline
+          // element, remove that element rather than the inner text
+          // node so surrounding whitespace is handled cleanly.
+          var anc = tn.parentElement;
+          if (
+            anc &&
+            anc !== root &&
+            anc.tagName.match(/^(SPAN|EM|STRONG|B|I|SMALL|LABEL)$/i)
+          ) {
+            toRemove.push(anc);
+            continue;
+          }
+
           toRemove.push(tn);
           continue;
         }
@@ -61,17 +79,43 @@
           if (n.nodeType === Node.ELEMENT_NODE) {
             return !!(
               n.matches &&
-              n.matches('img[data-stn-preserve], .stn-inline-image')
+              n.matches("img[data-stn-preserve], .stn-inline-image")
             );
           }
           if (n.nodeType === Node.TEXT_NODE) {
-            return /XCELLIDX\(CELL_[A-Za-z0-9_]+\)XCELLIDX/i.test(n.textContent || "");
+            return /XCELLIDX\(CELL_[A-Za-z0-9_]+\)XCELLIDX/i.test(
+              n.textContent || "",
+            );
           }
           return false;
         };
         if (siblingHasPreservedImg(prev) || siblingHasPreservedImg(next)) {
           toRemove.push(tn);
           continue;
+        }
+
+        // If the bracketed placeholder is wrapped in its own inline
+        // element (common in table HTML: <span>[alt]</span>), we'll
+        // remove that element as long as the cell contains a preserved
+        // image or XCELLIDX. This covers the failing case where the
+        // placeholder isn't a bare text node.
+        if (hasPreservedImg || containsXcell) {
+          var inlineEl = (function findBracketedInline(el) {
+            if (!el || !el.querySelectorAll) return null;
+            var candidates = el.querySelectorAll(
+              "span, em, strong, b, i, small, label",
+            );
+            for (var i = 0; i < candidates.length; i++) {
+              var c = candidates[i];
+              var tv = (c.textContent || "").trim();
+              if (bracketRe.test(tv)) return c;
+            }
+            return null;
+          })(parent);
+          if (inlineEl) {
+            toRemove.push(inlineEl);
+            continue;
+          }
         }
 
         // Otherwise treat as user text and keep it.
