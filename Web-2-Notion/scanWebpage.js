@@ -16722,9 +16722,10 @@ async function scanWebpage() {
                 }
               });
 
-              // finally prepend the XCELLIDX marker so the popup will expand it
-              cell.innerHTML =
-                "XCELLIDX" + cellId + "XCELLIDX" + cell.innerHTML;
+              // finally add the XCELLIDX marker as a data attribute on the cell itself
+              // This survives Readability extraction better than innerHTML modification
+              cell.setAttribute("data-xcellidx", cellId);
+              console.log("[scanWebpage/tableCell] Added data-xcellidx attribute to cell:", cellId);
             } catch (err) {
               /* swallow per-cell errors */
             }
