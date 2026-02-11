@@ -57,11 +57,11 @@ function test(name, html, expectedPattern, shouldContain) {
         src && (src.startsWith("http://") || src.startsWith("https://"));
 
       if (isValidUrl) {
-  // New behavior: do NOT emit visible bracketed placeholders like
-  // "[alt]". Keep a hidden preserved IMG (data-stn-preserve) so
-  // image extraction can still associate the image with its
-  // surrounding content; visible text will NOT include the
-  // bracketed alt-placeholder (captions are handled separately).
+        // New behavior: do NOT emit visible bracketed placeholders like
+        // "[alt]". Keep a hidden preserved IMG (data-stn-preserve) so
+        // image extraction can still associate the image with its
+        // surrounding content; visible text will NOT include the
+        // bracketed alt-placeholder (captions are handled separately).
         if (alt) {
           if (parentAnchor) {
             const preservedImg = img.cloneNode(true);

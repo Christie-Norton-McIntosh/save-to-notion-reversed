@@ -60,8 +60,12 @@ function testCell(cellIndex) {
 
     const isValidUrl =
       src && (src.startsWith("http://") || src.startsWith("https://"));
+    const isDataUrl = src && src.startsWith("data:");
 
-    if (isValidUrl) {
+    // Extension preserves data: images that originate from the page (even
+    // when wrapped in viewer/attachment anchors) by keeping a hidden
+    // discoverable IMG so the popup can upload/replace them later.
+    if (isValidUrl || isDataUrl) {
       extractedImages.push(`![${alt}](${src})`);
 
       if (alt) {
@@ -74,11 +78,17 @@ function testCell(cellIndex) {
           preservedImg.setAttribute("data-stn-preserve", "1");
           const wrapper = dom.window.document.createElement("span");
           wrapper.appendChild(preservedImg);
-          wrapper.appendChild(dom.window.document.createTextNode(`[${alt}]`));
+          // Do NOT add legacy bracketed visible placeholder; keep the
+          // preserved IMG only so mapping/upload can find it.
           img.replaceWith(wrapper);
-          console.log("   ✅ Anchor preserved, IMG hidden, placeholder added");
+          console.log(
+            "   ✅ Anchor preserved, IMG hidden (no visible placeholder)",
+          );
         } else {
-          img.replaceWith(dom.window.document.createTextNode(`[${alt}]`));
+          // Do NOT add visible bracketed placeholder for non-anchor inline
+          // images; remove visible output (image will be preserved via
+          // extractedImages / hidden IMG metadata if needed).
+          img.replaceWith(dom.window.document.createTextNode(""));
         }
       }
     }
