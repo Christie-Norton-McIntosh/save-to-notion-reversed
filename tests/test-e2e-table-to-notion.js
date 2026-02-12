@@ -101,6 +101,33 @@
       log("Bullet blocks:", bulletBlocks.length);
       log("Image blocks:", imageBlocks.length);
 
+      // Guard: no block titles should contain a standalone bracketed
+      // placeholder (legacy visible alt placeholders). They should be
+      // removed by the pipeline or converted to child image blocks.
+      const standaloneBracketRe = /^\s*\[[^\]]+\]\s*$/;
+      for (const b of blocks) {
+        try {
+          const title = (b.properties && b.properties.title) || [];
+          const text = Array.isArray(title)
+            ? title.map((s) => s[0] || "").join("")
+            : String(title || "");
+          if (standaloneBracketRe.test(text)) {
+            error(
+              "❌ Found standalone bracketed placeholder in block title:",
+              text,
+            );
+            return {
+              success: false,
+              phase: "block_generation",
+              detail: "Found legacy bracketed placeholder in block title",
+              block: b,
+            };
+          }
+        } catch (err) {
+          /* ignore malformed blocks for this guard */
+        }
+      }
+
       if (
         dividerBlocks.length > 0 &&
         bulletBlocks.length === 0 &&

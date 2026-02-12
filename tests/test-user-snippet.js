@@ -98,8 +98,9 @@ function testUserSnippets() {
       preservedImg.style.opacity = "0";
       preservedImg.style.position = "absolute";
 
-      // Create text placeholder
-      const placeholder = doc2.createTextNode(alt ? `[${alt}]` : "");
+      // Do NOT create a visible bracketed placeholder; preserve mapping via
+      // the hidden IMG only.
+      const placeholder = doc2.createTextNode("");
 
       // Add both to wrapper
       wrapper.appendChild(preservedImg);
