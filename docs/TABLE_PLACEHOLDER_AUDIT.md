@@ -35,7 +35,7 @@ Inventory — where placeholders are produced
 
 3. `Web-2-Notion/popup/static/js/main.js` — `CN` image case (inline-image conversion)
 
-- What: Converts image nodes into inline alt-text rich-text (returns `"[alt]"` in CN). Correct for inline images in normal paragraphs.
+- What: Previously converted image nodes into inline alt-text rich-text (returned `"[alt]"` in CN). New behavior: do NOT emit visible bracketed placeholders; inline images are preserved via a hidden `img[data-stn-preserve]` and captions (if present) are emitted as separate visible caption blocks.
 - Table relevance: NOT required for tables and can _hurt_ table flows because SN filters bracketed placeholders.
 - Action: keep for inline paragraphs but ensure CN output is ignored or normalized for table-origin content.
 
