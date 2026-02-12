@@ -57,11 +57,11 @@ function test(name, html, expectedPattern, shouldContain) {
         src && (src.startsWith("http://") || src.startsWith("https://"));
 
       if (isValidUrl) {
-        // Replace with text placeholder [alt] (not image markdown)
-        // New behavior: preserve the original anchor element and leave a
-        // tiny hidden IMG (data-stn-preserve) as its child so that image
-        // extraction can still associate the image with the anchor —
-        // while the visible text shows the expected [alt] placeholder.
+        // New behavior: do NOT emit visible bracketed placeholders like
+        // "[alt]". Keep a hidden preserved IMG (data-stn-preserve) so
+        // image extraction can still associate the image with its
+        // surrounding content; visible text will NOT include the
+        // bracketed alt-placeholder (captions are handled separately).
         if (alt) {
           if (parentAnchor) {
             const preservedImg = img.cloneNode(true);
@@ -70,11 +70,15 @@ function test(name, html, expectedPattern, shouldContain) {
               "width:0;height:0;border:0;opacity:0;position:relative;left:0;";
             const wrapper = document.createElement("span");
             wrapper.className = "stn-inline-image";
+            // Keep an invisible preserved IMG so the mapping/upload logic
+            // can find the original image, but do not add a visible
+            // bracketed placeholder.
             wrapper.appendChild(preservedImg);
-            wrapper.appendChild(document.createTextNode("[" + alt + "]"));
             img.replaceWith(wrapper);
           } else {
-            const replacement = document.createTextNode("[" + alt + "]");
+            // Image-only cell: remove visible output (image will still be
+            // uploaded / associated via preserved IMG metadata).
+            const replacement = document.createTextNode("");
             img.replaceWith(replacement);
           }
         } else {
@@ -138,32 +142,32 @@ function test(name, html, expectedPattern, shouldContain) {
 test(
   "Simple inline icon",
   '<img src="https://example.com/icon.png" alt="icon" />',
-  /\[icon\]/,
-  "[icon]",
+  /^$/,
+  "",
 );
 
 // Test 2: Icon with text in parentheses
 test(
   "Icon in parentheses with text",
   '(View details <img src="https://example.com/arrow.png" alt="arrow" />)',
-  /\[arrow\]/,
-  "[arrow]",
+  /View details(?!.*\[)/,
+  "View details",
 );
 
 // Test 3: Multiple inline icons
 test(
   "Multiple inline icons",
   'Start <img src="https://example.com/icon1.png" alt="icon1" /> middle <img src="https://example.com/icon2.png" alt="icon2" /> end',
-  /\[icon1\].*\[icon2\]/,
-  "[icon1]",
+  /Start[\s\S]*middle[\s\S]*end(?!.*\[)/,
+  "Start",
 );
 
 // Test 4: Icon inside anchor with text
 test(
   "Icon inside anchor with surrounding text",
   '<a href="https://example.com">Open <img src="https://example.com/icon.png" alt="arrow" /> now</a>',
-  /Open.*\[arrow\].*now/,
-  "[arrow]",
+  /Open[\s\S]*now(?!.*\[)/,
+  "Open",
 );
 
 // Ensure the preserved image remains associated with the original anchor
@@ -186,8 +190,8 @@ test(
 test(
   "Text before and after icon",
   'Click here <img src="https://example.com/click.png" alt="click icon" /> to continue',
-  /Click here.*\[click icon\].*to continue/,
-  "[click icon]",
+  /Click here[\s\S]*to continue(?!.*\[)/,
+  "Click here",
 );
 
 console.log("\n" + "=".repeat(50));

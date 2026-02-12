@@ -1,6 +1,8 @@
 const { JSDOM } = require("jsdom");
 
-console.log("🧪 Testing table cell paragraph-splitting and bullet placeholders...\n");
+console.log(
+  "🧪 Testing table cell paragraph-splitting and bullet placeholders...\n",
+);
 
 const dom = new JSDOM("<!DOCTYPE html><html><body></body></html>");
 global.window = dom.window;
@@ -58,17 +60,27 @@ function expect(desc, got, wantSubstr) {
 const table = document.createElement("table");
 const tr = document.createElement("tr");
 const td = document.createElement("td");
-td.innerHTML = '<p>First paragraph</p><p>Second <img src="https://example.com/i.png" alt="ICON"></p>';
+td.innerHTML =
+  '<p>First paragraph</p><p>Second <img src="https://example.com/i.png" alt="ICON"></p>';
 tr.appendChild(td);
 table.appendChild(tr);
 document.body.appendChild(table);
 
 const out = paragraphAwareExtract(td);
-expect("first paragraph preserved as its own paragraph", out, "First paragraph");
-expect("second paragraph preserved and contains bullet placeholder", out, " • ICON • ");
+expect(
+  "first paragraph preserved as its own paragraph",
+  out,
+  "First paragraph",
+);
+expect(
+  "second paragraph preserved and contains bullet placeholder",
+  out,
+  " • ICON • ",
+);
 
 // Test: orphan text preserved
-td.innerHTML = 'Orphan text before<p>Para with <img src="https://example.com/x.png" alt="X"></p>And after';
+td.innerHTML =
+  'Orphan text before<p>Para with <img src="https://example.com/x.png" alt="X"></p>And after';
 const out2 = paragraphAwareExtract(td);
 expect("orphan text preserved", out2, "Orphan text before");
 expect("trailing orphan text preserved", out2, "And after");
