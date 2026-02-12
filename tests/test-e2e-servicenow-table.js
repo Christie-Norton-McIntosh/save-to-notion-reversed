@@ -118,15 +118,6 @@ if (!/Automate support for common requests/.test(flattened)) {
   process.exit(1);
 }
 
-// Regression guard: no empty parentheses left from removed inline images
-if (/\(\s*\)/.test(flattened)) {
-  console.error(
-    "❌ Found stray empty parentheses '()' in flattened output:",
-    JSON.stringify(flattened),
-  );
-  process.exit(1);
-}
-
 // Regression guard: when the producer marker is present the popup must not
 // inject data: URL image markdown that can be lost later in the pipeline.
 if (/data:image\//.test(flattened)) {

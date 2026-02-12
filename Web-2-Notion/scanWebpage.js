@@ -16725,10 +16725,7 @@ async function scanWebpage() {
               // finally add the XCELLIDX marker as a data attribute on the cell itself
               // This survives Readability extraction better than innerHTML modification
               cell.setAttribute("data-xcellidx", cellId);
-              console.log(
-                "[scanWebpage/tableCell] Added data-xcellidx attribute to cell:",
-                cellId,
-              );
+              console.log("[scanWebpage/tableCell] Added data-xcellidx attribute to cell:", cellId);
             } catch (err) {
               /* swallow per-cell errors */
             }
@@ -17143,73 +17140,6 @@ async function scanWebpage() {
     // Save to window for debugging
     window.__lastScanResult = r;
 
-    // Conservative cleanup: when the captured HTML contains inline images
-    // or producer markers, remove leftover empty parentheses that can be
-    // introduced when an inline image (often wrapped in an anchor) is
-    // removed. This mirrors the popup/node cleanups and handles DOMs
-    // where punctuation and the image live in adjacent text nodes.
-    try {
-      if (
-        r.content &&
-        /(?:<img\b|<svg\b|data-stn-preserve|stn-inline-image|XCELLIDX\(|\[[^\]]+\])/i.test(
-          r.content,
-        )
-      ) {
-        const doc = new DOMParser().parseFromString(r.content, "text/html");
-        const SHOW_TEXT =
-          (typeof NodeFilter !== "undefined" && NodeFilter.SHOW_TEXT) || 4;
-        const walker = doc.createTreeWalker(doc.body, SHOW_TEXT, null, false);
-
-        // First pass: remove explicit empty-paren occurrences and
-        // normalize whitespace inside text nodes.
-        const toRemove = [];
-        while (walker.nextNode()) {
-          const tn = walker.currentNode;
-          if (!tn || !tn.textContent) continue;
-          // Replace empty-parens with a single space so adjacent words
-          // don't run together; normalize repeated spaces afterward.
-          const cleaned = tn.textContent
-            .replace(/\(\s*\)/g, " ")
-            .replace(/\s{2,}/g, " ");
-          if (cleaned !== tn.textContent) {
-            tn.textContent = cleaned;
-          }
-          if (!tn.textContent.trim()) toRemove.push(tn);
-        }
-        toRemove.forEach((n) => n.parentNode && n.parentNode.removeChild(n));
-
-        // Second pass: handle split parentheses across adjacent text nodes
-        try {
-          const tw = doc.createTreeWalker(doc.body, SHOW_TEXT, null, false);
-          const seq = [];
-          while (tw.nextNode()) seq.push(tw.currentNode);
-          for (let i = 0; i < seq.length - 1; i++) {
-            const a = seq[i];
-            const b = seq[i + 1];
-            if (!a || !b) continue;
-            const aText = String(a.textContent || "");
-            const bText = String(b.textContent || "");
-            if (/\(\s*$/.test(aText) && /^\s*\)/.test(bText)) {
-              a.textContent = aText.replace(/\(\s*$/, " ");
-              b.textContent = bText.replace(/^\s*\)/, " ");
-              if (!a.textContent.trim())
-                a.parentNode && a.parentNode.removeChild(a);
-              if (!b.textContent.trim())
-                b.parentNode && b.parentNode.removeChild(b);
-            }
-          }
-        } catch (err) {
-          /* tolerate */
-        }
-
-        r.content = doc.body.innerHTML;
-        console.warn(
-          "[scanWebpage] Stripped empty/split parentheses from captured HTML",
-        );
-      }
-    } catch (err) {
-      /* non-fatal */
-    }
     // WORKAROUND: Flatten nested sections to prevent serviceWorker duplication
     // ServiceWorker has a bug where nested <section> elements cause duplicate blocks
     try {
