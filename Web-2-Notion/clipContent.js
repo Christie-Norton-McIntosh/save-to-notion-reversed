@@ -3615,13 +3615,87 @@ z-index: 2;
         // mutating the live DOM.
         let html;
         try {
-          if (typeof window.__stn_annotateTableCells === "function") {
-            const _clone = rootElement.cloneNode(true);
-            window.__stn_annotateTableCells(_clone);
-            html = _clone.outerHTML;
-          } else {
-            html = rootElement.outerHTML;
+          // Operate on a clone so we never mutate the live DOM.
+          const work = (function () {
+            try {
+              const c = rootElement.cloneNode(true);
+              if (typeof window.__stn_annotateTableCells === "function") {
+                window.__stn_annotateTableCells(c);
+              }
+              return c;
+            } catch (err) {
+              return rootElement.cloneNode(true);
+            }
+          })();
+
+          // Conservative cleanup only when the cloned fragment contains
+          // images/placeholders — remove explicit empty parentheses and
+          // handle split-paren cases across adjacent text nodes.
+          try {
+            if (
+              work.querySelector &&
+              (work.querySelector("img, svg") ||
+                /XCELLIDX\(|data-stn-preserve|stn-inline-image|<svg\b/i.test(
+                  work.innerHTML,
+                ))
+            ) {
+              const SHOW_TEXT =
+                (typeof NodeFilter !== "undefined" && NodeFilter.SHOW_TEXT) ||
+                4;
+              const walker = document.createTreeWalker(
+                work,
+                SHOW_TEXT,
+                null,
+                false,
+              );
+              const toRemove = [];
+              while (walker.nextNode()) {
+                const tn = walker.currentNode;
+                if (!tn || !tn.textContent) continue;
+                const cleaned = tn.textContent
+                  .replace(/\(\s*\)/g, "")
+                  .replace(/\s{2,}/g, " ");
+                if (cleaned !== tn.textContent) tn.textContent = cleaned;
+                if (!tn.textContent.trim()) toRemove.push(tn);
+              }
+              toRemove.forEach(
+                (n) => n.parentNode && n.parentNode.removeChild(n),
+              );
+
+              // split-paren pass
+              try {
+                const tw = document.createTreeWalker(
+                  work,
+                  SHOW_TEXT,
+                  null,
+                  false,
+                );
+                const seq = [];
+                while (tw.nextNode()) seq.push(tw.currentNode);
+                for (let i = 0; i < seq.length - 1; i++) {
+                  const a = seq[i];
+                  const b = seq[i + 1];
+                  if (!a || !b) continue;
+                  const aText = String(a.textContent || "");
+                  const bText = String(b.textContent || "");
+                  if (/\(\s*$/.test(aText) && /^\s*\)/.test(bText)) {
+                    a.textContent = aText.replace(/\(\s*$/, "");
+                    b.textContent = bText.replace(/^\s*\)/, "");
+                    if (!a.textContent.trim())
+                      a.parentNode && a.parentNode.removeChild(a);
+                    if (!b.textContent.trim())
+                      b.parentNode && b.parentNode.removeChild(b);
+                  }
+                }
+              } catch (err) {
+                /* tolerant */
+              }
+            }
+          } catch (err) {
+            /* tolerant */
           }
+
+          html = work.outerHTML;
         } catch (err) {
           html = rootElement.outerHTML;
         }

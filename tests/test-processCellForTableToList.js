@@ -136,5 +136,37 @@ if (popupProc) {
   }
 }
 
+// Case F: empty parentheses left after removing an inline image wrapper
+const td6 = document.createElement("td");
+td6.innerHTML =
+  'XCELLIDX(CELL_Y)XCELLIDX<img data-original-src="data:image/png;base64,AAA" data-stn-preserve="1" alt="Y"> ()';
+const out6 = proc(td6);
+if (/\(\s*\)/.test(out6)) {
+  console.error("❌ empty parentheses '()' were NOT removed");
+  process.exit(1);
+}
+
+// Case H: inline SVG icon between parentheses — should be treated like an
+// inline image and the empty parentheses removed.
+const td8 = document.createElement("td");
+td8.innerHTML =
+  '(<svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>) next to text';
+const out8 = proc(td8);
+if (/\(\s*\)/.test(out8) || out8.indexOf("next to text") === -1) {
+  console.error(
+    "❌ SVG-wrapped empty parentheses were NOT removed or text lost",
+  );
+  process.exit(1);
+}
+
+// Case G: legitimate parenthetical content must be preserved
+const td7 = document.createElement("td");
+td7.innerHTML = "See (Fig. 2) for details";
+const out7 = proc(td7);
+if (!/\(Fig\. 2\)/.test(out7)) {
+  console.error("❌ legitimate parenthetical content was removed");
+  process.exit(1);
+}
+
 console.log("✅ processCellForTableToList PASSED");
 process.exit(0);

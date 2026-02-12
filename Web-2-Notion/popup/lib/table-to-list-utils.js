@@ -27,7 +27,9 @@
       // decisions (text nodes may be wrapped in <span> etc.).
       var cellLevelHasPreservedImg = !!(
         root.querySelector &&
-        root.querySelector("img[data-stn-preserve], .stn-inline-image")
+        root.querySelector(
+          'img[data-stn-preserve], .stn-inline-image, svg, .icon, .ft-zoomable-image, [role="img"]',
+        )
       );
       var cellLevelContainsXcell =
         /XCELLIDX\(CELL_[A-Za-z0-9_]+\)XCELLIDX/i.test(root.innerHTML || "");
@@ -103,7 +105,7 @@
           var inlineEl = (function findBracketedInline(el) {
             if (!el || !el.querySelectorAll) return null;
             var candidates = el.querySelectorAll(
-              "span, em, strong, b, i, small, label",
+              "span, em, strong, b, i, small, label, svg, .icon",
             );
             for (var i = 0; i < candidates.length; i++) {
               var c = candidates[i];
@@ -128,6 +130,77 @@
           /* ignore */
         }
       });
+
+      // Conservative cleanup: remove empty parentheses "()" that were
+      // left behind when an inline image was removed (common pattern:
+      // text ( <img/> ) text). Only run when the cell contains a
+      // preserved image/marker to avoid removing meaningful
+      // parenthetical content like "(see Fig. 2)".
+      if (cellLevelHasPreservedImg || cellLevelContainsXcell) {
+        try {
+          var walker2 = document.createTreeWalker(root, SHOW_TEXT, null, false);
+          var textNodesToMaybeRemove = [];
+          while (walker2.nextNode()) {
+            var tn2 = walker2.currentNode;
+            if (!tn2 || !tn2.textContent) continue;
+            var replaced = tn2.textContent
+              .replace(/\(\s*\)/g, "")
+              .replace(/\s{2,}/g, " ");
+            if (replaced.trim() === "") {
+              textNodesToMaybeRemove.push(tn2);
+            } else if (replaced !== tn2.textContent) {
+              tn2.textContent = replaced;
+            }
+          }
+          textNodesToMaybeRemove.forEach(function (n) {
+            try {
+              n.parentNode && n.parentNode.removeChild(n);
+            } catch (err) {
+              /* ignore */
+            }
+          });
+          // Additional pass: remove orphaned/opening "(" at the end of a
+          // text node when the matching ")" lives in the following text
+          // node (the placeholder was removed from between them). This
+          // handles DOMs where punctuation is split across nodes.
+          try {
+            var tnWalker = document.createTreeWalker(
+              root,
+              SHOW_TEXT,
+              null,
+              false,
+            );
+            var seq = [];
+            while (tnWalker.nextNode()) seq.push(tnWalker.currentNode);
+            for (var i = 0; i < seq.length - 1; i++) {
+              var a = seq[i];
+              var b = seq[i + 1];
+              if (!a || !b) continue;
+              var aText = String(a.textContent || "");
+              var bText = String(b.textContent || "");
+              if (/\(\s*$/.test(aText) && /^\s*\)/.test(bText)) {
+                a.textContent = aText.replace(/\(\s*$/, "");
+                b.textContent = bText.replace(/^\s*\)/, "");
+                // Normalize whitespace and remove empty nodes
+                if (!a.textContent.trim()) {
+                  try {
+                    a.parentNode && a.parentNode.removeChild(a);
+                  } catch (err) {}
+                }
+                if (!b.textContent.trim()) {
+                  try {
+                    b.parentNode && b.parentNode.removeChild(b);
+                  } catch (err) {}
+                }
+              }
+            }
+          } catch (err) {
+            /* tolerant — never throw from cleanup */
+          }
+        } catch (err) {
+          /* be tolerant — never throw from cleanup */
+        }
+      }
     })(cellClone);
 
     var hasProducerMarker = /XCELLIDX\(CELL_[A-Za-z0-9_]+\)XCELLIDX/i.test(
@@ -135,7 +208,9 @@
     );
     var hasPreservedImg = !!(
       cellClone.querySelector &&
-      cellClone.querySelector("img[data-stn-preserve], .stn-inline-image")
+      cellClone.querySelector(
+        'img[data-stn-preserve], .stn-inline-image, svg, .icon, [role="img"]',
+      )
     );
     if (hasProducerMarker || hasPreservedImg) {
       return (cellClone.textContent || "").trim() + "\n\n";
