@@ -159,6 +159,28 @@ if (/\(\s*\)/.test(out8) || out8.indexOf("next to text") === -1) {
   process.exit(1);
 }
 
+// Case I: preserved inline image wrapped by split parentheses — ensure
+// the surrounding words remain separated (no "iconfrom").
+const td9 = document.createElement("td");
+td9.innerHTML =
+  'selecting the list icon (<img data-original-src="data:image/png;base64,AAA" data-stn-preserve="1" alt="I">) from the left navigation pane.';
+const out9 = proc(td9);
+if (out9.indexOf("icon from") === -1) {
+  console.error(
+    "❌ Adjacent words ran together after paren/image cleanup:",
+    out9,
+  );
+  process.exit(1);
+}
+
+if (popupProc) {
+  const pOut9 = popupProc(td9);
+  if (pOut9.indexOf("icon from") === -1) {
+    console.error("❌ popup path concatenated words after cleanup:", pOut9);
+    process.exit(1);
+  }
+}
+
 // Case G: legitimate parenthetical content must be preserved
 const td7 = document.createElement("td");
 td7.innerHTML = "See (Fig. 2) for details";

@@ -17166,8 +17166,10 @@ async function scanWebpage() {
         while (walker.nextNode()) {
           const tn = walker.currentNode;
           if (!tn || !tn.textContent) continue;
+          // Replace empty-parens with a single space so adjacent words
+          // don't run together; normalize repeated spaces afterward.
           const cleaned = tn.textContent
-            .replace(/\(\s*\)/g, "")
+            .replace(/\(\s*\)/g, " ")
             .replace(/\s{2,}/g, " ");
           if (cleaned !== tn.textContent) {
             tn.textContent = cleaned;
@@ -17188,8 +17190,8 @@ async function scanWebpage() {
             const aText = String(a.textContent || "");
             const bText = String(b.textContent || "");
             if (/\(\s*$/.test(aText) && /^\s*\)/.test(bText)) {
-              a.textContent = aText.replace(/\(\s*$/, "");
-              b.textContent = bText.replace(/^\s*\)/, "");
+              a.textContent = aText.replace(/\(\s*$/, " ");
+              b.textContent = bText.replace(/^\s*\)/, " ");
               if (!a.textContent.trim())
                 a.parentNode && a.parentNode.removeChild(a);
               if (!b.textContent.trim())

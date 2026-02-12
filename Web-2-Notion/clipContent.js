@@ -3652,8 +3652,10 @@ z-index: 2;
               while (walker.nextNode()) {
                 const tn = walker.currentNode;
                 if (!tn || !tn.textContent) continue;
+                // Replace empty-parens with a single space so words don't
+                // run together; normalize repeated spaces afterward.
                 const cleaned = tn.textContent
-                  .replace(/\(\s*\)/g, "")
+                  .replace(/\(\s*\)/g, " ")
                   .replace(/\s{2,}/g, " ");
                 if (cleaned !== tn.textContent) tn.textContent = cleaned;
                 if (!tn.textContent.trim()) toRemove.push(tn);
@@ -3679,8 +3681,10 @@ z-index: 2;
                   const aText = String(a.textContent || "");
                   const bText = String(b.textContent || "");
                   if (/\(\s*$/.test(aText) && /^\s*\)/.test(bText)) {
-                    a.textContent = aText.replace(/\(\s*$/, "");
-                    b.textContent = bText.replace(/^\s*\)/, "");
+                    // Insert a single space when removing split parens so
+                    // the surrounding words remain separated.
+                    a.textContent = aText.replace(/\(\s*$/, " ");
+                    b.textContent = bText.replace(/^\s*\)/, " ");
                     if (!a.textContent.trim())
                       a.parentNode && a.parentNode.removeChild(a);
                     if (!b.textContent.trim())

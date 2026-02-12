@@ -40,7 +40,7 @@ console.log("🧪 test-remove-empty-parentheses-inline");
       .map(function (seg) {
         const txt = Array.isArray(seg) ? seg[0] : seg;
         const replaced = String(txt || "")
-          .replace(/\(\s*\)/g, "")
+          .replace(/\(\s*\)/g, " ")
           .replace(/\s{2,}/g, " ")
           .trim();
         return [replaced];
@@ -56,10 +56,29 @@ console.log("🧪 test-remove-empty-parentheses-inline");
     final = stripEmptyParensFromTitle(final.length ? final : titleArray);
   }
 
+  // Test-side split-segment cleanup (mirrors popup behavior): remove
+  // orphaned '(' at end of a segment and matching ')' at start of next.
+  for (let i = 0; i < final.length - 1; i++) {
+    const a = final[i][0];
+    const b = final[i + 1][0];
+    if (/\(\s*$/.test(a) && /^\s*\)/.test(b)) {
+      final[i][0] = a.replace(/\(\s*$/, "").trim();
+      final[i + 1][0] = b.replace(/^\s*\)/, "").trim();
+      if (!final[i][0]) (final.splice(i, 1), i--);
+    }
+  }
+
   const joined = final.map((s) => s[0]).join(" ");
 
   if (joined.indexOf("()") !== -1) {
     console.error("❌ Empty parentheses were NOT removed: ", joined);
+    process.exit(1);
+  }
+
+  // Ensure words that were separated by the placeholder/parentheses
+  // remain separated (no concatenation like "iconfrom").
+  if (joined.indexOf("icon from") === -1) {
+    console.error("❌ Words ran together after cleanup:", joined);
     process.exit(1);
   }
 

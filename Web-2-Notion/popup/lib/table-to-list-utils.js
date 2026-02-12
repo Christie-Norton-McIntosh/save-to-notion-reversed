@@ -144,7 +144,7 @@
             var tn2 = walker2.currentNode;
             if (!tn2 || !tn2.textContent) continue;
             var replaced = tn2.textContent
-              .replace(/\(\s*\)/g, "")
+              .replace(/\(\s*\)/g, " ")
               .replace(/\s{2,}/g, " ");
             if (replaced.trim() === "") {
               textNodesToMaybeRemove.push(tn2);
@@ -179,8 +179,11 @@
               var aText = String(a.textContent || "");
               var bText = String(b.textContent || "");
               if (/\(\s*$/.test(aText) && /^\s*\)/.test(bText)) {
-                a.textContent = aText.replace(/\(\s*$/, "");
-                b.textContent = bText.replace(/^\s*\)/, "");
+                // Replace orphaned paren with a single space so surrounding
+                // words don't run together (later whitespace normalization
+                // will collapse duplicates).
+                a.textContent = aText.replace(/\(\s*$/, " ");
+                b.textContent = bText.replace(/^\s*\)/, " ");
                 // Normalize whitespace and remove empty nodes
                 if (!a.textContent.trim()) {
                   try {
@@ -196,6 +199,57 @@
             }
           } catch (err) {
             /* tolerant — never throw from cleanup */
+          }
+
+          // Final normalization pass: collapse consecutive internal
+          // whitespace to single spaces so removed placeholders or
+          // split-paren fixes don't leave multiple spaces.
+          try {
+            var normWalker = document.createTreeWalker(
+              root,
+              SHOW_TEXT,
+              null,
+              false,
+            );
+            var norms = [];
+            while (normWalker.nextNode()) norms.push(normWalker.currentNode);
+            norms.forEach(function (tn) {
+              try {
+                if (!tn || !tn.textContent) return;
+                var cleaned = tn.textContent.replace(/\s{2,}/g, " ");
+                if (cleaned.trim() === "") {
+                  tn.parentNode && tn.parentNode.removeChild(tn);
+                } else if (cleaned !== tn.textContent) {
+                  tn.textContent = cleaned;
+                }
+              } catch (e) {
+                /* noop */
+              }
+            });
+
+            // Collapse cross-node whitespace: if a node ends with a space
+            // and the next starts with a space, remove the leading space
+            // from the next node so concatenation produces a single
+            // separating space.
+            for (var i = 0; i < norms.length - 1; i++) {
+              try {
+                var a = norms[i];
+                var b = norms[i + 1];
+                if (!a || !b || !a.textContent || !b.textContent) continue;
+                if (/\s$/.test(a.textContent) && /^\s/.test(b.textContent)) {
+                  b.textContent = b.textContent.replace(/^\s+/, "");
+                  if (!b.textContent.trim()) {
+                    b.parentNode && b.parentNode.removeChild(b);
+                    norms.splice(i + 1, 1);
+                    i--;
+                  }
+                }
+              } catch (e) {
+                /* noop */
+              }
+            }
+          } catch (err) {
+            /* tolerant */
           }
         } catch (err) {
           /* be tolerant — never throw from cleanup */
@@ -213,7 +267,21 @@
       )
     );
     if (hasProducerMarker || hasPreservedImg) {
-      return (cellClone.textContent || "").trim() + "\n\n";
+      var text = String(cellClone.textContent || "");
+      // If the clone contains inline imagery, replace empty parens with
+      // a space so words don't run together and normalize whitespace.
+      if (
+        /(?:<svg\b|class=\".*icon.*\"|role=\"img\")/i.test(
+          cellClone.innerHTML || "",
+        ) ||
+        /\(\s*\)/.test(text)
+      ) {
+        text = text
+          .replace(/\(\s*\)/g, " ")
+          .replace(/\s{2,}/g, " ")
+          .trim();
+      }
+      return text + "\n\n";
     }
 
     var output = "";
