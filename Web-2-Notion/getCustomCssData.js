@@ -357,7 +357,10 @@
         return "";
       }
       function getCustomCssData() {
-        let customs = __save_to_notion_customs;
+        const customs =
+          typeof __save_to_notion_customs !== "undefined"
+            ? __save_to_notion_customs
+            : [];
         return customs.map((x) => {
           try {
             // if it's customDataV2

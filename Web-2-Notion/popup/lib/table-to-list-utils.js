@@ -22,7 +22,54 @@
         (typeof NodeFilter !== "undefined" && NodeFilter.SHOW_TEXT) || 4;
       var walker = document.createTreeWalker(root, SHOW_TEXT, null, false);
       var toRemove = [];
-      var bracketRe = /^\s*\[([^\]]+)\]\s*$/;
+      var placeholderRemoved = false;
+
+      function detectPlaceholder(text) {
+        if (!text) return null;
+        var raw = String(text);
+        var trimmed = raw.trim();
+        if (!trimmed) return null;
+
+        var bulletMatch = trimmed.match(/^•\s*([^•]+?)\s*•$/);
+        if (bulletMatch) return { type: "bullet", alt: bulletMatch[1].trim() };
+
+        var candidates = [];
+        candidates.push(trimmed);
+
+        var withoutTrailingEmptyParens = trimmed.replace(/\(\s*\)$/, "").trim();
+        if (
+          withoutTrailingEmptyParens &&
+          candidates.indexOf(withoutTrailingEmptyParens) === -1
+        ) {
+          candidates.push(withoutTrailingEmptyParens);
+        }
+
+        if (trimmed.startsWith("(") && trimmed.endsWith(")")) {
+          var inner = trimmed.slice(1, -1).trim();
+          if (inner && candidates.indexOf(inner) === -1) {
+            candidates.push(inner);
+          }
+          var innerWithoutTrailing = inner
+            ? inner.replace(/\(\s*\)$/, "").trim()
+            : "";
+          if (
+            innerWithoutTrailing &&
+            candidates.indexOf(innerWithoutTrailing) === -1
+          ) {
+            candidates.push(innerWithoutTrailing);
+          }
+        }
+
+        for (var i = 0; i < candidates.length; i++) {
+          var candidate = candidates[i];
+          if (!candidate) continue;
+          var bracketMatch = candidate.match(/^\[([^\]]+)\]$/);
+          if (bracketMatch)
+            return { type: "bracket", alt: bracketMatch[1].trim() };
+        }
+
+        return null;
+      }
       // Precompute cell-level signals so we can make ancestor-level
       // decisions (text nodes may be wrapped in <span> etc.).
       var cellLevelHasPreservedImg = !!(
@@ -37,8 +84,8 @@
       while (walker.nextNode()) {
         var tn = walker.currentNode;
         var txt = tn.textContent || "";
-        var m = txt.match(bracketRe);
-        if (!m) continue;
+        var placeholder = detectPlaceholder(txt);
+        if (!placeholder) continue;
 
         var parent = tn.parentNode;
         if (!parent) continue;
@@ -46,33 +93,11 @@
         // If parent is an explicit preserved-wrapper, remove the bracketed text.
         if (parent.classList && parent.classList.contains("stn-inline-image")) {
           toRemove.push(tn);
+          placeholderRemoved = true;
           continue;
         }
 
-        // If the same parent (or its ancestors) contains a preserved IMG
-        // or an XCELLIDX marker, it's safe to remove the visible
-        // bracketed placeholder. Prefer cell-level signals because the
-        // bracketed text is often wrapped in its own inline element so
-        // parent.querySelector won't find the preserved IMG.
-        if (cellLevelHasPreservedImg || cellLevelContainsXcell) {
-          // If the bracketed placeholder is wrapped in an inline
-          // element, remove that element rather than the inner text
-          // node so surrounding whitespace is handled cleanly.
-          var anc = tn.parentElement;
-          if (
-            anc &&
-            anc !== root &&
-            anc.tagName.match(/^(SPAN|EM|STRONG|B|I|SMALL|LABEL)$/i)
-          ) {
-            toRemove.push(anc);
-            continue;
-          }
-
-          toRemove.push(tn);
-          continue;
-        }
-
-        // Also remove if an adjacent sibling is a preserved image or a
+        // Check if an adjacent sibling is a preserved image or a
         // marker (covers cases like: <img ...></img> [alt] or [alt] <img ...>)
         var prev = tn.previousSibling;
         var next = tn.nextSibling;
@@ -96,28 +121,75 @@
           continue;
         }
 
-        // If the bracketed placeholder is wrapped in its own inline
-        // element (common in table HTML: <span>[alt]</span>), we'll
-        // remove that element as long as the cell contains a preserved
-        // image or XCELLIDX. This covers the failing case where the
-        // placeholder isn't a bare text node.
-        if (hasPreservedImg || containsXcell) {
-          var inlineEl = (function findBracketedInline(el) {
-            if (!el || !el.querySelectorAll) return null;
-            var candidates = el.querySelectorAll(
-              "span, em, strong, b, i, small, label, svg, .icon",
-            );
-            for (var i = 0; i < candidates.length; i++) {
-              var c = candidates[i];
-              var tv = (c.textContent || "").trim();
-              if (bracketRe.test(tv)) return c;
+        // Also check if parent element's siblings contain preserved images
+        // (handles: <img ...><span>[alt]</span>)
+        if (parent && parent !== root && parent.parentNode) {
+          var parentPrev = parent.previousSibling;
+          var parentNext = parent.nextSibling;
+          if (
+            siblingHasPreservedImg(parentPrev) ||
+            siblingHasPreservedImg(parentNext)
+          ) {
+            // Only remove if this text node contains ONLY the bracketed text
+            // (to avoid removing legitimate text in a span next to an image)
+            if (parent.textContent.trim() === txt.trim()) {
+              toRemove.push(parent); // Remove the whole span
+              placeholderRemoved = true;
+              continue;
             }
-            return null;
-          })(parent);
-          if (inlineEl) {
-            toRemove.push(inlineEl);
-            continue;
           }
+        }
+
+        // Check if the direct parent contains ONLY this bracketed text and an image
+        // (and possibly some whitespace/punctuation). This is the pattern for
+        // image placeholders like: <a href="...">[alt]<img/></a> or <span>[alt] •</span>
+        // But NOT for legitimate text like: <li>The word [DRAFT] is...</li>
+        var parentOnlyHasTextAndImage = false;
+        if (parent && parent.childNodes) {
+          var significantChildren = Array.from(parent.childNodes).filter(
+            function (n) {
+              if (n === tn) return true; // The bracketed text node itself
+              if (n.nodeType === Node.ELEMENT_NODE) {
+                // Count images and preserved wrappers
+                if (
+                  n.matches &&
+                  n.matches(
+                    "img[data-stn-preserve], .stn-inline-image, svg, .icon",
+                  )
+                ) {
+                  return true;
+                }
+              }
+              if (n.nodeType === Node.TEXT_NODE) {
+                // Only count text nodes with more than just whitespace/bullets
+                var content = (n.textContent || "").trim();
+                if (content && !/^[•\s\(\)]+$/.test(content)) {
+                  return true;
+                }
+              }
+              return false;
+            },
+          );
+
+          // If parent only has: bracketed text + image (+ maybe whitespace/bullets)
+          // then it's likely a placeholder
+          var hasImage = significantChildren.some(function (n) {
+            return (
+              n.nodeType === Node.ELEMENT_NODE &&
+              n.matches &&
+              n.matches("img[data-stn-preserve], .stn-inline-image, svg, .icon")
+            );
+          });
+
+          if (hasImage && significantChildren.length <= 3) {
+            parentOnlyHasTextAndImage = true;
+          }
+        }
+
+        if (parentOnlyHasTextAndImage) {
+          toRemove.push(tn);
+          placeholderRemoved = true;
+          continue;
         }
 
         // Otherwise treat as user text and keep it.
@@ -126,6 +198,7 @@
       toRemove.forEach(function (n) {
         try {
           n.parentNode && n.parentNode.removeChild(n);
+          placeholderRemoved = true;
         } catch (err) {
           /* ignore */
         }
@@ -136,7 +209,11 @@
       // text ( <img/> ) text). Only run when the cell contains a
       // preserved image/marker to avoid removing meaningful
       // parenthetical content like "(see Fig. 2)".
-      if (cellLevelHasPreservedImg || cellLevelContainsXcell) {
+      if (
+        cellLevelHasPreservedImg ||
+        cellLevelContainsXcell ||
+        placeholderRemoved
+      ) {
         try {
           var walker2 = document.createTreeWalker(root, SHOW_TEXT, null, false);
           var textNodesToMaybeRemove = [];
@@ -268,6 +345,8 @@
     );
     if (hasProducerMarker || hasPreservedImg) {
       var text = String(cellClone.textContent || "");
+      // Remove bullet-format placeholders • alt • (these are image placeholders from table-to-list patch)
+      text = text.replace(/\s*•\s*[^•]+\s*•\s*/g, " ");
       // If the clone contains inline imagery, replace empty parens with
       // a space so words don't run together and normalize whitespace.
       if (
@@ -302,7 +381,9 @@
           var isrc = img.getAttribute("src") || img.src || "";
           var ialt = img.getAttribute("alt") || "";
           img.remove();
-          if (isrc) output += "![" + ialt + "](" + isrc + ")\n\n";
+          // Add metadata marker to preserve inline images from data URL extraction
+          if (isrc)
+            output += "![" + ialt + "](" + isrc + ")<<stn-table-img>>\n\n";
         });
 
         // Then process paragraphs
@@ -313,7 +394,11 @@
             var palt = pi.getAttribute("alt") || "";
             // Remove image but don't add placeholder text
             pi.remove();
-            if (psrc) pImageMarkdowns.push("![" + palt + "](" + psrc + ")");
+            // Add metadata marker to preserve inline images from data URL extraction
+            if (psrc)
+              pImageMarkdowns.push(
+                "![" + palt + "](" + psrc + ")<<stn-table-img>>",
+              );
           });
           var ptext = (p.textContent || "").trim();
           if (pImageMarkdowns.length)
@@ -333,7 +418,9 @@
           var ialt = ii.getAttribute("alt") || "";
           // Remove image but don't add placeholder text
           ii.remove();
-          if (isrc) output += "![" + ialt + "](" + isrc + ")\n\n";
+          // Add metadata marker to preserve inline images from data URL extraction
+          if (isrc)
+            output += "![" + ialt + "](" + isrc + ")<<stn-table-img>>\n\n";
         });
         var text = (cellClone.textContent || "").trim();
         if (text) output += text + "\n\n";

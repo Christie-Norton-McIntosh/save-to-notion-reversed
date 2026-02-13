@@ -1,0 +1,332 @@
+<div class="body conbody">
+  <p class="shortdesc">
+    As you create and edit services and service offerings in Service Builder,
+    various states get assigned and change on the services' way to being
+    published (approved). Administrators enable the standard approval flow and
+    can even customize it using the subflow option in
+    <span class="ph">Workflow Studio</span>.
+  </p>
+  <section class="section" id="service-builder-states__section_qpx_xcf_2yb">
+    <h2 class="title sectiontitle">Standard approval flow</h2>
+    <p class="p">
+      By default, the approval flow in
+      <span class="ph">Service Builder</span> is set to approve services
+      automatically.
+    </p>
+    <div class="p">
+      When editing a service or offering in
+      <span class="ph">Service Builder</span>, the standard approval flow is as
+      follows:
+      <ul class="ul" id="service-builder-states__ul_zr3_rdf_2yb">
+        <li class="li">
+          As you edit a service or offering, it's in a
+          <span class="ph uicontrol">Draft</span> state.
+        </li>
+        <li class="li">
+          After you submit your service or offering, it moves into the
+          <span class="ph uicontrol">Awaiting approval</span> state.
+        </li>
+        <li class="li">
+          After your service or offering is approved, it moves into the
+          <span class="ph uicontrol">Published</span> state.
+        </li>
+      </ul>
+      You can edit (checkout) a service or a single offering, one at a time. You
+      can also edit a service without checking out its child offerings — The
+      offerings remain in the <span class="ph uicontrol">Published</span> state
+      until they’re separately checked out.
+    </div>
+    <p class="p">
+      When you check out an offering to edit it, the offering and its parent
+      service both get checked out. The rest of the child offerings of that
+      parent service remain in the
+      <span class="ph uicontrol">Published</span> state. After you finish
+      editing the offering, submit it to the parent service so the offering can
+      be republished (offerings are published via the parent service).
+    </p>
+  </section>
+  <section class="section" id="service-builder-states__section_l2k_vcf_2yb">
+    <h2 class="title sectiontitle">Service states</h2>
+    <div class="p">
+      See the following table for each state in the standard service and service
+      offering approval flow.
+      <table
+        class="table frame-all"
+        id="service-builder-states__table_b2b_rcc_wqb"
+      >
+        <caption></caption>
+        <colgroup>
+          <col />
+          <col />
+        </colgroup>
+        <thead class="thead">
+          <tr class="row">
+            <th
+              class="entry"
+              id="service-builder-states__table_b2b_rcc_wqb__entry__1"
+            >
+              State
+            </th>
+            <th
+              class="entry"
+              id="service-builder-states__table_b2b_rcc_wqb__entry__2"
+            >
+              Description
+            </th>
+          </tr>
+        </thead>
+        <tbody class="tbody">
+          <tr class="row">
+            <td
+              class="entry"
+              headers="service-builder-states__table_b2b_rcc_wqb__entry__1"
+            >
+              Published
+            </td>
+            <td
+              class="entry"
+              headers="service-builder-states__table_b2b_rcc_wqb__entry__2"
+            >
+              <p class="p">
+                When a new service or offering is created and submitted in
+                <span class="ph">Service Builder</span>, the item goes through
+                an approval process before it's assigned to the
+                <span class="ph uicontrol">Published</span> state. The
+                <span class="ph uicontrol">Published</span> state indicates that
+                the item is the version being used by the application and
+                available for others.
+              </p>
+              <p class="p">
+                When you edit a published item,
+                <span class="ph">Service Builder</span> automatically checks out
+                the item for you and creates a copy for you to work on. The copy
+                is set to the <span class="ph uicontrol">Draft</span> state.
+              </p>
+            </td>
+          </tr>
+          <tr class="row">
+            <td
+              class="entry"
+              headers="service-builder-states__table_b2b_rcc_wqb__entry__1"
+            >
+              Draft
+            </td>
+            <td
+              class="entry"
+              headers="service-builder-states__table_b2b_rcc_wqb__entry__2"
+            >
+              <div class="p">
+                A service item is in the
+                <span class="ph uicontrol">Draft</span> state in one of these
+                scenarios:
+                <ul class="ul" id="service-builder-states__ul_qqb_r2s_fyb">
+                  <li class="li">
+                    A new service or offering is being created in
+                    <span class="ph">Service Builder</span> and hasn’t yet been
+                    submitted.
+                  </li>
+                  <li class="li">
+                    An existing published service or offering has been checked
+                    out for editing in <span class="ph">Service Builder</span>.
+                    <ul class="ul" id="service-builder-states__ul_cjc_lth_jxb">
+                      <li class="li">
+                        When the item is being edited,
+                        <span class="ph">Service Builder</span> checks out the
+                        item and creates a copy of it and its related records
+                        (offerings and subscribers).
+                      </li>
+                      <li class="li">
+                        The copy is in a
+                        <span class="ph uicontrol">Draft</span> state.
+                        <div class="note note note_note">
+                          <span class="note__title">Note:</span>
+                          <div class="note__body">
+                            In the <span class="ph uicontrol">Draft</span> state
+                            (checked out), the item displays in both
+                            <span class="ph">Service Builder</span> and in
+                            <span class="ph">Service Portfolio Management</span>
+                            in one or more of the following ways:
+                            <ul
+                              class="ul"
+                              id="service-builder-states__ul_oh4_knx_hcc"
+                            >
+                              <li class="li">
+                                The word [DRAFT] is in front of the checked out
+                                item name.
+                              </li>
+                              <li class="li">
+                                A red dot (<a
+                                  href="https://www.servicenow.com/docs/viewer/attachment/MlbQAgTiiiMOLOw9T36wJg/uFO0jj9vW~K7L75ar~l6sA-MlbQAgTiiiMOLOw9T36wJg"
+                                  data-ft-container-id="MlbQAgTiiiMOLOw9T36wJg"
+                                  data-ft-resource-id="uFO0jj9vW~K7L75ar~l6sA-MlbQAgTiiiMOLOw9T36wJg"
+                                  ><img
+                                    alt="Red dot"
+                                    class="image ft-zoomable-image ft-responsive-image"
+                                    id="service-builder-states__image_v3z_cwg_2zb"
+                                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAARCAYAAAA/mJfHAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAE6ADAAQAAAABAAAAEQAAAABarwPGAAAAyUlEQVQ4EWP8DwQMVAJMVDIHbAwLPsN+7VzL8O/0IYb/T+6DlTHKKDIwmdoxsLkHY9XGiM2b/16/YPg1s53h38NbWDUxyasxsKVXMjCJSqDIY/UmPoNAukGWgNSgAwzDwF7D4SJkzWADgcGADDAMA4URsQBdLYZhsMAmxkB0tRiGEWMILjUYhoGin1iArhbDMFA6Ihagq8UwDJQgQemIEACnNbTEi2EYyBBwgsRjICzRoluINQfAFFElO8EMI5XG6k1SDYGpp6phAK64TxERmoLPAAAAAElFTkSuQmCC"
+                                    data-ft-click-interceptor="ft-img-zoom"
+                                    data-ft-container-id="MlbQAgTiiiMOLOw9T36wJg"
+                                    data-ft-resource-id="uFO0jj9vW~K7L75ar~l6sA-MlbQAgTiiiMOLOw9T36wJg" /></a
+                                >) is next to the item, signifying that it's
+                                read only.
+                              </li>
+                              <li class="li">
+                                A clear triangle warning symbol (<a
+                                  href="https://www.servicenow.com/docs/viewer/attachment/MlbQAgTiiiMOLOw9T36wJg/tM5c5GsKlShpzo~LHfvHMg-MlbQAgTiiiMOLOw9T36wJg"
+                                  data-ft-container-id="MlbQAgTiiiMOLOw9T36wJg"
+                                  data-ft-resource-id="tM5c5GsKlShpzo~LHfvHMg-MlbQAgTiiiMOLOw9T36wJg"
+                                  ><img
+                                    alt="Clear triangle"
+                                    class="image ft-zoomable-image ft-responsive-image"
+                                    id="service-builder-states__image_dqf_2wg_2zb"
+                                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABYAAAASCAYAAABfJS4tAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAFqADAAQAAAABAAAAEgAAAADpoZWaAAAA30lEQVQ4EdWSWw4DIQhFtenC3JnjytSVWa4tE6FonCb9GD5UHh5Q8I3E/UEeu0zvvSul7IY7v1PxcRyu1tqhOec9OMAriTHiq3pICKEReBV++t43TvX7ABjgEECh78gSDCBDGTYmYpu1L8H4An46fwd0PltAtk2bh4ZBeMdU0CVhY1836oUzjLtVFd0bQ3rV/Brh+CjmHGNe6W91DUKHP6UkbELR2dCs3c4jbla1fB9loawNcC2wawF0VoSIBtCCauCoz8ZPTAU6/6tQMnH1OWraOfquns2puAqx4u8HfgH9nqmRQXqDCgAAAABJRU5ErkJggg=="
+                                    data-ft-click-interceptor="ft-img-zoom"
+                                    data-ft-container-id="MlbQAgTiiiMOLOw9T36wJg"
+                                    data-ft-resource-id="tM5c5GsKlShpzo~LHfvHMg-MlbQAgTiiiMOLOw9T36wJg" /></a
+                                >) is next to the item name, signifying it's the
+                                new copy (DRAFT) that's being worked on.
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
+                      </li>
+                      <li class="li">
+                        The published item remains in the
+                        <span class="ph uicontrol">Published</span> state and
+                        the <span class="ph uicontrol">Checked out</span> field
+                        is set to <span class="ph uicontrol">True</span>.
+                      </li>
+                      <li class="li">
+                        After editing and submitting the item, the edits to the
+                        draft are merged with the related published item, and
+                        then the draft version is deleted.
+                      </li>
+                    </ul>
+                  </li>
+                </ul>
+              </div>
+            </td>
+          </tr>
+          <tr class="row">
+            <td
+              class="entry"
+              headers="service-builder-states__table_b2b_rcc_wqb__entry__1"
+            >
+              <p class="p">Awaiting approval</p>
+            </td>
+            <td
+              class="entry"
+              headers="service-builder-states__table_b2b_rcc_wqb__entry__2"
+            >
+              <p class="p">
+                After submitting your service or service offering, your
+                submission goes through an approval process. Your organization's
+                approval flow confirms that the service is created according to
+                standards such as naming conventions, descriptions, proper use
+                of commitments, and key performance indicators (KPIs). It also
+                enables a quality check to confirm services aren't duplicative.
+              </p>
+              <div class="p">
+                The following lists the tasks for each persona in the approval
+                flow:
+                <ul class="ul" id="service-builder-states__ul_wqz_vds_fyb">
+                  <li class="li">
+                    Service owners create or edit services and offerings in the
+                    <span class="ph uicontrol">Draft</span> state and then
+                    submit them for approval.
+                  </li>
+                  <li class="li">
+                    Process owners and portfolio owners review and approve
+                    services and offerings before they approve them for
+                    publishing.
+                  </li>
+                  <li class="li">
+                    Process owners and admins can access the 'Service Builder
+                    publish' subflow in
+                    <span class="ph">Workflow Studio</span> to set up and modify
+                    the approval flow based on the organizations needs.
+                  </li>
+                </ul>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="p">
+      <div class="note important note_important">
+        <span class="note__title">Important:</span>
+        <div class="note__body">
+          <ul class="ul" id="service-builder-states__ul_ay3_4ym_jxb">
+            <li class="li">
+              You can only edit an item when it's in a
+              <span class="ph uicontrol">Draft</span> state. You can't edit a
+              published item that has been checked out.
+            </li>
+            <li class="li">
+              An item in the <span class="ph uicontrol">Draft</span> state is
+              always inactive and doesn't show up in a search or when you're
+              browsing.
+            </li>
+            <li class="li">
+              You can't change the <span class="ph uicontrol">Active</span> flag
+              of an item in the <span class="ph uicontrol">Draft</span> state.
+            </li>
+            <li class="li">
+              The approval process is available starting with the
+              <span class="ph">Utah</span> release and after. Depending on your
+              organization, the approval process could take some time. Contact
+              your administrator if you have questions about the approval
+              process time.
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="section" id="service-builder-states__section_z3b_vkd_y1c">
+    <h2 class="title sectiontitle">Enable and customize an approval flow</h2>
+    <p class="p">
+      Administrators enable the approval flow that comes with the base system by
+      updating the 'Service Builder publish' subflow in
+      <span class="ph">Workflow Studio</span>.
+    </p>
+    <div class="p">
+      Administrators can also create a customized approval flow that best meets
+      the organization's needs. See the following for more information about
+      these tasks in <span class="ph">Workflow Studio</span>:
+      <ul class="ul" id="service-builder-states__ul_e2g_4kd_y1c">
+        <li class="li">
+          <a
+            class="xref"
+            href="https://www.servicenow.com/docs/access?context=flow-edit&amp;version=zurich&amp;pubname=zurich-build-workflows&amp;ft:locale=en-US"
+            rel="external noopener"
+            target="_blank"
+            data-ft-click-interceptor="ft-internal-link"
+            >Edit a flow</a
+          >
+        </li>
+        <li class="li">
+          <a
+            class="xref"
+            href="https://www.servicenow.com/docs/access?context=ask-approval-flow-designer&amp;version=zurich&amp;pubname=zurich-build-workflows&amp;ft:locale=en-US"
+            rel="external noopener"
+            target="_blank"
+            data-ft-click-interceptor="ft-internal-link"
+            >Ask for Approval action</a
+          >
+        </li>
+        <li class="li">
+          <a
+            class="xref"
+            href="https://www.servicenow.com/docs/access?context=create-flow&amp;version=zurich&amp;pubname=zurich-build-workflows&amp;ft:locale=en-US"
+            rel="external noopener"
+            target="_blank"
+            data-ft-click-interceptor="ft-internal-link"
+            >Create a flow in Workflow Studio</a
+          >
+        </li>
+      </ul>
+    </div>
+  </section>
+</div>

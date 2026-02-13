@@ -268,18 +268,20 @@ async function loadCustomSelectors() {
           },
         ];
 
-        console.log(
-          "[scanWebpage] Loaded custom selectors:",
-          customSiteReadableZoneMap,
-        );
-        console.log(
-          "[scanWebpage] Loaded custom ignore selectors:",
-          window.__customIgnoreSelectorsCache,
-        );
-        console.log(
-          "[scanWebpage] Loaded custom format rules:",
-          window.__customFormatRulesCache,
-        );
+        if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG) {
+          console.info(
+            "[scanWebpage] Loaded custom selectors:",
+            customSiteReadableZoneMap,
+          );
+          console.info(
+            "[scanWebpage] Loaded custom ignore selectors:",
+            window.__customIgnoreSelectorsCache,
+          );
+          console.info(
+            "[scanWebpage] Loaded custom format rules:",
+            window.__customFormatRulesCache,
+          );
+        }
         resolve(customSiteReadableZoneMap);
       },
     );
@@ -288,7 +290,9 @@ async function loadCustomSelectors() {
 
 function getHostname() {
   const hostname = window.location.hostname.replace(/^www\./, "");
-  console.log("[scanWebpage] Current hostname:", hostname);
+  if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG) {
+    console.info("[scanWebpage] Current hostname:", hostname);
+  }
   return hostname;
 }
 
@@ -14996,9 +15000,14 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
   var bestUrl = links.length == 0 ? null : chooseBestUrl(links, title);
 
   // Process content through pipeline
-  console.warn("[parseFromHtml] Starting pipeline for:", title);
+  if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG)
+    console.info("[parseFromHtml] Starting pipeline for:", title);
   var content = normalize(html, bestUrl);
-  console.warn("[parseFromHtml] After normalize:", content?.substring(0, 500));
+  if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG)
+    console.info(
+      "[parseFromHtml] After normalize:",
+      content?.substring(0, 500),
+    );
 
   // WORKAROUND: Preserve original image src attributes before first DOM parsing
   // The browser will convert image URLs to base64 when DOMParser creates the DOM.
@@ -15018,64 +15027,72 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
       );
       const preservedCount = (content.match(/data-original-src=/g) || [])
         .length;
-      if (preservedCount > 0) {
-        console.log(
+      if (preservedCount > 0 && (DEBUG_SCANWEBPAGE || window.__STN_DEBUG)) {
+        console.info(
           `[parseFromHtml] Preserved ${preservedCount} original image src attributes`,
         );
       }
     }
   } catch (e) {
-    console.warn("[parseFromHtml] Failed to preserve image src:", e);
+    if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG)
+      console.info("[parseFromHtml] Failed to preserve image src:", e);
   }
 
   // Check for tables before Readability
   const beforeDoc = new DOMParser().parseFromString(content, "text/html");
   const tablesBeforeReadability = beforeDoc.querySelectorAll("table");
-  console.warn(
-    `[parseFromHtml] Tables BEFORE Readability: ${tablesBeforeReadability.length}`,
-    tablesBeforeReadability.length > 0
-      ? Array.from(tablesBeforeReadability).map((t) => ({
-          class: t.className,
-          rows: t.querySelectorAll("tr").length,
-          cells: t.querySelectorAll("td, th").length,
-        }))
-      : "none",
-  );
+  if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG) {
+    console.info(
+      `[parseFromHtml] Tables BEFORE Readability: ${tablesBeforeReadability.length}`,
+      tablesBeforeReadability.length > 0
+        ? Array.from(tablesBeforeReadability).map((t) => ({
+            class: t.className,
+            rows: t.querySelectorAll("tr").length,
+            cells: t.querySelectorAll("td, th").length,
+          }))
+        : "none",
+    );
+  }
 
   content = execPreParser(content, links);
-  console.warn(
-    "[parseFromHtml] After execPreParser:",
-    content?.substring(0, 500),
-  );
+  if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG)
+    console.info(
+      "[parseFromHtml] After execPreParser:",
+      content?.substring(0, 500),
+    );
 
   // Note: applyCustomFormatting is called AFTER all HTML processing (see below)
   // to ensure format rules and unwrapping happen on the final HTML structure
 
   content = await extractWithReadability(content, bestUrl);
-  console.warn(
-    "[parseFromHtml] After extractWithReadability:",
-    content?.substring(0, 500),
-  );
+  if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG)
+    console.info(
+      "[parseFromHtml] After extractWithReadability:",
+      content?.substring(0, 500),
+    );
 
   // Check for tables after Readability
   const afterDoc = new DOMParser().parseFromString(content, "text/html");
   const tablesAfterReadability = afterDoc.querySelectorAll("table");
-  console.warn(
-    `[parseFromHtml] Tables AFTER Readability: ${tablesAfterReadability.length}`,
-    tablesAfterReadability.length > 0
-      ? Array.from(tablesAfterReadability).map((t) => ({
-          class: t.className,
-          rows: t.querySelectorAll("tr").length,
-          cells: t.querySelectorAll("td, th").length,
-        }))
-      : "⚠️ ALL TABLES REMOVED BY READABILITY",
-  );
+  if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG) {
+    console.info(
+      `[parseFromHtml] Tables AFTER Readability: ${tablesAfterReadability.length}`,
+      tablesAfterReadability.length > 0
+        ? Array.from(tablesAfterReadability).map((t) => ({
+            class: t.className,
+            rows: t.querySelectorAll("tr").length,
+            cells: t.querySelectorAll("td, th").length,
+          }))
+        : "⚠️ ALL TABLES REMOVED BY READABILITY",
+    );
+  }
 
   content = content ? execPostParser(content, links) : null;
-  console.warn(
-    "[parseFromHtml] After execPostParser:",
-    content?.substring(0, 500),
-  );
+  if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG)
+    console.info(
+      "[parseFromHtml] After execPostParser:",
+      content?.substring(0, 500),
+    );
 
   // DEBUG: Find and log the problematic "Software Counter Results" section
   if (content && content.includes("Software Counter Results")) {
@@ -15087,23 +15104,26 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
       content.length,
       content.indexOf("Software Counter Results") + 800,
     );
-    console.warn(
-      "[parseFromHtml] 🔍 SOFTWARE COUNTER RESULTS section (after execPostParser):",
-      JSON.stringify(content.substring(startIdx, endIdx)),
-    );
+    if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG)
+      console.info(
+        "[parseFromHtml] 🔍 SOFTWARE COUNTER RESULTS section (after execPostParser):",
+        JSON.stringify(content.substring(startIdx, endIdx)),
+      );
   }
 
   content = content ? applyCustomFormatting(content) : null;
-  console.warn(
-    "[parseFromHtml] After applyCustomFormatting:",
-    content?.substring(0, 500),
-  );
+  if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG)
+    console.info(
+      "[parseFromHtml] After applyCustomFormatting:",
+      content?.substring(0, 500),
+    );
   content = content
     ? cleanify(content, {
         sanitize: false,
       })
     : null;
-  console.warn("[parseFromHtml] After cleanify:", content?.substring(0, 500));
+  if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG)
+    console.info("[parseFromHtml] After cleanify:", content?.substring(0, 500));
 
   // DEBUG: Find and log the problematic section after cleanify
   if (content && content.includes("Software Counter Results")) {
@@ -15115,10 +15135,11 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
       content.length,
       content.indexOf("Software Counter Results") + 800,
     );
-    console.warn(
-      "[parseFromHtml] 🔍 SOFTWARE COUNTER RESULTS section (after cleanify):",
-      JSON.stringify(content.substring(startIdx, endIdx)),
-    );
+    if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG)
+      console.info(
+        "[parseFromHtml] 🔍 SOFTWARE COUNTER RESULTS section (after cleanify):",
+        JSON.stringify(content.substring(startIdx, endIdx)),
+      );
   }
 
   // Check for duplicate blocks in final content
@@ -15139,21 +15160,25 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
         ([_, count]) => count > 1,
       );
       if (duplicates.length > 0) {
-        console.warn(
-          `[parseFromHtml] ⚠️ FOUND ${duplicates.length} DUPLICATE SECTIONS in final content:`,
-        );
-        duplicates.forEach(([text, count]) => {
-          console.warn(
-            `  - "${text.substring(0, 60)}..." appears ${count} times`,
+        if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG) {
+          console.info(
+            `[parseFromHtml] ⚠️ FOUND ${duplicates.length} DUPLICATE SECTIONS in final content:`,
           );
-        });
+          duplicates.forEach(([text, count]) => {
+            console.info(
+              `  - "${text.substring(0, 60)}..." appears ${count} times`,
+            );
+          });
+        }
       } else {
-        console.warn(
-          "[parseFromHtml] ✓ No duplicate sections found in final content",
-        );
+        if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG)
+          console.info(
+            "[parseFromHtml] ✓ No duplicate sections found in final content",
+          );
       }
     } catch (e) {
-      console.warn("[parseFromHtml] Could not check for duplicates:", e);
+      if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG)
+        console.info("[parseFromHtml] Could not check for duplicates:", e);
     }
   }
 
@@ -15179,9 +15204,10 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
 
         // Skip elements that came from itemgroup - they should stay nested
         if (child.hasAttribute("data-itemgroup-content")) {
-          console.log(
-            `[parseFromHtml] Skipping <${tagName}> with data-itemgroup-content - preserving nesting`,
-          );
+          if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG)
+            console.info(
+              `[parseFromHtml] Skipping <${tagName}> with data-itemgroup-content - preserving nesting`,
+            );
           return false;
         }
 
@@ -15230,12 +15256,14 @@ var parseFromHtml = async (inputHtml, inputUrl = "", parserOptions = {}) => {
 
     if (blocksExtracted > 0) {
       content = doc.body.innerHTML;
-      console.log(
-        `[parseFromHtml] Extracted ${blocksExtracted} block elements from list items`,
-      );
+      if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG)
+        console.info(
+          `[parseFromHtml] Extracted ${blocksExtracted} block elements from list items`,
+        );
     }
   } catch (e) {
-    console.warn("[parseFromHtml] Could not fix list structure:", e);
+    if (DEBUG_SCANWEBPAGE || window.__STN_DEBUG)
+      console.info("[parseFromHtml] Could not fix list structure:", e);
   }
 
   var textContent2 = stripTags(content);

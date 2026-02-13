@@ -16791,6 +16791,87 @@ function Hv(e, t) {
     n + e + " |"
   );
 }
+function stnIsLegacyPlaceholderText(raw) {
+  if (!raw) return !1;
+  const trimmed = String(raw).trim();
+  if (!trimmed) return !1;
+  const candidates = [trimmed];
+  const withoutTrailingParens = trimmed.replace(/\(\s*\)$/g, "").trim();
+  if (
+    withoutTrailingParens &&
+    -1 === candidates.indexOf(withoutTrailingParens)
+  ) {
+    candidates.push(withoutTrailingParens);
+  }
+  if (trimmed.startsWith("(") && trimmed.endsWith(")")) {
+    const inner = trimmed.slice(1, -1).trim();
+    if (inner && -1 === candidates.indexOf(inner)) {
+      candidates.push(inner);
+    }
+    const innerWithoutTrailing = inner
+      ? inner.replace(/\(\s*\)$/g, "").trim()
+      : "";
+    if (
+      innerWithoutTrailing &&
+      -1 === candidates.indexOf(innerWithoutTrailing)
+    ) {
+      candidates.push(innerWithoutTrailing);
+    }
+  }
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i];
+    if (!candidate) continue;
+    if (/^\[[^\]]+\]$/.test(candidate)) return !0;
+    if (/^•\s*[^•]+\s*•$/.test(candidate)) return !0;
+  }
+  return !1;
+}
+function stnPruneLegacyPlaceholders(root) {
+  if (!root || !root.childNodes) return;
+  const queue = [root];
+  while (queue.length) {
+    const node = queue.shift();
+    if (!node || !node.childNodes) continue;
+    const childNodes = Array.from(node.childNodes);
+    childNodes.forEach((child) => {
+      if (child.nodeType === Node.TEXT_NODE) {
+        const content = child.textContent || "";
+        if (!content.trim() || stnIsLegacyPlaceholderText(content)) {
+          child.remove();
+          return;
+        }
+      } else if (child.nodeType === Node.ELEMENT_NODE) {
+        if (!child.childNodes || !child.childNodes.length) return;
+        const textContent = child.textContent || "";
+        const hasDescendantMedia =
+          (child.querySelector &&
+            child.querySelector(
+              "img, picture, video, audio, object, embed, iframe",
+            )) ||
+          !1;
+        if (!hasDescendantMedia && stnIsLegacyPlaceholderText(textContent)) {
+          child.remove();
+          return;
+        }
+        queue.push(child);
+      }
+    });
+  }
+}
+function stnPruneAroundImage(imgNode, anchorNode) {
+  if (!imgNode) return;
+  const seen = new Set();
+  const add = (node) => {
+    if (!node || seen.has(node) || !node.childNodes) return;
+    seen.add(node);
+    stnPruneLegacyPlaceholders(node);
+  };
+  add(imgNode.parentNode);
+  add(anchorNode);
+  if (imgNode.parentNode && imgNode.parentNode.parentNode) {
+    add(imgNode.parentNode.parentNode);
+  }
+}
 function Wv(e) {
   for (const t in zv) e.addRule(t, zv[t]);
   e.addRule("tableWithoutHeading", {
@@ -16842,6 +16923,8 @@ function Wv(e) {
             const parentAnchor =
               img.parentElement?.tagName === "A" ? img.parentElement : null;
 
+            stnPruneAroundImage(img, parentAnchor);
+
             // If getAttribute returns base64 but we have an anchor, try the anchor href
             // (ServiceNow wraps images in viewer links)
             if (src.startsWith("data:") && parentAnchor && parentAnchor.href) {
@@ -16871,6 +16954,8 @@ function Wv(e) {
             if (isValidUrl) {
               const titlePart = title ? ` "${title}"` : "";
               extractedImages.push(`![${alt}](${src}${titlePart})`);
+
+              stnPruneAroundImage(img, parentAnchor);
 
               // Detect inline text siblings so we can preserve spacing and show
               // a visible placeholder instead of collapsing the cell text.
@@ -16916,13 +17001,15 @@ function Wv(e) {
                   wrapper.className = "stn-inline-image";
                   wrapper.appendChild(preservedImg);
                   wrapper.appendChild(
-                    document.createTextNode(" • " + (alt || "Image") + " • "),
+                    document.createTextNode(
+                      " • [stn-anchor] " + (alt || "Image") + " • ",
+                    ),
                   );
                   img.replaceWith(wrapper);
                 } else {
                   const placeholderAlt = (alt && alt.trim()) || "Image";
                   const replacement = document.createTextNode(
-                    " • " + placeholderAlt + " • ",
+                    " • [stn-inline] " + placeholderAlt + " • ",
                   );
                   img.replaceWith(replacement);
                 }
@@ -16931,6 +17018,7 @@ function Wv(e) {
                 else img.remove();
               }
             } else {
+              stnPruneAroundImage(img, parentAnchor);
               if (parentAnchor) parentAnchor.remove();
               else img.remove();
             }
@@ -17110,6 +17198,8 @@ function Wv(e) {
             const parentAnchor =
               img.parentElement?.tagName === "A" ? img.parentElement : null;
 
+            stnPruneAroundImage(img, parentAnchor);
+
             // Prefer anchor href when present (often points to full-res image)
             if (parentAnchor) {
               const anchorHref =
@@ -17186,7 +17276,9 @@ function Wv(e) {
                   wrapper.className = "stn-inline-image";
                   wrapper.appendChild(preservedImg);
                   wrapper.appendChild(
-                    document.createTextNode(" • " + (alt || "Image") + " • "),
+                    document.createTextNode(
+                      " • [stn-anchor] " + (alt || "Image") + " • ",
+                    ),
                   );
                   img.replaceWith(wrapper);
                 } else {
@@ -17195,14 +17287,14 @@ function Wv(e) {
                   if (parentAnchor && parentAnchor.href) {
                     replacement = document.createElement("a");
                     replacement.href = parentAnchor.href;
-                    replacement.textContent = ` • ${placeholderAlt} • `;
+                    replacement.textContent = ` • [stn-inline] ${placeholderAlt} • `;
                   } else if (isValidUrl && src) {
                     replacement = document.createTextNode(
-                      ` • ${placeholderAlt} • `,
+                      ` • [stn-inline] ${placeholderAlt} • `,
                     );
                   } else {
                     replacement = document.createTextNode(
-                      ` • ${placeholderAlt} • `,
+                      ` • [stn-inline] ${placeholderAlt} • `,
                     );
                   }
                   img.replaceWith(replacement);
@@ -17215,12 +17307,12 @@ function Wv(e) {
               // Not a usable URL — remove element but keep spacing
               if (parentAnchor) {
                 const replacement = document.createTextNode(
-                  ` • ${alt || "Image"} • `,
+                  ` • [stn-invalid] ${alt || "Image"} • `,
                 );
                 parentAnchor.replaceWith(replacement);
               } else {
                 const replacement = document.createTextNode(
-                  ` • ${alt || "Image"} • `,
+                  ` • [stn-invalid] ${alt || "Image"} • `,
                 );
                 img.replaceWith(replacement);
               }

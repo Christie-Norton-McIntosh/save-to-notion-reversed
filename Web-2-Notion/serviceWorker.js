@@ -90,7 +90,11 @@ async function Y() {
   return new Promise((e, t) => {
     try {
       chrome.tabs.query({ currentWindow: !0, active: !0 }, function (n) {
-        e(n[0]);
+        if (n && n.length > 0) {
+          e(n[0]);
+        } else {
+          t(new Error("No active tab found"));
+        }
       });
     } catch (n) {
       t(n);
@@ -98,7 +102,12 @@ async function Y() {
   });
 }
 async function z(e, t, n) {
-  const o = n || (await Y()).id;
+  let o;
+  try {
+    o = n || (await Y()).id;
+  } catch (i) {
+    throw new Error(`Cannot get tab ID for message: ${i.message}`);
+  }
   return new Promise((i) => {
     chrome.tabs.sendMessage(
       o,
@@ -155,7 +164,18 @@ function Ji(e) {
   );
 }
 async function he(e, t) {
-  const n = t || (await Y()).id;
+  let n;
+  try {
+    if (typeof t === "number") {
+      // t is already a tab ID
+      n = t;
+    } else {
+      // t is undefined/null, get current tab ID
+      n = t || (await Y()).id;
+    }
+  } catch (o) {
+    throw new Error(`Cannot get tab ID: ${o.message}`);
+  }
   return new Promise(async (o) => {
     const i = await Rt({ target: { tabId: n }, func: Ki, args: [Ji(e)] });
     o(i);
@@ -178,7 +198,12 @@ async function jt(e, { file: t, params: n }, o) {
   );
 }
 async function Ne(e, t) {
-  const n = t || (await Y());
+  let n;
+  try {
+    n = t || (await Y());
+  } catch (o) {
+    throw new Error(`Cannot get tab for file ${e}: ${o.message}`);
+  }
   return await new Promise((o) =>
     jt(n.id, { file: `/${e}` }, (i) => {
       o(i == null ? void 0 : i[0]);
@@ -247,6 +272,12 @@ async function mn(e, t, n, o) {
 const Rt = async (e) => {
   if (!Mo) return chrome.scripting.executeScript(e);
   const t = e.target.tabId;
+  if (!t) {
+    console.error("[Web-2-Notion][Rt] Missing required property tabId in", e);
+    throw new Error(
+      "Missing required property tabId in scripting.executeScript",
+    );
+  }
   if (e.func) {
     const o = e.args || [],
       a = `(${e.func.toString()})(${o.map((s) => JSON.stringify(s)).join(",")})`;
@@ -4008,29 +4039,48 @@ async function qr(e) {
       },
     }));
 }
-async function Ze(e, t, n) {
-  await es(null, n);
+async function Ne(e, t) {
+  let n, tabId;
+  try {
+    if (typeof t === "number") {
+      // t is already a tab ID
+      tabId = t;
+    } else if (t && typeof t === "object" && t.id) {
+      // t is a tab object
+      tabId = t.id;
+    } else {
+      // t is undefined/null, get current tab
+      n = t || (await Y());
+      tabId = n.id;
+    }
+  } catch (o) {
+    console.error(`[Web-2-Notion][Ne] Cannot get tab for file ${e}:`, o);
+    throw new Error(`Cannot get tab for file ${e}: ${o.message}`);
+  }
+  if (!tabId) {
+    console.error(`[Web-2-Notion][Ne] No valid tabId for file ${e}:`, {
+      t,
+      n,
+      tabId,
+    });
+    throw new Error(`No valid tabId for file ${e}`);
+  }
+  return await new Promise((o) =>
+    jt(tabId, { file: `/${e}` }, (i) => {
+      o(i == null ? void 0 : i[0]);
+    }),
+  );
 }
-async function ra(e) {
-  return Ze("initFloating", void 0, e);
-}
-async function Gr(e, t, n) {
-  const o = Nt();
-  ts({ idName: o, popupUrl: Fo(), action: e, props: t }, n);
-}
-var Ct,
-  Ao,
-  Bo,
-  it =
-    ((Bo =
-      (Ao =
-        (Ct = chrome == null ? void 0 : chrome.runtime) == null
-          ? void 0
-          : Ct.getManifest) == null
+it =
+  ((Bo =
+    (Ao =
+      (Ct = chrome == null ? void 0 : chrome.runtime) == null
         ? void 0
-        : Ao.call(Ct)) == null
+        : Ct.getManifest) == null
       ? void 0
-      : Bo.description.includes("Safari")) ?? !1;
+      : Ao.call(Ct)) == null
+    ? void 0
+    : Bo.description.includes("Safari")) ?? !1;
 const uo =
     "Web-2-Notion cannot be used on the current page, please try on a different page.",
   Qr = [
@@ -8554,8 +8604,15 @@ async function ml(e, t) {
   if (!(e in i)) throw `incorrect route '${e}'`;
   return i[e](...t);
 }
-async function wl(e) {
-  return (await he({ __save_to_notion_customs: e }), Ne("getCustomCssData.js"));
+async function wl(e, t) {
+  if (!t) {
+    console.error("[Web-2-Notion][wl] Called without tabId", { customs: e, t });
+    throw new Error("wl called without tabId");
+  }
+  return (
+    await he({ __save_to_notion_customs: e }, t),
+    Ne("getCustomCssData.js", t)
+  );
 }
 async function ko(e) {
   const t = await e.text();
@@ -8834,7 +8891,16 @@ const El = Object.freeze(
     chromeTabsQuery: async (e) => Ut(chrome.tabs.query, e.data),
     expandPopup: async (e) => {},
     toggleOpenHistoryPopover: async (e) => {},
-    getDataOnPage: async (e) => (await wl(e.data.customs)) ?? [],
+    getDataOnPage: async (e, t) => {
+      if (!t || !t.tab || !t.tab.id) {
+        console.error("[Web-2-Notion][getDataOnPage] Missing tab or tab.id", {
+          e,
+          t,
+        });
+        throw new Error("getDataOnPage called without valid tab.id");
+      }
+      return (await wl(e.customs, t.tab.id)) ?? [];
+    },
     findAllHighlightsOnPage: async (e) => {
       const t = await Promise.all(
         e.capturedWebpage.highlights.map((n) => m.highlight.get(n)),
@@ -9644,33 +9710,35 @@ function Ea() {
       })));
 }
 async function Ll() {
-  (chrome.contextMenus.create({
-    title: "Add Highlight",
-    id: "stn_add_highlights",
-    contexts: ["selection"],
-    documentUrlPatterns: ["*://*/*"],
-  }),
-    Ea(),
-    Ce.onClicked.addListener(Bt),
-    chrome.contextMenus.onClicked.addListener(cc),
-    chrome.commands.onCommand.addListener(lc),
-    chrome.runtime.onMessage.addListener(jl),
-    chrome.runtime.onInstalled.addListener(async (e) => {
-      (await m.info.load()).installedAt
-        ? Dt("extension_updated")
-        : (await m.info.save({ installedAt: new Date().toISOString() }),
-          Dt("extension_first_installed"),
-          chrome.tabs.create({
-            url: chrome.runtime.getURL("welcome/welcome.html"),
-          }));
-    }),
-    chrome.runtime.onConnect.addListener(Rl),
-    ge || (Gs(), Qs()),
-    Pn().then(async (e) => {
-      e && (await $e(1e3), Tn());
-    }),
-    yc().then(async (e) => {
-      e && xn();
-    }));
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      title: "Add Highlight",
+      id: "stn_add_highlights",
+      contexts: ["selection"],
+      documentUrlPatterns: ["*://*/*"],
+    });
+    Ea();
+  });
+  Ce.onClicked.addListener(Bt);
+  chrome.contextMenus.onClicked.addListener(cc);
+  chrome.commands.onCommand.addListener(lc);
+  chrome.runtime.onMessage.addListener(jl);
+  chrome.runtime.onInstalled.addListener(async (e) => {
+    (await m.info.load()).installedAt
+      ? Dt("extension_updated")
+      : (await m.info.save({ installedAt: new Date().toISOString() }),
+        Dt("extension_first_installed"),
+        chrome.tabs.create({
+          url: chrome.runtime.getURL("welcome/welcome.html"),
+        }));
+  });
+  chrome.runtime.onConnect.addListener(Rl);
+  ge || (Gs(), Qs());
+  Pn().then(async (e) => {
+    e && (await $e(1e3), Tn());
+  });
+  yc().then(async (e) => {
+    e && xn();
+  });
 }
 Ll();
