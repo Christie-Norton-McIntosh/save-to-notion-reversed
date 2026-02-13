@@ -1,6 +1,5 @@
 # Changelog
 
-
 ## [6.0.0] - 2026-02-13
 
 ### Major Release
@@ -11,12 +10,13 @@
 - **Extension Folder Slimmed**: Docs, backups, and test files have been moved out of the extension folder to reduce bulk and improve maintainability.
 
 ### Changed
+
 - Reduced Web-2-Notion folder size by moving non-essential files to `/dev-tools/`, `/docs/`, and `/tests/`.
 - All Chrome extension core functionality remains intact and unchanged.
 
 ### Added
-- Created organized `/dev-tools/`, `/docs/`, and `/tests/` directory structure for development, documentation, and test files.
 
+- Created organized `/dev-tools/`, `/docs/`, and `/tests/` directory structure for development, documentation, and test files.
 
 ## Previous Entries
 

@@ -17,6 +17,6 @@
 // current `main.js` in the repository. If you need the actual
 // contents here, use the committed `Web-2-Notion/popup/static/js/main.js`.
 
-module.exports = require("./main.js");
+module.exports = require("../Web-2-Notion/popup/static/js/main.js");
 
 // === End recovered wrapper ===
