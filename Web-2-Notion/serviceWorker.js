@@ -8926,7 +8926,14 @@ const El = Object.freeze(
       await ae.set("iframeOpenMode", "quickNote"),
       !0
     ),
-    clipContent: async (e, t) => (Gr(e.action, e.props || null, t.tab.id), !0),
+    clipContent: async (e, t) => (
+      // Forward clipContent actions to the content script via `go` which
+      // injects/executes `clipContent.js` in the target tab and returns
+      // the result. Previously this invoked an undefined `Gr` symbol and
+      // caused a ReferenceError at runtime.
+      await go(e.action, e.props || null, (t == null ? void 0 : t.tab) == null ? void 0 : t.tab.id),
+      !0
+    ),
     uploadDataUrlBatch: async (e, t) => {
       console.log("[ServiceWorker] uploadDataUrlBatch message received");
       try {

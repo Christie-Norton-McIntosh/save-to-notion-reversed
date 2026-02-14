@@ -3616,6 +3616,46 @@ z-index: 2;
             }
           }
 
+          // If we found obvious content elements, return them. If not,
+          // attempt a deeper "drill-down" search: many sites wrap text in
+          // several layers of DIVs (or use application-generated wrappers)
+          // so look for meaningful descendant nodes and use those.
+          if (contentElements.length === 0) {
+            console.log(
+              "[extractContentData] No direct contentElements found — running deep-drill to locate meaningful descendants",
+            );
+            try {
+              const deepCandidates = Array.from(
+                article.querySelectorAll(
+                  "p, h2, h3, h4, h5, h6, li, td, th, div, section",
+                ),
+              )
+                .map((el) => ({ el, len: (el.textContent || "").trim().length }))
+                .filter((it) => it.len > 20) // require a small minimum
+                .sort((a, b) => b.len - a.len)
+                .map((it) => it.el);
+
+              // Deduplicate by containment: prefer parents that contain
+              // smaller matches so we don't return nested fragments.
+              const selected = [];
+              for (const cand of deepCandidates) {
+                if (!selected.some((s) => s.contains(cand) || cand.contains(s))) {
+                  selected.push(cand);
+                }
+                if (selected.length >= 10) break;
+              }
+
+              if (selected.length > 0) {
+                console.log(
+                  `[extractContentData] Deep-drill found ${selected.length} candidate(s)`,
+                );
+                contentElements.push(...selected);
+              }
+            } catch (err) {
+              console.warn("[extractContentData] deep-drill failed:", err);
+            }
+          }
+
           if (contentElements.length > 0) {
             return {
               title: title,
