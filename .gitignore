@@ -20,10 +20,4 @@ tests/log/
 save-to-notion-reversed-*.tgz
 
 .git.backup-*
-.git.backup-*
-# Backup directories created by external tooling — collapse to a single glob
-# (collapsed verbose per-file listings for all .git.backup-* directories)
-.git.backup-*
-# collapsed verbose per-file listings for all .git.backup-* directories
-# (individual object entries were removed because the glob above already ignores
-#  the entire backup directories)
+# Backup directories created by external tooling — collapsed to a single glob
