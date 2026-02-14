@@ -19,9 +19,13 @@
   const AUTO_PAGINATION_STATE_KEY = "__stn_auto_pagination_state";
 
   /**
-   * Find element in shadow DOMs (reusing pattern from getCustomCssData.js)
+   * Find element in shadow DOMs (reusing shared helper when available)
    */
   function findInShadowDOM(selector, root = document, depth = 0) {
+    if (typeof window !== "undefined" && window.querySelectorDeep) {
+      return window.querySelectorDeep(selector, root);
+    }
+
     if (depth > 20) {
       return null;
     }
