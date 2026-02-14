@@ -3076,6 +3076,41 @@ z-index: 2;
         domain = domain.split(":")[0];
         return domain.trim().toLowerCase();
       }
+
+      // Find selectors for a hostname by matching the stored selector keys
+      // and progressively falling back from most-specific (full host) to
+      // less-specific (strip left-most subdomains). Returned value is an
+      // array of normalized selector entries: {selector, embeddedPostFormat}.
+      function findSelectorsForHostname(allSelectors, hostname) {
+        if (!hostname) return [];
+        const parts = hostname.split(".").filter(Boolean);
+        for (let i = 0; i <= Math.max(0, parts.length - 2); i++) {
+          const candidate = parts.slice(i).join(".");
+          const entry = allSelectors[candidate];
+          if (entry) {
+            if (Array.isArray(entry)) {
+              return entry
+                .filter((it) => it && it.selector)
+                .map((it) => ({
+                  selector: it.selector,
+                  embeddedPostFormat: !!it.embeddedPostFormat,
+                }));
+            }
+            if (typeof entry === "string") {
+              return [{ selector: entry, embeddedPostFormat: false }];
+            }
+            if (entry && typeof entry === "object") {
+              return [
+                {
+                  selector: entry.selector || null,
+                  embeddedPostFormat: !!entry.embeddedPostFormat,
+                },
+              ].filter((it) => it.selector);
+            }
+          }
+        }
+        return [];
+      }
       // Helper function to get custom selectors for current domain (supports multiple entries)
       function getCustomSelectorsForCurrentDomain() {
         return new Promise((resolve) => {
@@ -3092,27 +3127,17 @@ z-index: 2;
               selectors,
             );
 
-            const selectorEntry = selectors[currentDomain];
-            let selectorArray = [];
-            if (Array.isArray(selectorEntry)) {
-              selectorArray = selectorEntry
-                .filter((item) => item && item.selector)
-                .map((item) => ({
-                  selector: item.selector,
-                  embeddedPostFormat: !!item.embeddedPostFormat,
-                }));
-            } else if (typeof selectorEntry === "string") {
-              selectorArray = [
-                { selector: selectorEntry, embeddedPostFormat: false },
-              ];
-            } else if (selectorEntry && typeof selectorEntry === "object") {
-              selectorArray = [
-                {
-                  selector: selectorEntry.selector || null,
-                  embeddedPostFormat: !!selectorEntry.embeddedPostFormat,
-                },
-              ].filter((item) => item.selector);
+            // Use top-level helper to locate selectors for this hostname
+            try {
+              window.__stn_findSelectorsForHostname = findSelectorsForHostname;
+            } catch (e) {
+              /* ignore in non-browser test runners */
             }
+
+            const selectorArray = findSelectorsForHostname(
+              selectors,
+              currentDomain,
+            );
 
             console.log(
               "[getCustomSelectorsForCurrentDomain] Resolved selectors for",
