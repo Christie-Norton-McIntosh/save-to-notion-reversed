@@ -9,22 +9,54 @@ ldmmifpegigmeammaeckplhnjbbpccmm.zip
 # Node modules (if ever reintroduced)
 node_modules/
 
-# VS Code workspace settings
+.# Editor / workspace
 *.code-workspace
-.vscode/tasks.json
+.vscode/
+
+# test artifacts / logs
 tests/log/
-tests/diagnostic-table-cell-expansion.js
-tests/diagnostic-table-cell-images.js
-tests/test-e2e-servicenow-r_ITServiceManagement.js
-tests/test-paragraph-xcellidx-expansion.js
-tests/test-popup-empty-cell-guard.js
-tests/test-popup-xcellidx-missing-map-fallback.js
-tests/test-scanWithRetry-integration.js
-tests/test-scanWithRetry.js
-tests/test-table-image-empty-alt.js
-tests/test-table-multi-paragraph-cell.js
-tests/test-table-to-bullet-list-with-images.js
-tests/test-tabletoList-inserts-fallback-xcellidx.js
-tests/fixtures/servicenow-r_ITServiceManagement.html
-tests/test-table-multi-paragraph-cell.js
+
+# packaged artifacts
 save-to-notion-reversed-*.tgz
+
+.git.backup-*
+.git.backup-1770530374/refs/stash
+.git.backup-1770530374/refs/heads/main
+.git.backup-1770530374/refs/heads/copilot/vscode1770262702973
+.git.backup-1770530374/refs/heads/copilot/vscode1770325179907
+.git.backup-1770530374/refs/heads/feat/e2e-base64-image-upload
+.git.backup-1770530374/refs/heads/feature/site-selectors-button
+.git.backup-1770530374/refs/heads/hotfix/marker-recovery
+.git.backup-1770530374/refs/heads/major/v5.0.0-update
+.git.backup-1770530374/refs/remotes/origin/HEAD
+.git.backup-1770530374/refs/remotes/origin/main
+.git.backup-1770530374/refs/remotes/origin/copilot/fix-itemgroup-appending-issue
+.git.backup-1770530374/refs/remotes/origin/copilot/sub-pr-10
+.git.backup-1770530374/refs/remotes/origin/copilot/vscode1770262702973
+.git.backup-1770530374/refs/remotes/origin/copilot/vscode1770325179907
+.git.backup-1770530374/refs/remotes/origin/feat/e2e-base64-image-upload
+.git.backup-1770530374/refs/remotes/origin/hotfix/marker-recovery
+.git.backup-1770530374/refs/tags/restore-2026-01-27-000931
+.git.backup-1770530374/refs/tags/restore-2026-01-28-001029
+.git.backup-1770530374/refs/tags/restore-2026-01-28-190210
+.git.backup-1770530374/refs/tags/restore-2026-01-28-234034
+.git.backup-1770530374/refs/tags/restore-2026-01-30-004806
+.git.backup-1770530374/refs/tags/restore-2026-01-30-161843
+.git.backup-1770530374/refs/tags/restore-2026-01-30-180147
+.git.backup-1770530374/refs/tags/restore-2026-01-30-232515
+.git.backup-1770530374/refs/tags/restore-2026-01-31-120528
+.git.backup-1770530374/refs/tags/restore-2026-01-31-222641
+.git.backup-1770530374/refs/tags/restore-2026-02-01-172540
+.git.backup-1770530374/refs/tags/restore-2026-02-06-124459
+.git.backup-1770530374/refs/tags/restore-2026-02-06-140432
+.git.backup-1770530374/refs/tags/restore-2026-02-06-163343
+.git.backup-1770530374/refs/tags/restore-2026-02-06-164314
+.git.backup-1770530374/refs/tags/restore-2026-02-06-230303
+.git.backup-1770530605/COMMIT_EDITMSG
+.git.backup-*
+# Backup directories created by external tooling — collapse to a single glob
+# (collapsed verbose per-file listings for all .git.backup-* directories)
+.git.backup-*
+# collapsed verbose per-file listings for all .git.backup-* directories
+# (individual object entries were removed because the glob above already ignores
+#  the entire backup directories)
