@@ -154,13 +154,8 @@
     /***/ 18: /***/ function (module, exports, __webpack_require__) {
       "use strict";
 
-      // Shadow-aware selector. Prefer the shared helper if present (querySelectorDeep),
-      // otherwise fall back to the local recursive implementation.
+      // Recursively search shadow DOMs for an element matching the selector
       function findInShadowDOM(selector, root = document, depth = 0) {
-        if (typeof window !== "undefined" && window.querySelectorDeep) {
-          return window.querySelectorDeep(selector, root);
-        }
-
         // Limit recursion depth to prevent infinite loops
         if (depth > 20) {
           console.warn("getData: Max shadow DOM depth reached");
@@ -172,6 +167,12 @@
 
         for (const element of allElements) {
           if (element.shadowRoot) {
+            // Commented out to reduce console noise - only log when found
+            // console.debug(
+            //   `getData: Checking shadow root of ${element.tagName} at depth ${depth}...`,
+            // );
+
+            // Try to find the element in this shadow root
             const match = element.shadowRoot.querySelector(selector);
             if (match) {
               console.log(
@@ -180,6 +181,7 @@
               return match;
             }
 
+            // Recurse into this shadow root
             const nestedMatch = findInShadowDOM(
               selector,
               element.shadowRoot,
