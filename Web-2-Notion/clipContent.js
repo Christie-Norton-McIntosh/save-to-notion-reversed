@@ -1585,6 +1585,95 @@
               currentNode,
               selectorEntries,
             );
+
+            // If we used custom selectors, visually highlight the elements that
+            // matched so the user can see the full section(s) the selector will
+            // capture.  This mirrors the field/list augmentation behaviour used
+            // elsewhere in the picker UI.
+            try {
+              if (selectorEntries && selectorEntries.length > 0) {
+                const matching = new Set();
+                selectorEntries.forEach((entry) => {
+                  if (!entry || !entry.selector) return;
+                  const sel = String(entry.selector).trim();
+                  try {
+                    // Prefer document-level matches, then root-scoped matches,
+                    // then shadow-root if available (same strategy as
+                    // extractContentData).
+                    const docMatches = Array.from(
+                      document.querySelectorAll(sel || ""),
+                    );
+                    if (docMatches && docMatches.length) {
+                      docMatches.forEach((m) => matching.add(m));
+                      return;
+                    }
+                  } catch (err) {
+                    // invalid selectors will be ignored here — extraction will
+                    // already have handled validation.
+                  }
+
+                  try {
+                    const rootMatches = Array.from(
+                      (currentNode && currentNode.querySelectorAll(sel)) || [],
+                    );
+                    if (rootMatches && rootMatches.length) {
+                      rootMatches.forEach((m) => matching.add(m));
+                      return;
+                    }
+                  } catch (err) {
+                    /* ignore */
+                  }
+
+                  try {
+                    if (currentNode && currentNode.getRootNode) {
+                      const root = currentNode.getRootNode();
+                      if (root instanceof ShadowRoot) {
+                        const shadowMatches = Array.from(
+                          root.querySelectorAll(sel),
+                        );
+                        if (shadowMatches && shadowMatches.length) {
+                          shadowMatches.forEach((m) => matching.add(m));
+                          return;
+                        }
+                      }
+                    }
+                  } catch (err) {
+                    /* ignore */
+                  }
+                });
+
+                const matchingElements = Array.from(matching).slice(0, 20);
+
+                // If selectors existed but produced no DOM matches, fall back to
+                // highlighting a reasonable container so users still get visual
+                // feedback (article or the selected node).
+                if (
+                  matchingElements.length === 0 &&
+                  contentData &&
+                  contentData.elementCount > 0
+                ) {
+                  const fallbackEl =
+                    (currentNode &&
+                      currentNode.closest &&
+                      currentNode.closest("article")) ||
+                    document.querySelector("article") ||
+                    currentNode ||
+                    document.body;
+                  if (fallbackEl) matchingElements.push(fallbackEl);
+                }
+
+                if (matchingElements.length > 0) {
+                  // displayFieldAugmentation will create overlays and they'll be
+                  // cleaned up automatically when the picker closes.
+                  displayFieldAugmentation(matchingElements);
+                }
+              }
+            } catch (err) {
+              console.warn(
+                "[startContentConfirmSelection] failed to highlight selectors:",
+                err,
+              );
+            }
             console.log(
               "[startContentConfirmSelection] Content data:",
               contentData,
@@ -1597,8 +1686,35 @@
                   {
                     name: `Extract Content (${contentData.textContent.length} chars)`,
                     callback: () => {
+                      // Close the small confirm dialog immediately so the UI
+                      // responds. Run extractContent and ensure we always
+                      // close the picker even if extraction fails.
                       confirmState._cancelConfirmSelectionDialog();
-                      manager.extractContent();
+                      try {
+                        // manager.extractContent is async; guard errors so a
+                        // rejected promise doesn't leave the picker open.
+                        const p = manager.extractContent();
+                        if (p && typeof p.catch === "function") {
+                          p.catch((err) => {
+                            console.error(
+                              "manager.extractContent failed:",
+                              err,
+                            );
+                            try {
+                              manager.stopClipZone(true, null);
+                            } catch (e) {
+                              /* tolerate */
+                            }
+                          });
+                        }
+                      } catch (err) {
+                        console.error("manager.extractContent threw:", err);
+                        try {
+                          manager.stopClipZone(true, null);
+                        } catch (e) {
+                          /* tolerate */
+                        }
+                      }
                     },
                   },
                 ],
@@ -1636,12 +1752,21 @@
               totalFields: fields.length,
             };
 
-            chrome.runtime.sendMessage({
-              popup: {
-                name: "pickFieldsAdded",
-                args: payload,
-              },
-            });
+            // Protect against synchronous failures in sendMessage (can
+            // happen if the extension background/service-worker restarts).
+            try {
+              chrome.runtime.sendMessage({
+                popup: {
+                  name: "pickFieldsAdded",
+                  args: payload,
+                },
+              });
+            } catch (err) {
+              console.warn(
+                "extractFields: chrome.runtime.sendMessage threw",
+                err,
+              );
+            }
 
             manager.stopClipZone(true, payload);
           });
@@ -1672,7 +1797,7 @@
               contentData.embeddedPostFormat,
             );
 
-            console.log("[clipContent] Sending pickContentAdded payload:");
+            console.log("[clipContent] Sending clipContentAdded payload:");
             console.log("  - Title:", payload.title);
             console.log("  - Content length:", payload.content?.length || 0);
             console.log(
@@ -1690,12 +1815,22 @@
             );
             console.log("  - Full payload keys:", Object.keys(payload));
 
-            chrome.runtime.sendMessage({
-              popup: {
-                name: "pickContentAdded",
-                args: payload,
-              },
-            });
+            // Ensure popup message failures don't prevent the picker from
+            // closing — wrap sendMessage so synchronous exceptions are
+            // handled and the picker still calls stopClipZone.
+            try {
+              chrome.runtime.sendMessage({
+                popup: {
+                  name: "clipContentAdded",
+                  args: payload,
+                },
+              });
+            } catch (err) {
+              console.warn(
+                "extractContent: chrome.runtime.sendMessage threw",
+                err,
+              );
+            }
 
             manager.stopClipZone(true, payload);
           });
@@ -3630,7 +3765,10 @@ z-index: 2;
                   "p, h2, h3, h4, h5, h6, li, td, th, div, section",
                 ),
               )
-                .map((el) => ({ el, len: (el.textContent || "").trim().length }))
+                .map((el) => ({
+                  el,
+                  len: (el.textContent || "").trim().length,
+                }))
                 .filter((it) => it.len > 20) // require a small minimum
                 .sort((a, b) => b.len - a.len)
                 .map((it) => it.el);
@@ -3639,7 +3777,9 @@ z-index: 2;
               // smaller matches so we don't return nested fragments.
               const selected = [];
               for (const cand of deepCandidates) {
-                if (!selected.some((s) => s.contains(cand) || cand.contains(s))) {
+                if (
+                  !selected.some((s) => s.contains(cand) || cand.contains(s))
+                ) {
                   selected.push(cand);
                 }
                 if (selected.length >= 10) break;

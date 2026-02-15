@@ -3,7 +3,9 @@ const fs = require("fs");
 const path = require("path");
 const assert = require("assert");
 
-console.log("🧪 test-custom-selectors-domain-match — findSelectorsForHostname helper");
+console.log(
+  "🧪 test-custom-selectors-domain-match — findSelectorsForHostname helper",
+);
 
 const clipPath = path.join(__dirname, "..", "Web-2-Notion", "clipContent.js");
 const src = fs.readFileSync(clipPath, "utf8");

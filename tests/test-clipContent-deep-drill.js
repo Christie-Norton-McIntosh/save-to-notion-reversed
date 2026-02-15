@@ -3,7 +3,9 @@ const fs = require("fs");
 const path = require("path");
 const assert = require("assert");
 
-console.log("🧪 test-clipContent-deep-drill — extractContentData should drill into wrapped content");
+console.log(
+  "🧪 test-clipContent-deep-drill — extractContentData should drill into wrapped content",
+);
 
 const clipPath = path.join(__dirname, "..", "Web-2-Notion", "clipContent.js");
 const src = fs.readFileSync(clipPath, "utf8");
@@ -71,16 +73,19 @@ const html = `
 
 doc.body.innerHTML = html;
 
-const root = doc.querySelector('.wrapper');
-const res = win.extractContentData(root, '.wrapper');
+const root = doc.querySelector(".wrapper");
+const res = win.extractContentData(root, ".wrapper");
 
 if (!res) {
-  console.error('❌ extractContentData returned null — expected content');
+  console.error("❌ extractContentData returned null — expected content");
   process.exit(1);
 }
 
-assert(res.textContent.indexOf('This is the important paragraph') !== -1, 'Deep paragraph should be present in extracted text');
-assert(res.elementCount >= 1, 'Expected at least one elementCount');
+assert(
+  res.textContent.indexOf("This is the important paragraph") !== -1,
+  "Deep paragraph should be present in extracted text",
+);
+assert(res.elementCount >= 1, "Expected at least one elementCount");
 
-console.log('✅ PASSED');
+console.log("✅ PASSED");
 process.exit(0);

@@ -60,7 +60,7 @@ Added **selector validation and cleaning** in `extractContentData()` (clipConten
 [extractContentData] Cleaned selector: .body
 [extractContentData] Found article content
 ✓ Content extracted successfully
-[clipContent] Sending pickContentAdded payload:
+[clipContent] Sending clipContentAdded payload:
   - Content length: 2456
   - Text length: 523
 ```

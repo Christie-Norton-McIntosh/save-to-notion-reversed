@@ -8926,14 +8926,19 @@ const El = Object.freeze(
       await ae.set("iframeOpenMode", "quickNote"),
       !0
     ),
-    clipContent: async (e, t) => (
+    clipContent: async (e, t) =>
       // Forward clipContent actions to the content script via `go` which
       // injects/executes `clipContent.js` in the target tab and returns
       // the result. Previously this invoked an undefined `Gr` symbol and
       // caused a ReferenceError at runtime.
-      await go(e.action, e.props || null, (t == null ? void 0 : t.tab) == null ? void 0 : t.tab.id),
-      !0
-    ),
+      (
+        await go(
+          e.action,
+          e.props || null,
+          (t == null ? void 0 : t.tab) == null ? void 0 : t.tab.id,
+        ),
+        !0
+      ),
     uploadDataUrlBatch: async (e, t) => {
       console.log("[ServiceWorker] uploadDataUrlBatch message received");
       try {
@@ -9553,14 +9558,24 @@ async function $l(e, t) {
         Tt.popupAsk(e.popup.name, e.popup.args));
       return;
     }
-    return (
-      le("send again", (o = t.tab) == null ? void 0 : o.id),
+
+    // If popupExchange hasn't been established (Tt.popupAsk is null),
+    // broadcast the popup message via chrome.runtime.sendMessage so any
+    // extension pages (popup/options) listening on `runtime.onMessage`
+    // will receive the event. Previously this fell back to
+    // chrome.tabs.sendMessage which only targets the content script and
+    // prevented the options/popup from receiving pick-* events.
+    try {
+      chrome.runtime.sendMessage({ ...e, fromBackground: true });
+    } catch (err) {
+      // best-effort: still attempt to notify the originating tab
+      le("send again (tab fallback)", (o = t.tab) == null ? void 0 : o.id);
       chrome.tabs.sendMessage((i = t.tab) == null ? void 0 : i.id, {
         ...e,
-        fromBackground: !0,
-      }),
-      null
-    );
+        fromBackground: true,
+      });
+    }
+    return null;
   }
   const n = Fl(e.type);
   return n
